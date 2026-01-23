@@ -1,0 +1,15 @@
+.env
+__pycache__/
+*.pyc
+.DS_Store
+downloads/
+output/
+
+# Large data files
+
+# Temporary files
+*.tmp
+*.log
+
+# Agent submodules
+.agent/skills/skills-updater/
