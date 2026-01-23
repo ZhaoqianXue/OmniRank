@@ -11,5 +11,5 @@ output/
 *.tmp
 *.log
 
-# Agent submodules
-.agent/skills/skills-updater/
+# Agent configurations (should not be version controlled)
+.agent/
