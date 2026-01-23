@@ -11,5 +11,3 @@ output/
 *.tmp
 *.log
 
-# Agent configurations (should not be version controlled)
-.agent/
