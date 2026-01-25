@@ -32,25 +32,25 @@ export interface OmniRankState {
   // Session
   sessionId: string | null;
   status: AnalysisStatus;
-  
+
   // File
   filename: string | null;
   schema: InferredSchema | null;
   warnings: ValidationWarning[];
-  
+
   // Config
   config: AnalysisConfig | null;
-  
+
   // Results
   results: RankingResults | null;
-  
+
   // Chat
   messages: ChatMessage[];
-  
+
   // Progress
   progress: number;
   progressMessage: string;
-  
+
   // Error
   error: string | null;
 }
@@ -58,6 +58,14 @@ export interface OmniRankState {
 // ============================================================================
 // Initial State
 // ============================================================================
+
+const WELCOME_MESSAGE: ChatMessage = {
+  id: "welcome-message",
+  role: "assistant",
+  content: "Welcome to OmniRank! I'm OmniRank Assistant — here to help you navigate and use this platform. I can answer questions, perform ranking analysis, and analyze results. Let me know what you need help with!",
+  timestamp: 0, // Stable timestamp to prevent SSR hydration mismatch
+  agent: "analyst",
+};
 
 const initialState: OmniRankState = {
   sessionId: null,
@@ -67,7 +75,7 @@ const initialState: OmniRankState = {
   warnings: [],
   config: null,
   results: null,
-  messages: [],
+  messages: [WELCOME_MESSAGE],
   progress: 0,
   progressMessage: "",
   error: null,
@@ -120,11 +128,11 @@ export function useOmniRank() {
       progressMessage: "Uploading file...",
     }));
 
-    addMessage("system", `Uploading ${file.name}...`);
+    addMessage("user", `Uploading ${file.name}...`);
 
     try {
       const response = await uploadFile(file);
-      
+
       // Connect WebSocket for this session
       wsRef.current = createWebSocket(
         response.session_id,
@@ -223,7 +231,7 @@ export function useOmniRank() {
           if (result.status === "completed" && result.results) {
             clearInterval(pollingRef.current!);
             pollingRef.current = null;
-            
+
             setState((prev) => {
               // Only update if not already completed (WebSocket might have delivered first)
               if (prev.status !== "completed") {
@@ -265,8 +273,14 @@ export function useOmniRank() {
 
   // Send a follow-up question to the Analyst Agent
   const sendMessage = useCallback(async (message: string) => {
-    if (!state.sessionId || !state.results) {
-      throw new Error("No analysis results available");
+    if (!state.sessionId) {
+      addMessage("assistant", "Please upload a dataset first so I can help you analyze it.", "analyst");
+      return;
+    }
+
+    if (!state.results) {
+      addMessage("assistant", "I'm still analyzing your data. Please wait a moment for the results.", "analyst");
+      return;
     }
 
     // Add user message
@@ -274,7 +288,7 @@ export function useOmniRank() {
 
     try {
       const response = await askQuestion(state.sessionId, message);
-      
+
       // Add assistant response
       addMessage("assistant", response.answer, "analyst");
     } catch (error) {

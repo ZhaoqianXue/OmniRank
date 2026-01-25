@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, KeyboardEvent } from "react";
-import { motion } from "framer-motion";
 import { Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,11 +57,9 @@ export function ChatInput({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className={cn(
-        "flex items-end gap-2 p-3 border-t border-border bg-background/50 backdrop-blur-sm",
+        "flex items-end gap-2",
         className
       )}
     >
@@ -89,6 +86,6 @@ export function ChatInput({
           <Send className="h-4 w-4" />
         )}
       </Button>
-    </motion.div>
+    </div>
   );
 }

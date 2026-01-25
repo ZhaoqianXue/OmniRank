@@ -59,30 +59,15 @@ export default function Home() {
 
         {/* Main workspace */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left panel: Chat & Upload */}
+          {/* Left panel: Canvas (Analysis Console) */}
           <motion.div
             variants={fadeInLeft}
             initial="hidden"
             animate="show"
             className="lg:col-span-2"
           >
-            <Card className="h-[calc(100vh-80px)] flex flex-col bg-card/80 backdrop-blur-sm glow-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Analysis Console</CardTitle>
-                <CardDescription>
-                  {state.status === "idle"
-                    ? "Upload your comparison data to get started"
-                    : state.status === "configuring"
-                      ? "Configure your analysis parameters"
-                      : state.status === "analyzing"
-                        ? "Analysis in progress..."
-                        : state.status === "completed"
-                          ? "Analysis complete!"
-                          : state.status === "error"
-                            ? "An error occurred"
-                            : "Processing..."}
-                </CardDescription>
-              </CardHeader>
+            <Card className="h-[calc(100vh-80px)] flex flex-col bg-card/80 backdrop-blur-sm glow-border pt-4">
+
 
               <CardContent className="flex-1 flex flex-col min-h-0">
                 {/* Upload zone - show when idle or to allow re-upload */}
@@ -142,110 +127,114 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Chat messages */}
-                <ChatInterface
-                  messages={state.messages}
-                  className="flex-1 min-h-0"
-                />
+                {/* Results Visualization Tabs */}
+                <div className="flex-1 min-h-0">
+                  <Tabs defaultValue="rankings" className="w-full h-full flex flex-col">
+                    <TabsList className="grid w-full grid-cols-3 mb-4">
+                      <TabsTrigger value="rankings" className="text-xs">
+                        <BarChart3 className="h-4 w-4 mr-1" />
+                        Rankings
+                      </TabsTrigger>
+                      <TabsTrigger value="heatmap" className="text-xs">
+                        <div className="h-4 w-4 mr-1 grid grid-cols-2 gap-0.5">
+                          <div className="bg-current rounded-sm" />
+                          <div className="bg-current/60 rounded-sm" />
+                          <div className="bg-current/40 rounded-sm" />
+                          <div className="bg-current/80 rounded-sm" />
+                        </div>
+                        Heatmap
+                      </TabsTrigger>
+                      <TabsTrigger value="network" className="text-xs">
+                        <Network className="h-4 w-4 mr-1" />
+                        Network
+                      </TabsTrigger>
+                    </TabsList>
 
-                {/* Chat input - show when analysis is complete */}
-                {showResults && (
-                  <ChatInput
-                    onSend={sendMessage}
-                    disabled={state.status !== "completed"}
-                    placeholder="Ask a follow-up question about the results..."
-                  />
-                )}
+                    <div className="flex-1 min-h-0">
+                      <TabsContent value="rankings" className="mt-0 h-full">
+                        {showResults && state.results ? (
+                          <RankingChart items={state.results.items} className="h-full" />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
+                            <div className="text-center">
+                              <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                              <p>Upload data to see rankings</p>
+                            </div>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="heatmap" className="mt-0 h-full">
+                        {showResults && state.results ? (
+                          <HeatmapChart results={state.results} className="h-full overflow-auto" />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
+                            <div className="text-center">
+                              <div className="h-12 w-12 mx-auto mb-2 opacity-50 grid grid-cols-3 gap-1">
+                                {[...Array(9)].map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className="bg-primary rounded-sm"
+                                    style={{ opacity: Math.random() * 0.5 + 0.2 }}
+                                  />
+                                ))}
+                              </div>
+                              <p>Upload data to see heatmap</p>
+                            </div>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="network" className="mt-0 h-full">
+                        {showResults && state.results ? (
+                          <NetworkGraph results={state.results} className="h-full" />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
+                            <div className="text-center">
+                              <Network className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                              <p>Upload data to see network</p>
+                            </div>
+                          </div>
+                        )}
+                      </TabsContent>
+                    </div>
+                  </Tabs>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Right panel: Results & Visualizations */}
+          {/* Right panel: Chat Panel */}
           <motion.div
             variants={fadeInRight}
             initial="hidden"
             animate="show"
           >
-            <Card className="h-[calc(100vh-80px)] bg-card/80 backdrop-blur-sm glow-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Results</CardTitle>
-                {showResults && state.results && (
-                  <CardDescription>
-                    {state.results.metadata.n_items} items ranked •
-                    {state.results.metadata.step2_triggered ? " Step 2 applied" : " Step 1 only"}
-                  </CardDescription>
-                )}
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="rankings" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 mb-4">
-                    <TabsTrigger value="rankings" className="text-xs">
-                      <BarChart3 className="h-4 w-4 mr-1" />
-                      Rankings
-                    </TabsTrigger>
-                    <TabsTrigger value="heatmap" className="text-xs">
-                      <div className="h-4 w-4 mr-1 grid grid-cols-2 gap-0.5">
-                        <div className="bg-current rounded-sm" />
-                        <div className="bg-current/60 rounded-sm" />
-                        <div className="bg-current/40 rounded-sm" />
-                        <div className="bg-current/80 rounded-sm" />
-                      </div>
-                      Heatmap
-                    </TabsTrigger>
-                    <TabsTrigger value="network" className="text-xs">
-                      <Network className="h-4 w-4 mr-1" />
-                      Network
-                    </TabsTrigger>
-                  </TabsList>
+            <Card className="h-[calc(100vh-80px)] flex flex-col bg-card/80 backdrop-blur-sm glow-border gap-0 p-0 overflow-hidden">
+              {/* Chat Header */}
+              <div className="flex items-center justify-center py-2 px-3 border-b border-border/40 min-h-[48px] shrink-0">
+                <div className="text-sm font-medium flex items-center justify-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  OmniRank Assistant
+                </div>
+              </div>
 
-                  <TabsContent value="rankings" className="mt-0">
-                    {showResults && state.results ? (
-                      <RankingChart items={state.results.items} className="h-[400px]" />
-                    ) : (
-                      <div className="h-[400px] flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
-                        <div className="text-center">
-                          <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                          <p>Upload data to see rankings</p>
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="heatmap" className="mt-0">
-                    {showResults && state.results ? (
-                      <HeatmapChart results={state.results} className="h-[400px] overflow-auto" />
-                    ) : (
-                      <div className="h-[400px] flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
-                        <div className="text-center">
-                          <div className="h-12 w-12 mx-auto mb-2 opacity-50 grid grid-cols-3 gap-1">
-                            {[...Array(9)].map((_, i) => (
-                              <div
-                                key={i}
-                                className="bg-primary rounded-sm"
-                                style={{ opacity: Math.random() * 0.5 + 0.2 }}
-                              />
-                            ))}
-                          </div>
-                          <p>Upload data to see heatmap</p>
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="network" className="mt-0">
-                    {showResults && state.results ? (
-                      <NetworkGraph results={state.results} className="h-[400px]" />
-                    ) : (
-                      <div className="h-[400px] flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
-                        <div className="text-center">
-                          <Network className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                          <p>Upload data to see network</p>
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
+              {/* Chat Messages */}
+              <CardContent className="flex-1 min-h-0 p-0">
+                <ChatInterface
+                  messages={state.messages}
+                  className="h-full"
+                />
               </CardContent>
+
+              {/* Simple Chat Input */}
+              <div className="p-2 border-t border-border/40">
+                <ChatInput
+                  onSend={sendMessage}
+                  disabled={false}
+                  placeholder="Type a message..."
+                />
+              </div>
             </Card>
           </motion.div>
         </div>
