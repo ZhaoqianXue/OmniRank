@@ -3,24 +3,33 @@ OmniRank FastAPI Backend
 Main application entry point.
 """
 
-import os
+import logging
+import traceback
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from api.routes import router
 from api.websocket import websocket_router
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events."""
     # Startup
-    print("OmniRank API starting up...")
+    logger.info("OmniRank API starting up...")
     yield
     # Shutdown
-    print("OmniRank API shutting down...")
+    logger.info("OmniRank API shutting down...")
 
 
 app = FastAPI(
@@ -45,6 +54,27 @@ app.add_middleware(
 # Include routers
 app.include_router(router, prefix="/api")
 app.include_router(websocket_router, prefix="/api")
+
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Global exception handler for unhandled errors.
+    Logs the error and returns a structured JSON response.
+    """
+    # Log the full traceback for debugging
+    logger.error(f"Unhandled exception: {exc}")
+    logger.error(traceback.format_exc())
+    
+    # Return user-friendly error response
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An internal error occurred. Please try again.",
+            "error_type": type(exc).__name__,
+        },
+    )
 
 
 @app.get("/")

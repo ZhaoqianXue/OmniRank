@@ -82,9 +82,48 @@ OPENAI_API_KEY=your_api_key
 OPENAI_MODEL=gpt-5-nano
 ```
 
+## Usage
+
+1. **Start the backend**:
+   ```bash
+   cd src/api
+   source .venv/bin/activate
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
+
+2. **Start the frontend**:
+   ```bash
+   cd src/web
+   npm run dev
+   ```
+
+3. **Open http://localhost:3000** in your browser
+
+4. **Upload a CSV file** with comparison data (pointwise or pairwise format)
+
+5. **Configure analysis parameters** and click "Start Analysis"
+
+6. **View results** in the Rankings, Heatmap, or Network tabs
+
+## Example Data
+
+Example datasets are provided in `data/examples/`:
+- `example_data_pointwise.csv` - Pointwise comparison format
+- `example_data_pairwise.csv` - Pairwise comparison format
+
 ## Development
 
 See `.agent/blueprints/omnirank-web-platform.md` for the full development plan.
+
+## Project Status
+
+All development phases complete:
+- Phase 1: Foundation Setup ✅
+- Phase 2: Core Backend - Agent System ✅
+- Phase 3: API Layer ✅
+- Phase 4: Frontend - Core UI ✅
+- Phase 5: Visualizations ✅
+- Phase 6: Integration and Polish ✅
 
 ## License
 

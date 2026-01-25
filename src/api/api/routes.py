@@ -3,25 +3,30 @@ OmniRank REST API Routes
 Handles file upload, analysis triggering, and results retrieval.
 """
 
-import uuid
+import asyncio
+import logging
 from typing import Annotated
 
-from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
+from fastapi import APIRouter, File, UploadFile, HTTPException, BackgroundTasks
 
 from core.schemas import (
     UploadResponse,
     AnalyzeRequest,
     AnalyzeResponse,
     AnalysisStatus,
-    InferredSchema,
-    DataFormat,
-    RankingResults,
+    SessionStatus,
+    WSMessage,
+    WSMessageType,
+    AgentType,
 )
+from core.session_memory import get_session_store
+from agents.data_agent import DataAgent
+from agents.orchestrator import EngineOrchestrator
+from agents.analyst_agent import AnalystAgent
+from api.websocket import get_connection_manager
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["ranking"])
-
-# In-memory session storage (will be replaced with proper storage later)
-sessions: dict = {}
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -44,40 +49,150 @@ async def upload_file(file: Annotated[UploadFile, File(description="CSV or JSON 
             detail="Only CSV and JSON files are supported",
         )
     
-    # Generate session ID
-    session_id = str(uuid.uuid4())
-    
     # Read file content
     content = await file.read()
     
-    # Store session data
-    sessions[session_id] = {
-        "filename": file.filename,
-        "content": content,
-        "status": "uploaded",
-    }
+    # Create session
+    store = get_session_store()
+    session = store.create_session()
     
-    # TODO: Invoke Data Agent for schema inference
-    # For now, return placeholder schema
-    inferred_schema = InferredSchema(
-        format=DataFormat.PAIRWISE,
-        bigbetter=1,
-        ranking_items=["item_1", "item_2", "item_3"],  # Placeholder
-        indicator_col=None,
-        indicator_values=[],
-        confidence=0.85,
-    )
+    # Save file
+    file_path = store.save_file(session.session_id, file.filename, content)
+    session.filename = file.filename
+    session.file_content = content
+    session.file_path = file_path
+    session.status = SessionStatus.UPLOADING
+    
+    # Run Data Agent
+    data_agent = DataAgent()
+    schema, warnings = data_agent.process(content, file.filename)
+    
+    # Update session
+    session.inferred_schema = schema
+    session.status = SessionStatus.CONFIGURING
+    store.update_session(session)
     
     return UploadResponse(
-        session_id=session_id,
+        session_id=session.session_id,
         filename=file.filename,
-        inferred_schema=inferred_schema,
-        warnings=[],
+        inferred_schema=schema,
+        warnings=warnings,
     )
+
+
+async def _send_ws_progress(session_id: str, progress: float, message: str, agent: str = None):
+    """Send progress update via WebSocket."""
+    try:
+        manager = get_connection_manager()
+        ws_message = WSMessage(
+            type=WSMessageType.PROGRESS,
+            payload={"progress": progress, "message": message, "agent": agent},
+        )
+        await manager.send_message(session_id, ws_message)
+    except Exception as e:
+        logger.debug(f"WebSocket send failed (no clients?): {e}")
+
+
+async def _send_ws_agent_message(session_id: str, agent: AgentType, message: str):
+    """Send agent message via WebSocket."""
+    try:
+        manager = get_connection_manager()
+        ws_message = WSMessage(
+            type=WSMessageType.AGENT_MESSAGE,
+            payload={"agent": agent.value, "message": message},
+        )
+        await manager.send_message(session_id, ws_message)
+    except Exception as e:
+        logger.debug(f"WebSocket send failed: {e}")
+
+
+async def _send_ws_result(session_id: str, results):
+    """Send final results via WebSocket."""
+    try:
+        manager = get_connection_manager()
+        ws_message = WSMessage(
+            type=WSMessageType.RESULT,
+            payload={"results": results.model_dump() if results else None},
+        )
+        await manager.send_message(session_id, ws_message)
+    except Exception as e:
+        logger.debug(f"WebSocket send failed: {e}")
+
+
+async def _send_ws_error(session_id: str, error: str):
+    """Send error via WebSocket."""
+    try:
+        manager = get_connection_manager()
+        ws_message = WSMessage(
+            type=WSMessageType.ERROR,
+            payload={"error": error},
+        )
+        await manager.send_message(session_id, ws_message)
+    except Exception as e:
+        logger.debug(f"WebSocket send failed: {e}")
+
+
+async def _run_analysis_async(session_id: str, config):
+    """Async analysis execution with WebSocket progress updates."""
+    store = get_session_store()
+    session = store.get_session(session_id)
+    
+    if not session:
+        return
+    
+    try:
+        session.status = SessionStatus.ANALYZING
+        session.config = config
+        store.update_session(session)
+        
+        # Progress: Starting
+        await _send_ws_progress(session_id, 0.1, "Starting analysis...")
+        await _send_ws_agent_message(session_id, AgentType.ORCHESTRATOR, "Preparing spectral ranking computation...")
+        
+        # Run Engine Orchestrator (blocking call in thread pool)
+        orchestrator = EngineOrchestrator()
+        
+        await _send_ws_progress(session_id, 0.3, "Running Step 1: Vanilla spectral ranking...")
+        await _send_ws_agent_message(session_id, AgentType.ORCHESTRATOR, "Executing R script for initial ranking estimation...")
+        
+        # Execute in thread pool to not block event loop
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(None, orchestrator.execute, session, config)
+        
+        await _send_ws_progress(session_id, 0.7, "Analysis complete. Generating report...")
+        await _send_ws_agent_message(session_id, AgentType.ANALYST, "Creating summary report...")
+        
+        # Generate report
+        analyst = AnalystAgent()
+        report = await loop.run_in_executor(None, analyst.generate_report, results, session)
+        
+        await _send_ws_progress(session_id, 0.9, "Finalizing results...")
+        
+        # Update session
+        session.results = results
+        session.status = SessionStatus.COMPLETED
+        session.add_message("assistant", report, agent=None)
+        store.update_session(session)
+        
+        # Send final results
+        await _send_ws_progress(session_id, 1.0, "Complete!")
+        await _send_ws_result(session_id, results)
+        
+    except Exception as e:
+        logger.error(f"Analysis failed: {e}")
+        session.status = SessionStatus.ERROR
+        session.add_message("system", f"Error: {str(e)}", agent=None)
+        store.update_session(session)
+        await _send_ws_error(session_id, str(e))
+
+
+def _run_analysis_sync(session_id: str, config):
+    """Synchronous wrapper for async analysis execution."""
+    asyncio.run(_run_analysis_async(session_id, config))
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze(request: AnalyzeRequest):
+async def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     """
     Trigger ranking analysis with user-confirmed configuration.
     
@@ -86,17 +201,18 @@ async def analyze(request: AnalyzeRequest):
     2. Check diagnostics (heterogeneity, sparsity)
     3. Conditionally execute spectral_ranking_step2.R
     """
-    session_id = request.session_id
+    store = get_session_store()
+    session = store.get_session(request.session_id)
     
-    if session_id not in sessions:
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    # Update session with config
-    sessions[session_id]["config"] = request.config
-    sessions[session_id]["status"] = "analyzing"
+    if not session.file_path:
+        raise HTTPException(status_code=400, detail="No file uploaded for this session")
     
-    # TODO: Invoke Engine Orchestrator
-    # For now, return processing status
+    # Start analysis in background
+    background_tasks.add_task(_run_analysis_sync, request.session_id, request.config)
+    
     return AnalyzeResponse(
         status=AnalysisStatus.PROCESSING,
         results=None,
@@ -109,23 +225,26 @@ async def get_results(session_id: str):
     """
     Retrieve analysis results for a session.
     """
-    if session_id not in sessions:
+    store = get_session_store()
+    session = store.get_session(session_id)
+    
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    session = sessions[session_id]
-    status = session.get("status", "unknown")
-    
-    if status == "completed":
+    if session.status == SessionStatus.COMPLETED:
         return AnalyzeResponse(
             status=AnalysisStatus.COMPLETED,
-            results=session.get("results"),
+            results=session.results,
             error=None,
         )
-    elif status == "error":
+    elif session.status == SessionStatus.ERROR:
+        # Get last error message
+        error_msgs = [m for m in session.messages if m.role == "system" and "Error" in m.content]
+        error = error_msgs[-1].content if error_msgs else "Unknown error"
         return AnalyzeResponse(
             status=AnalysisStatus.ERROR,
             results=None,
-            error=session.get("error"),
+            error=error,
         )
     else:
         return AnalyzeResponse(
@@ -140,8 +259,26 @@ async def delete_session(session_id: str):
     """
     Delete a session and its associated data.
     """
-    if session_id not in sessions:
+    store = get_session_store()
+    
+    if not store.delete_session(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
     
-    del sessions[session_id]
     return {"status": "deleted", "session_id": session_id}
+
+
+@router.get("/session/{session_id}/messages")
+async def get_messages(session_id: str):
+    """
+    Get chat messages for a session.
+    """
+    store = get_session_store()
+    session = store.get_session(session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return {
+        "session_id": session_id,
+        "messages": [m.model_dump() for m in session.messages],
+    }
