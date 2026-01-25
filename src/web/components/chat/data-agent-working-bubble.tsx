@@ -51,7 +51,7 @@ export function DataAgentWorkingBubble({
 
   return (
     <div className={cn(
-      "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm px-4 py-3",
+      "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full px-4 py-3",
       className
     )}>
       {/* Header */}

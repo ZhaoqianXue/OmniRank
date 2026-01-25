@@ -89,7 +89,7 @@ export function RankingPreviewBubble({
 
   return (
     <div className={cn(
-      "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm",
+      "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full",
       className
     )}>
       {/* Header */}

@@ -32,13 +32,13 @@ export function DataPreviewComponent({
     if (!preview) {
       return { paginatedRows: [], totalPages: 0, startRow: 0, endRow: 0 };
     }
-    
+
     const total = preview.rows.length;
     const pages = Math.ceil(total / ROWS_PER_PAGE);
     const start = (currentPage - 1) * ROWS_PER_PAGE;
     const end = Math.min(start + ROWS_PER_PAGE, total);
     const rows = preview.rows.slice(start, end);
-    
+
     return {
       paginatedRows: rows,
       totalPages: pages,
@@ -140,7 +140,7 @@ export function DataPreviewComponent({
                       const value = row[col];
                       const displayValue =
                         typeof value === "number"
-                          ? value.toFixed(3)
+                          ? parseFloat(value.toFixed(3)).toString()
                           : String(value ?? "");
                       const truncated =
                         displayValue.length > 25
