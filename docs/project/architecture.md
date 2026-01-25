@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-OmniRank is an **agentic framework** that combines the reasoning capabilities of Large Language Models (LLMs) with the mathematical rigor of **spectral ranking inferences**. The system employs a **decoupled architecture** where LLM agents parse user queries and orchestrate the analysis pipeline, while a specialized **Spectral Calculation Engine** (`ranking_cli.R`) executes the mathematical computations.
+OmniRank is an **agentic framework** that combines the reasoning capabilities of Large Language Models (LLMs) with the mathematical rigor of **spectral ranking inferences**. The system employs a **decoupled architecture** where LLM agents parse user queries and orchestrate the analysis pipeline, while a specialized **Spectral Calculation Engine** (`spectral_ranking_step1.R`) executes the mathematical computations.
 
 This architecture is inspired by the LAMBDA framework published in the *Journal of the American Statistical Association - Applications and Case Studies*.
 
@@ -40,8 +40,8 @@ This architecture is inspired by the LAMBDA framework published in the *Journal 
 │  │  │  DATA      │      │  ENGINE    │      │  ANALYST AGENT     │    │    │
 │  │  │  AGENT     │─────▶│ORCHESTRATOR│─────▶│                    │    │    │
 │  │  │            │      │            │      │ • Report generation│    │    │
-│  │  │ • Schema   │      │ • Invoke   │      │ • Visualization    │    │    │
-│  │  │   parsing  │      │   R script │      │ • Q&A with user    │    │    │
+│  │  │ • Schema   │      │ • Dynamic  │      │ • Visualization    │    │    │
+│  │  │   parsing  │      │   Workflow │      │ • Q&A with user    │    │    │
 │  │  │ • Format   │      │ • Output   │      │ • Error diagnosis  │    │    │
 │  │  │   convert  │      │   parse    │      │   (ReAct loop)     │    │    │
 │  │  │ • bigbetter│      │            │      │                    │    │    │
@@ -64,7 +64,7 @@ This architecture is inspired by the LAMBDA framework published in the *Journal 
 │  │  │   comparison   │  │   matrix P     │  │ • Bootstrap CI         │ │    │
 │  │  │   encoding     │  │ • Stationary   │  │ • Rank confidence      │ │    │
 │  │  │ • Heterogen.   │  │   distribution │  │   intervals            │ │    │
-│  │  │   edge sizes   │  │ • Eigenvector  │  │ • Two-sample testing   │ │    │
+│  │  │   edge sizes   │  │ • Eigenvector  │  │                        │ │    │
 │  │  │ • Weight func  │  │   computation  │  │                        │ │    │
 │  │  │   f(A_l)       │  │                │  │                        │ │    │
 │  │  └───────┬────────┘  └───────┬────────┘  └───────────┬────────────┘ │    │
@@ -129,9 +129,14 @@ This architecture is inspired by the LAMBDA framework published in the *Journal 
               ┌──────────────────────────────┐
               │     ENGINE ORCHESTRATOR      │
               │  ┌────────────────────────┐  │
-              │  │ 1. Synthesize Params   │  │
-              │  │ 2. Invoke ranking_cli.R│  │
-              │  │ 3. Parse JSON Output   │  │
+              │  │ 1. Step 1 (Vanilla)    │  │
+              │  │    (spectral_ranking_step1.R)     │  │
+              │  │ 2. Diagnostics         │  │
+              │  │    (Heterogeneity?)    │  │
+              │  │    (Uncertainty?)      │  │
+              │  │    (Sparsity Check)    │  │
+              │  │ 3. Step 2 (Optional)   │  │
+              │  │    (spectral_ranking_step2.R)      │  │
               │  └─────────┬──────────────┘  │
               └────────────┼─────────────────┘
                            │
@@ -174,7 +179,9 @@ This architecture is inspired by the LAMBDA framework published in the *Journal 
 │         ▼                                                            │
 │  ┌─────────────────────────────────────────────────────────────┐    │
 │  │                    ENGINE ORCHESTRATOR                       │    │
-│  │  Invoke ranking_cli.R with configured parameters             │    │
+│  │  1. Invoke spectral_ranking_step1.R (Vanilla Spectral)                  │    │
+│  │  2. Diagnostics (Heterogeneity, Uncertainty, Sparsity)       │    │
+│  │  3. Conditionally Invoke spectral_ranking_step2.R (Optimal Weights)      │    │
 │  └──────────────────────────┬──────────────────────────────────┘    │
 │                             │                                        │
 │                             ▼                                        │
@@ -318,7 +325,7 @@ This architecture is inspired by the LAMBDA framework published in the *Journal 
 │   │   Var = ────────── Σ  ─────────── (Σ exp(θ_u) - exp(θ_i))exp(θ_i) │
 │   │         d²τ_i²   l∈D   f²(A_l)   u∈A_l                       │     │
 │   │                                                               │     │
-│   │   Bootstrap for critical values (Section 3.4):                │     │
+│   │   • Bootstrap for critical values (Section 3.4):                │     │
 │   │   • Gaussian multiplier: G_M = max|Σ J_kl ω_l|/σ̃_km          │     │
 │   │   • Monte Carlo: Q_{1-α} = (1-α)-quantile of G_M             │     │
 │   └───────────────────────────────┬───────────────────────────────┘     │
@@ -348,7 +355,7 @@ OmniRank employs a streamlined architecture with a fixed pipeline and two specia
 |-----------|-------------|---------------------|
 | **Fixed Pipeline** | Workflow Control | Trigger on data upload, coordinate agent execution sequence |
 | **Data Agent** | Data Processing | Schema parsing, format conversion, validation, **preference direction inference (bigbetter)** |
-| **Engine Orchestrator** | Engine Invocation | Receive parameters from Data Agent, invoke `ranking_cli.R`, parse JSON/CSV output |
+| **Engine Orchestrator** | Engine Invocation | Invoke `spectral_ranking_step1.R`, check diagnostics, conditionally invoke `spectral_ranking_step2.R` |
 | **Analyst Agent** | Analysis & Output | Report generation, visualization, user Q&A, error diagnosis |
 
 ### 2.2 Short-term Memory Architecture
@@ -397,9 +404,15 @@ Require: user_data (d), max_attempts (T)
 2:  params ← Eo.configure(schema, user_input)   ▷ Interactive Verification
 3:  M.update_data_state(schema, params)
 
-// PHASE 2: Computation
+// PHASE 2: Computation (Dynamic Workflow by Engine Orchestrator)
 4:  n ← 0
-5:  result ← Eo.execute(params)                 ▷ Execute spectral engine
+5:  step1_result ← Eo.execute_step1(params)     ▷ spectral_ranking_step1.R
+6:  // New Logic: Orchestrator solely decides based on Step 1 metadata
+7:  if Eo.should_refine(step1_result) then
+8:      result ← Eo.execute_step2(params, step1_result) ▷ spectral_ranking_step2.R
+9:  else
+10:     result ← step1_result
+11: end if
 
 // PHASE 3: Error Handling (Analyst diagnoses)
 5:  while result.status == ERROR and n < T do
@@ -433,7 +446,7 @@ Require: user_data (d), max_attempts (T)
 |-------|-----------|--------|
 | Data Processing | Data Agent | Infer schema, bigbetter, and standardize format |
 | Configuration | Engine Orchestrator | **Interactive User Configuration** & Validation |
-| Computation | Engine Orchestrator | Execute ranking_cli.R in isolated process |
+| Computation | Engine Orchestrator | Execute `spectral_ranking_step1.R` and conditionally `spectral_ranking_step2.R` |
 | Error Handling | Analyst Agent | Diagnose errors, request corrections from Data Agent or Engine Orchestrator |
 | Output Generation | Analyst Agent | Generate report and visualizations |
 | Q&A | Analyst Agent | Answer user follow-up questions using memory + spectral knowledge |
@@ -454,10 +467,16 @@ class ToolEcosystem:
     Registry of available tools for the Engine Orchestrator.
     """
     tools = {
-        "ranking_engine": {
-            "path": "src/spectral_engine/ranking_cli.R",
-            "description": "Spectral ranking with bootstrap CI",
+        "ranking_engine_step1": {
+            "path": "src/spectral_ranking/spectral_ranking_step1.R",
+            "description": "Step 1: Vanilla spectral ranking & diagnostics",
             "input_format": "CSV",
+            "output_format": "JSON"
+        },
+        "ranking_engine_step2": {
+            "path": "src/spectral_ranking/spectral_ranking_step2.R",
+            "description": "Step 2: Refined estimation with optimal weights",
+            "input_format": "JSON (from Step 1)",
             "output_format": "JSON"
         },
         "visualization": {
@@ -495,7 +514,7 @@ class DataStandardizer:
     
     def adjust_to_engine_schema(self, file_path: str) -> StandardizedPath:
         """
-        Performs lightweight standardization to ensure compatibility with ranking_cli.R.
+        Performs lightweight standardization to ensure compatibility with spectral_ranking_step1.R.
         
         Actions:
         - Detect format (Pointwise vs Pairwise/Multiway)
@@ -584,9 +603,9 @@ class DataValidator:
         pass
 ```
 
-### 3.2 Engine Orchestrator
+### 3.2 Engine Orchestrator Agent
 
-The Engine Orchestrator is a **deterministic system component** that serves as the bridge between user configuration and the spectral ranking engine. It implements two core functions: **Interactive Configuration Management** and **Robust Engine Execution**.
+The Engine Orchestrator is a **specialized LLM Agent** (not a deterministic script) responsible for scientifically rigorous decision-making. It serves as the "Principal Investigator," observing preliminary results and dynamically deciding the optimal analysis path based on statistical principles.
 
 #### 3.2.1 Function 1: Interactive Configuration Management
 
@@ -628,9 +647,65 @@ class ConfigManager:
             seed=user_config.random_seed,
             output_dir=output_dir
         )
+
+#### 3.2.2 Function 2: Agentic Workflow & Dynamic Orchestration
+
+Unlike simple wrappers that strictly follow a linear path, the Engine Orchestrator Agent **reasons** about the data state after the initial estimation (Step 1) to determine if a refined estimation (Step 2) is statistically warranted.
+
+```python
+class EngineOrchestratorAgent:
+    """
+    Agentic component that decides the analysis workflow based on statistical observations.
+    """
+    
+    SYSTEM_INSTRUCTION = """
+    You are the Principal Investigator for a spectral ranking study.
+    Your goal is to ensure the most rigorous statistical inference.
+    
+    Current State: Step 1 (Vanilla Spectral Ranking) has been completed.
+    Observation: You have received the metadata and diagnostics from Step 1.
+    
+    Decision Task: specifically, you must decide whether to trigger Step 2 (Refined Estimation with Optimal Weights).
+    
+    CRITICAL DECISION HEURISTICS (Follow strictly):
+    
+    1. CHECK DATA SUFFICIENCY (Gatekeeper):
+       - Observe 'sparsity_ratio' (M / n*log(n)).
+       - If sparsity_ratio < 1.0: The data is too sparse. Step 2 (weight estimation) will be unstable.
+         -> DECISION: STOP. (Step 2 is unsafe).
+         
+    2. CHECK REFINEMENT NEED (Triggers):
+       - Trigger A (Heterogeneity): Observe 'heterogeneity_index'.
+         If > 0.5, comparison counts are highly uneven, causing bias in Step 1. Refinement is needed.
+       - Trigger B (Uncertainty): Observe 'mean_ci_width_top_5'.
+         If > 5.0 (ranks), the top items have very wide confidence intervals. Refinement is needed to reduce variance.
+         
+    FINAL LOGIC:
+    IF (Data Sufficient) AND (Heterogeneous OR Uncertain):
+        -> DECISION: PROCEED to Step 2.
+    ELSE:
+        -> DECISION: STOP (Step 1 is sufficient or Step 2 is unsafe).
+        
+    Output your reasoning and final decision.
+    """
+    
+    def decide_next_step(self, step1_metadata: Dict) -> WorkflowDecision:
+        """
+        Invokes the LLM to make a scientifically grounded decision.
+        """
+        prompt = self._construct_prompt(step1_metadata)
+        agent_response = llm.generate(self.SYSTEM_INSTRUCTION, prompt)
+        
+        # Example Agent Thought:
+        # "Observation: Sparsity ratio is 2.5 (Pass). Heterogeneity is 0.65 (High).
+        #  Reasoning: Data is sufficient. High heterogeneity implies the uniform weights in Step 1 
+        #  are suboptimal.
+        #  Action: Trigger Step 2."
+        
+        return self._parse_decision(agent_response)
 ```
 
-#### 3.2.2 Function 2: Robust Engine Execution
+#### 3.2.3 R Script Executor
 
 ```python
 class RScriptExecutor:
@@ -638,7 +713,7 @@ class RScriptExecutor:
     Manages the lifecycle of the external R process and output parsing.
     """
     
-    R_SCRIPT_PATH = "src/spectral_engine/ranking_cli.R"
+    R_SCRIPT_PATH = "src/spectral_ranking/spectral_ranking_step1.R"
     
     def execute_and_parse(self, params: EngineParams, timeout_sec: int = 300) -> RankingResult:
         """
@@ -672,27 +747,39 @@ class RScriptExecutor:
             raise EngineExecutionError("Execution timed out")
 ```
 
-#### 3.2.3 The ranking_cli.R Script
+#### 3.2.3 The R Script Ecosystem
 
-The core spectral ranking computation is implemented in `src/spectral_engine/ranking_cli.R`. This script is a **validated, production-ready implementation** of the spectral method with the following capabilities:
+The spectral ranking computation is implemented in two specialized R scripts:
 
-| Feature | Description |
-|---------|-------------|
-| **Data Processing** | Automatically detects Pointwise (Wide) or Pairwise (Long, `Winner/Loser`) format. |
-| **Spectral Estimation** | Computes θ̂ via transition matrix eigen-decomposition. |
-| **Direct Conversion** | Transforms Long format to comparison matrix without intermediate wide-matrix. |
-| **Variance Estimation** | Calculates asymptotic variance matrix. |
-| **Bootstrap CI** | Gaussian multiplier bootstrap for rank confidence intervals. |
-| **Output Formats** | JSON (structured) and CSV (tabular) |
+**A. `spectral_ranking_step1.R` (Step 1 & Diagnostics)**
+- **Role**: Initial estimation and diagnostic calculation.
+- **Key Outputs**:
+  - `theta_hat`: Initial estimates using $f(A_l)=|A_l|$.
+  - `heterogeneity_index`: CV of comparison counts.
+  - `spectral_gap`: Markov chain stability metric.
 
-**CLI Interface:**
+**B. `spectral_ranking_step2.R` (Step 2 Refinement)**
+- **Role**: Refined estimation using optimal weights.
+- **Input**: JSON output from Step 1.
+- **Key Logic**: Computes optimal weights $f(A_l) \propto \sum e^{\hat{\theta}_u}$ using Step 1 estimates.
+- **Output**: Final asymptotically efficient rankings.
+
+**CLI Interface (Step 1):**
 ```bash
-Rscript src/spectral_engine/ranking_cli.R \
+Rscript src/spectral_ranking/spectral_ranking_step1.R \
     --csv data/examples/example_data_pointwise.csv \
     --bigbetter 1 \
     --B 2000 \
     --seed 42 \
-    --out results/my_analysis
+    --out results/step1_output
+```
+
+**CLI Interface (Step 2):**
+```bash
+Rscript src/spectral_ranking/spectral_ranking_step2.R \
+    --csv data/examples/example_data_pointwise.csv \
+    --json_step1 results/step1_output/ranking_results.json \
+    --out results/final_output
 ```
 
 **Output JSON Schema:**
@@ -870,120 +957,28 @@ $$
 
 This is estimated from the initial (equal-weight) spectral estimator.
 
-### 4.2 Engine Implementation
+### 4.2 Engine Implementation Details
 
-```python
-class SpectralRankingEngine:
-    """
-    Core engine for spectral ranking computations.
-    
-    Implements the methodology from:
-    Fan, J., Lou, Z., Wang, W., Yu, M. (2023). 
-    "Spectral Ranking Inferences Based on General Multiway Comparisons"
-    """
-    
-    def __init__(self, config: EngineConfig = None):
-        self.config = config or EngineConfig()
-    
-    def fit(self, comparisons: ComparisonData, 
-            weight_scheme: str = 'two_step') -> RankingResult:
-        """
-        Fits spectral ranking model to comparison data.
-        
-        Args:
-            comparisons: Multiway comparison data
-            weight_scheme: 'uniform', 'size', or 'two_step' (optimal)
-        
-        Returns:
-            RankingResult containing estimated scores and uncertainties
-        """
-        # Step 1: Initial estimation with uniform weights
-        theta_initial, pi_initial = self._compute_spectral_estimator(
-            comparisons, weight_func=lambda A: 1.0
-        )
-        
-        if weight_scheme == 'two_step':
-            # Step 2: Re-estimate with optimal weights
-            optimal_weight = lambda A: sum(np.exp(theta_initial[i]) for i in A)
-            theta_hat, pi_hat = self._compute_spectral_estimator(
-                comparisons, weight_func=optimal_weight
-            )
-        else:
-            theta_hat, pi_hat = theta_initial, pi_initial
-        
-        # Compute asymptotic variance
-        variance = self._estimate_variance(theta_hat, comparisons)
-        
-        return RankingResult(
-            theta_hat=theta_hat,
-            pi_hat=pi_hat,
-            variance=variance,
-            ranks=np.argsort(-theta_hat) + 1
-        )
-    
-    def confidence_intervals(self, result: RankingResult, 
-                             comparisons: ComparisonData,
-                             alpha: float = 0.05,
-                             interval_type: str = 'two_sided') -> np.ndarray:
-        """
-        Constructs confidence intervals for ranks.
-        
-        Uses Gaussian multiplier bootstrap following Theorem 5.
-        """
-        pass
-    
-    def hypothesis_test(self, result1: RankingResult, result2: RankingResult,
-                        test_type: str, **kwargs) -> TestResult:
-        """
-        Performs hypothesis testing on rankings.
-        
-        Supported tests:
-        - 'top_k_placement': Test if item m is in top-K
-        - 'rank_preservation': Test if rank of item m is preserved (two-sample)
-        - 'top_k_set': Test if top-K sets are equal (two-sample)
-        """
-        pass
-    
-    def _compute_spectral_estimator(self, comparisons: ComparisonData,
-                                     weight_func: Callable) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Core spectral estimation computation.
-        """
-        n = comparisons.n_items
-        
-        # Build transition matrix
-        P = np.zeros((n, n))
-        
-        for winner, choice_set in comparisons.comparisons:
-            weight = weight_func(choice_set)
-            for loser in choice_set:
-                if loser != winner:
-                    P[loser, winner] += 1.0 / weight
-        
-        # Normalize
-        d = self._compute_normalization_constant(P, n)
-        P = P / d
-        np.fill_diagonal(P, 1 - np.sum(P, axis=1) + np.diag(P))
-        
-        # Eigen-decomposition for stationary distribution
-        eigenvalues, eigenvectors = np.linalg.eig(P.T)
-        idx = np.argmax(np.abs(eigenvalues))
-        pi_hat = np.real(eigenvectors[:, idx])
-        pi_hat = np.abs(pi_hat) / np.sum(np.abs(pi_hat))
-        
-        # Transform to log-scale preference scores
-        log_pi = np.log(np.maximum(pi_hat, 1e-10))
-        theta_hat = log_pi - np.mean(log_pi)
-        
-        return theta_hat, pi_hat
-    
-    def _estimate_variance(self, theta_hat: np.ndarray, 
-                           comparisons: ComparisonData) -> np.ndarray:
-        """
-        Estimates asymptotic variance following Equation (6).
-        """
-        pass
-```
+The engine is implemented as a set of optimized R scripts (`src/spectral_ranking/`). The internal logic follows this sequence:
+
+#### 4.2.1 `spectral_ranking_step1.R` (Step 1)
+1.  **Ingestion**: Reads CSV, detects format (Wide/Long), builds sparse adjacency matrix.
+2.  **Estimation**: 
+    -   Constructs transition matrix $P$ with $f(A_l) = |A_l|$.
+    -   Computes stationary distribution $\pi$ via `eigen()`.
+    -   Transforms to $\hat{\theta} = \log \pi - \text{mean}(\log \pi)$.
+3.  **Diagnostics**:
+    -   Computes `heterogeneity_index = sd(counts)/mean(counts)`.
+    -   Computes `spectral_gap = |\lambda_1| - |\lambda_2|`.
+4.  **Bootstrap**: Generates $B$ bootstrap replicates for CIs.
+
+#### 4.2.2 `spectral_ranking_step2.R` (Step 2)
+1.  **Loading**: Reads original CSV and Step 1 JSON (for $\hat{\theta}_{step1}$).
+2.  **Weight Calculation**: Computes optimal weights $w_l = \sum_{u \in A_l} e^{\hat{\theta}_{u, step1}}$.
+3.  **Refined Estimation**: Re-runs spectral estimation with new weights.
+4.  **Variance Update**: Re-calculates asymptotic variance using the optimal weight formula.
+
+This R-based implementation ensures numerical stability and leverage of R's mature statistical libraries.
 
 ---
 
@@ -1015,9 +1010,8 @@ class NaturalLanguageInterface:
         Available task types:
         - RANKING_ESTIMATION: Estimate preference scores
         - CONFIDENCE_INTERVAL: Construct rank confidence intervals
-        - HYPOTHESIS_TESTING: Test ranking hypotheses
+        - HYPOTHESIS_TESTING: Test ranking hypotheses (e.g. Top-K)
         - TOP_K_IDENTIFICATION: Identify top-K items
-        - TWO_SAMPLE_COMPARISON: Compare rankings across samples
         """
         
         return self.llm.parse(system_prompt, instruction, data_context)
@@ -1030,7 +1024,6 @@ The visualization component provides interactive exploration of ranking results:
 - **Ranking Plot**: Items ordered by estimated preference scores with confidence intervals
 - **Transition Matrix Heatmap**: Visualization of the Markov chain structure
 - **Uncertainty Quantification**: Rank confidence interval display
-- **Comparison Graph**: Network visualization of the comparison hypergraph
 
 ---
 
@@ -1057,8 +1050,10 @@ OmniRank Workflow:
    - Constructs comparison hypergraph
 
 3. ENGINE ORCHESTRATOR AGENT:
-   - Configures ranking_cli.R parameters
-   - Applies two-step optimal weighting
+   - Configures spectral_ranking_step1.R parameters
+   - Executes Step 1 (Vanilla Estimation)
+   - Detects Heterogeneity (index=0.82 > 0.5)
+   - Triggers Step 2 (Refined Estimation) automatically
    - Invokes bootstrap CI computation
 
 4. SPECTRAL ENGINE:
@@ -1083,37 +1078,7 @@ OmniRank Workflow:
    be statistically indistinguishable at the 95% level."
 ```
 
-### 6.2 Example: Two-Sample Comparison
 
-```
-User Input:
-"Compare customer product preferences between 2023 Q1 and 2023 Q4. 
-Have the top 5 products changed significantly?"
-
-OmniRank Workflow:
-
-1. Analysis of Q1 data → RankingResult_Q1
-2. Analysis of Q4 data → RankingResult_Q4
-3. Two-sample Top-K test (K=5, α=0.05)
-4. Result interpretation:
-
-   "Two-Sample Top-5 Comparison (Q1 2023 vs Q4 2023):
-   
-   Hypothesis: H₀: Top-5 products unchanged vs H₁: Top-5 changed
-   
-   Result: REJECT H₀ at α = 0.05
-   
-   Key changes:
-   - Product X entered top-5 (Q1 rank: 8, Q4 rank: 3)
-   - Product Y dropped from top-5 (Q1 rank: 4, Q4 rank: 11)
-   
-   The 95% confidence sets for top-5 in each period:
-   - Q1: {A, B, C, D, E, F, G} (7 candidates)
-   - Q4: {A, B, C, X, D, E} (6 candidates)
-   
-   Since intersection has only 5 elements, we conclude 
-   significant preference shift at the 5% significance level."
-```
 
 ---
 
@@ -1134,7 +1099,6 @@ OmniRank Workflow:
 |------|-----------|----------------|
 | Spectral Estimation | O(n³) | < 1s for n < 1000 |
 | Bootstrap CI (B=1000) | O(B × n²) | < 30s for n < 500 |
-| Two-sample Testing | O(n³) | < 2s for n < 1000 |
 
 ### 8.3 System Dependencies
 
@@ -1178,7 +1142,7 @@ The OmniRank LLM Agent System Architecture provides a **rigorous, accessible, an
 
 4. **Tool Ecosystem**: Modular integration of ranking engine, visualization generator, and report generator enables comprehensive analysis workflows.
 
-5. **Comprehensive Uncertainty Quantification**: Full implementation of asymptotic variance estimation, bootstrap confidence intervals, and hypothesis testing.
+5. **Comprehensive Uncertainty Quantification**: Full implementation of asymptotic variance estimation and bootstrap confidence intervals.
 
 This architecture successfully addresses the potential reviewer concern about "LLM Agent as a Wrapper" by demonstrating substantive agent participation in:
 - Complex intent parsing and workflow planning

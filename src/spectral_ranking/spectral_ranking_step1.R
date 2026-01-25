@@ -203,6 +203,34 @@ main <- function() {
   pdata <- process_data(df, bigbetter = bigbetter_flag)
   RR2 <- vanilla_spectrum_method(pdata$aa, pdata$ww, pdata$idx, B = B)
 
+  # Calculate Diagnostic Metrics
+  # 1. Heterogeneity Index: CV of comparison counts (rowSums of pdata$aa)
+  # pdata$aa is L x n (num interactions x num items)
+  # Total comparisons per item = colSums(pdata$aa)
+  item_counts <- colSums(pdata$aa)
+  heterogeneity_index <- sd(item_counts) / mean(item_counts)
+  
+  # 2. Spectral Gap: Difference between top-1 and top-2 eigenvalues of Transition Matrix P
+  # We need P from vanilla_spectrum_method. Since vanilla_spectrum_method doesn't return P,
+  # we re-compute the eigenvalues here efficiently or we modify vanilla_spectrum_method.
+  # For minimal intrusion, we re-compute P locally.
+  n <- ncol(pdata$aa)
+  dval <- 2 * max(colSums(pdata$aa))
+  weights <- numeric(nrow(pdata$aa)) + 2 # Vanilla weights
+  P <- matrix(0, n, n)
+  for (i in 1:n) {
+    for (j in 1:n) {
+      if (j != i) {
+        P[i, j] <- sum(pdata$aa[, i] * pdata$aa[, j] * pdata$ww[, j] / weights) / dval
+      }
+    }
+    P[i, i] <- 1 - sum(P[i, ])
+  }
+  eigen_vals <- eigen(t(P))$values
+  sorted_moduli <- sort(Mod(eigen_vals), decreasing = TRUE)
+  # Spectral gap is typically 1 - |lambda_2| (lambda_1 is always 1 for stochastic matrix)
+  spectral_gap <- if (length(sorted_moduli) >= 2) (sorted_moduli[1] - sorted_moduli[2]) else 0
+
   methods <- colnames(RR2)
   theta_hat <- as.numeric(RR2[1, ])
   rank <- as.numeric(RR2[2, ])
@@ -240,7 +268,11 @@ main <- function() {
     metadata = list(
       n_samples = nrow(df),
       k_methods = ncol(df),
-      runtime_sec = runtime_sec
+      runtime_sec = runtime_sec,
+      heterogeneity_index = heterogeneity_index,
+      spectral_gap = spectral_gap,
+      sparsity_ratio = nrow(df) / (n * log(n)),
+      mean_ci_width_top_5 = mean(results_df$ci_two_right[results_df$rank <= 5] - results_df$ci_two_left[results_df$rank <= 5], na.rm = TRUE)
     )
   )
 
