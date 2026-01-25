@@ -121,10 +121,15 @@ This architecture enables natural conversational workflows—for example, after 
 
 We present the system prompts design for the two reasoning agents: the **Data Agent** and the **Analyst Agent**. The Engine Orchestrator, being a deterministic component, does not utilize LLM prompts.
 
+Each agent incorporates a **Knowledge Layer** that embeds domain expertise directly into its system prompt, following OpenAI's recommended Structured System Instructions pattern. This enables expert-level theoretical grounding without requiring users to provide specialized knowledge. For example, the Analyst Agent's knowledge layer includes spectral ranking theory concepts such as confidence interval interpretation, the two-step estimation method, and heterogeneity thresholds.
+
 **Figure 2: Data Agent Prompt Strategy.**
 ![Data Agent Prompt](https://placehold.co/600x400?text=Data+Agent+Prompt+Placeholder)
 
-**Figure 3: Analyst Agent Prompt Strategy.**
+**Figure 3: Engine Orchestrator Prompt Strategy.**
+![Engine Orchestrator Prompt](https://placehold.co/600x400?text=Engine+Orchestrator+Prompt+Placeholder)
+
+**Figure 4: Analyst Agent Prompt Strategy.**
 ![Analyst Agent Prompt](https://placehold.co/600x400?text=Analyst+Prompt+Placeholder)
 
 ### 3.6 User interface
