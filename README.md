@@ -100,7 +100,7 @@ OPENAI_MODEL=gpt-5-nano
 
 3. **Open http://localhost:3000** in your browser
 
-4. **Upload a CSV file** with comparison data (pointwise or pairwise format)
+4. **Upload a CSV file** with comparison data (pointwise or pairwise format). A data preview loads first, then the Data Agent infers the schema.
 
 5. **Configure analysis parameters** and click "Start Analysis"
 

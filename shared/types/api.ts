@@ -36,6 +36,21 @@ export interface UploadResponse {
 }
 
 // ============================================================================
+// Data Agent API
+// ============================================================================
+
+export type DataAgentStartStatus = "started" | "already_started" | "already_completed";
+
+export interface DataAgentStartRequest {
+  session_id: string;
+}
+
+export interface DataAgentStartResponse {
+  session_id: string;
+  status: DataAgentStartStatus;
+}
+
+// ============================================================================
 // Analyze API
 // ============================================================================
 

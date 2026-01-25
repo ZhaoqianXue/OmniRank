@@ -74,11 +74,12 @@ def process_upload(state: WorkflowState) -> WorkflowState:
     if not state.get("file_content"):
         return {**state, "error": "No file content", "status": "error"}
     
-    # Run Data Agent
+    # Run Data Agent (returns 3 values: schema, warnings, explanation)
     data_agent = DataAgent()
-    schema, warnings = data_agent.process(
+    schema, warnings, _ = data_agent.process(
         state["file_content"],
         state.get("filename", "data.csv"),
+        session,  # Pass session for trace logging
     )
     
     # Update session

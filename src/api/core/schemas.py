@@ -60,6 +60,28 @@ class DataPreview(BaseModel):
 
 
 # ============================================================================
+# Data Agent API
+# ============================================================================
+
+class DataAgentStartRequest(BaseModel):
+    """Request to start Data Agent processing."""
+    session_id: str
+
+
+class DataAgentStartStatus(str, Enum):
+    """Status of a Data Agent start request."""
+    STARTED = "started"
+    ALREADY_STARTED = "already_started"
+    ALREADY_COMPLETED = "already_completed"
+
+
+class DataAgentStartResponse(BaseModel):
+    """Response for Data Agent start request."""
+    session_id: str
+    status: DataAgentStartStatus
+
+
+# ============================================================================
 # Analyze API
 # ============================================================================
 
@@ -146,6 +168,7 @@ class WSMessageType(str, Enum):
     """Types of WebSocket messages."""
     PROGRESS = "progress"
     AGENT_MESSAGE = "agent_message"
+    SCHEMA_READY = "schema_ready"  # Data Agent completed schema inference
     RESULT = "result"
     ERROR = "error"
 

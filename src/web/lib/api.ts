@@ -25,9 +25,21 @@ export interface ValidationWarning {
   severity: "warning" | "error";
 }
 
+// Phase 1 response: file uploaded, Data Agent processing in background
 export interface UploadResponse {
   session_id: string;
   filename: string;
+}
+
+export type DataAgentStartStatus = "started" | "already_started" | "already_completed";
+
+export interface DataAgentStartResponse {
+  session_id: string;
+  status: DataAgentStartStatus;
+}
+
+// Phase 2: Data Agent results (received via WebSocket)
+export interface SchemaReadyPayload {
   inferred_schema: InferredSchema;
   warnings: ValidationWarning[];
 }
@@ -94,6 +106,26 @@ export async function uploadFile(file: File): Promise<UploadResponse> {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || "Upload failed");
+  }
+
+  return response.json();
+}
+
+/**
+ * Start Data Agent processing for a session.
+ */
+export async function startDataAgent(sessionId: string): Promise<DataAgentStartResponse> {
+  const response = await fetch(`${API_URL}/api/data-agent/start`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to start Data Agent");
   }
 
   return response.json();
@@ -288,9 +320,14 @@ export function createWebSocket(
   sessionId: string,
   onMessage: WSMessageHandler,
   onError?: (error: Event) => void,
-  onClose?: () => void
+  onClose?: () => void,
+  onOpen?: () => void
 ): WebSocket {
   const ws = new WebSocket(`${WS_URL}/api/ws/${sessionId}`);
+
+  ws.onopen = () => {
+    onOpen?.();
+  };
 
   ws.onmessage = (event) => {
     try {

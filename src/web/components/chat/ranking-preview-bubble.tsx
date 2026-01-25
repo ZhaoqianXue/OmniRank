@@ -1,10 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Play, Loader2, ExternalLink } from "lucide-react";
+import { Play, Loader2, Settings2, Check, X, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { InferredSchema, AnalysisConfig } from "@/lib/api";
 
@@ -15,34 +25,8 @@ interface RankingPreviewBubbleProps {
   className?: string;
 }
 
-// Timeline step component
-function TimelineStep({
-  title,
-  children,
-  isLast = false,
-}: {
-  title: string;
-  children: React.ReactNode;
-  isLast?: boolean;
-}) {
-  return (
-    <div className="flex gap-3">
-      {/* Timeline indicator */}
-      <div className="flex flex-col items-center">
-        <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40" />
-        {!isLast && <div className="w-0.5 flex-1 bg-muted-foreground/20 mt-1.5" />}
-      </div>
-      {/* Content */}
-      <div className="flex-1 pb-4">
-        <h4 className="text-sm font-semibold mb-2">{title}</h4>
-        <div className="space-y-1.5">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-// Config row component
-function ConfigRow({
+// Display row component (read-only)
+function DisplayRow({
   label,
   children,
 }: {
@@ -57,27 +41,115 @@ function ConfigRow({
   );
 }
 
+// Section component
+function Section({
+  title,
+  children,
+  showLine = true,
+}: {
+  title: string;
+  children: React.ReactNode;
+  showLine?: boolean;
+}) {
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40" />
+        {showLine && <div className="w-0.5 flex-1 bg-muted-foreground/20 mt-1.5" />}
+      </div>
+      <div className="flex-1 pb-4">
+        <h4 className="text-sm font-semibold mb-2">{title}</h4>
+        <div className="space-y-1.5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export function RankingPreviewBubble({
   schema,
   onStartAnalysis,
   isAnalyzing = false,
   className,
 }: RankingPreviewBubbleProps) {
+  // Configuration state
   const [bigbetter, setBigbetter] = useState<0 | 1>(1);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [selectedIndicatorValues, setSelectedIndicatorValues] = useState<string[]>([]);
   const [bootstrapIterations, setBootstrapIterations] = useState(2000);
   const [randomSeed, setRandomSeed] = useState(42);
-  const [expanded, setExpanded] = useState(false);
+  
+  // Dialog state
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // Temporary state for dialog editing
+  const [tempBigbetter, setTempBigbetter] = useState<0 | 1>(1);
+  const [tempSelectedItems, setTempSelectedItems] = useState<string[]>([]);
+  const [tempSelectedIndicatorValues, setTempSelectedIndicatorValues] = useState<string[]>([]);
+  const [tempBootstrapIterations, setTempBootstrapIterations] = useState(2000);
+  const [tempRandomSeed, setTempRandomSeed] = useState(42);
 
-  // Sync bigbetter with schema when it changes
+  // Initialize state from schema
   useEffect(() => {
     if (schema) {
       setBigbetter(schema.bigbetter as 0 | 1);
+      setSelectedItems(schema.ranking_items);
+      setSelectedIndicatorValues(schema.indicator_values);
     }
   }, [schema]);
+
+  // Open dialog and sync temp state
+  const handleOpenDialog = () => {
+    setTempBigbetter(bigbetter);
+    setTempSelectedItems([...selectedItems]);
+    setTempSelectedIndicatorValues([...selectedIndicatorValues]);
+    setTempBootstrapIterations(bootstrapIterations);
+    setTempRandomSeed(randomSeed);
+    setShowAdvanced(false);
+    setIsDialogOpen(true);
+  };
+
+  // Save changes from dialog
+  const handleSaveConfig = () => {
+    setBigbetter(tempBigbetter);
+    setSelectedItems(tempSelectedItems);
+    setSelectedIndicatorValues(tempSelectedIndicatorValues);
+    setBootstrapIterations(tempBootstrapIterations);
+    setRandomSeed(tempRandomSeed);
+    setIsDialogOpen(false);
+  };
+
+  // Toggle item selection
+  const toggleItem = (item: string) => {
+    setTempSelectedItems(prev => 
+      prev.includes(item) 
+        ? prev.filter(i => i !== item)
+        : [...prev, item]
+    );
+  };
+
+  // Toggle indicator value selection
+  const toggleIndicatorValue = (value: string) => {
+    setTempSelectedIndicatorValues(prev =>
+      prev.includes(value)
+        ? prev.filter(v => v !== value)
+        : [...prev, value]
+    );
+  };
+
+  // Select/deselect all items
+  const selectAllItems = () => setTempSelectedItems([...schema.ranking_items]);
+  const deselectAllItems = () => setTempSelectedItems([]);
+
+  // Select/deselect all indicator values
+  const selectAllIndicators = () => setTempSelectedIndicatorValues([...schema.indicator_values]);
+  const deselectAllIndicators = () => setTempSelectedIndicatorValues([]);
 
   const handleStartAnalysis = () => {
     const config: AnalysisConfig = {
       bigbetter,
+      selected_items: selectedItems.length === schema.ranking_items.length ? undefined : selectedItems,
+      selected_indicator_values: selectedIndicatorValues.length === schema.indicator_values.length ? undefined : selectedIndicatorValues,
       bootstrap_iterations: bootstrapIterations,
       random_seed: randomSeed,
     };
@@ -85,133 +157,292 @@ export function RankingPreviewBubble({
   };
 
   // Calculate estimated runtime
-  const estimatedRuntime = `~${Math.max(1, Math.ceil(schema.ranking_items.length * 0.3))} seconds`;
+  const estimatedRuntime = `~${Math.max(1, Math.ceil(selectedItems.length * 0.3))} seconds`;
+
+  // Check if config has been modified from defaults
+  const isModified = 
+    bigbetter !== schema.bigbetter ||
+    selectedItems.length !== schema.ranking_items.length ||
+    selectedIndicatorValues.length !== schema.indicator_values.length ||
+    bootstrapIterations !== 2000 ||
+    randomSeed !== 42;
 
   return (
-    <div className={cn(
-      "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full",
-      className
-    )}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-        <h3 className="text-base font-semibold">Ranking Preview</h3>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ExternalLink className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="px-4 py-3">
-        {/* DataQuality */}
-        <TimelineStep title="DataQuality">
-          <ConfigRow label="Missing values">0%</ConfigRow>
-          <ConfigRow label="Data quality">Great, ready to run perfectly</ConfigRow>
-          <ConfigRow label="Estimated runtime">{estimatedRuntime}</ConfigRow>
-        </TimelineStep>
-
-        {/* RankingConfig */}
-        <TimelineStep title="RankingConfig">
-          <ConfigRow label="Ranking items number">{schema.ranking_items.length}</ConfigRow>
-          <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Ranking items name:</span>
-            <div className="text-xs font-mono bg-muted/60 px-2 py-1 rounded leading-relaxed break-words">
-              {schema.ranking_items.join(", ")}
-            </div>
-          </div>
-        </TimelineStep>
-
-        {/* ParameterSetup */}
-        <TimelineStep title="ParameterSetup" isLast>
-          {/* Ranking direction */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Ranking direction:</span>
-            {expanded ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {bigbetter === 1 ? "Higher" : "Lower"}
-                </span>
-                <Switch
-                  checked={bigbetter === 1}
-                  onCheckedChange={(checked) => setBigbetter(checked ? 1 : 0)}
-                  className="scale-75"
-                />
-              </div>
-            ) : (
-              <span className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded">...</span>
+    <>
+      <div className={cn(
+        "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full",
+        className
+      )}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold">Ranking Preview</h3>
+            {isModified && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                Modified
+              </Badge>
             )}
           </div>
+          <button
+            onClick={handleOpenDialog}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="Configure analysis"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
+        </div>
 
-          {/* Bootstrap iterations */}
-          {expanded ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Bootstrap iterations:</span>
-                <span className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded">
-                  {bootstrapIterations}
-                </span>
-              </div>
-              <Slider
-                value={[bootstrapIterations]}
-                onValueChange={([value]) => setBootstrapIterations(value)}
-                min={100}
-                max={5000}
-                step={100}
-                className="w-full"
-              />
+        {/* Content (Read-only display) */}
+        <div className="px-4 py-3">
+          {/* Data Schema */}
+          <Section title="Data Schema">
+            <DisplayRow label="Format">
+              <span className={cn(
+                schema.format === "pairwise" ? "text-blue-600 dark:text-blue-400" : "text-green-600 dark:text-green-400"
+              )}>
+                {schema.format}
+              </span>
+            </DisplayRow>
+            <DisplayRow label="Confidence">
+              <span className={cn(
+                schema.confidence >= 0.8 ? "text-green-600" : schema.confidence >= 0.5 ? "text-yellow-600" : "text-red-600"
+              )}>
+                {(schema.confidence * 100).toFixed(0)}%
+              </span>
+            </DisplayRow>
+            <DisplayRow label="Direction">
+              {bigbetter === 1 ? "Higher is better" : "Lower is better"}
+            </DisplayRow>
+          </Section>
+
+          {/* Ranking Items */}
+          <Section title="Ranking Items">
+            <DisplayRow label="Selected">
+              {selectedItems.length} / {schema.ranking_items.length}
+            </DisplayRow>
+            <div className="text-xs font-mono bg-muted/60 px-2 py-1 rounded leading-relaxed break-words">
+              {selectedItems.join(", ")}
             </div>
-          ) : (
-            <ConfigRow label="Bootstrap iterations">{bootstrapIterations}</ConfigRow>
+          </Section>
+
+          {/* Ranking Indicator (only if indicator exists) */}
+          {schema.indicator_col && (
+            <Section title="Ranking Indicator">
+              <DisplayRow label="Column">{schema.indicator_col}</DisplayRow>
+              <DisplayRow label="Selected">
+                {selectedIndicatorValues.length} / {schema.indicator_values.length}
+              </DisplayRow>
+              {selectedIndicatorValues.length > 0 && (
+                <div className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded">
+                  {selectedIndicatorValues.join(", ")}
+                </div>
+              )}
+            </Section>
           )}
 
-          {/* Random seed */}
-          {expanded ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Random seed:</span>
-                <span className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded">
-                  {randomSeed}
-                </span>
-              </div>
-              <Slider
-                value={[randomSeed]}
-                onValueChange={([value]) => setRandomSeed(value)}
-                min={1}
-                max={9999}
-                step={1}
-                className="w-full"
-              />
-            </div>
-          ) : (
-            <ConfigRow label="Random seed">{randomSeed}</ConfigRow>
+          {/* Parameters */}
+          <Section title="Parameters" showLine={false}>
+            <DisplayRow label="Bootstrap">{bootstrapIterations}</DisplayRow>
+            <DisplayRow label="Seed">{randomSeed}</DisplayRow>
+            <DisplayRow label="Est. runtime">{estimatedRuntime}</DisplayRow>
+          </Section>
+        </div>
+
+        {/* Start Ranking Button */}
+        <div className="px-4 pb-4">
+          <Button
+            onClick={handleStartAnalysis}
+            disabled={isAnalyzing || selectedItems.length < 2}
+            variant="outline"
+            className="w-full"
+            size="lg"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Start Ranking
+              </>
+            )}
+          </Button>
+          {selectedItems.length < 2 && (
+            <p className="text-xs text-destructive mt-1 text-center">
+              Select at least 2 items to rank
+            </p>
           )}
-        </TimelineStep>
+        </div>
       </div>
 
-      {/* Start Ranking Button */}
-      <div className="px-4 pb-4">
-        <Button
-          onClick={handleStartAnalysis}
-          disabled={isAnalyzing}
-          variant="outline"
-          className="w-full"
-          size="lg"
-        >
-          {isAnalyzing ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4 mr-2" />
-              Start Ranking
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
+      {/* Configuration Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Configure Analysis</DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-6 py-4">
+              {/* Ranking Direction */}
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Ranking Direction</h4>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <span className="text-sm">
+                    {tempBigbetter === 1 ? "Higher is better" : "Lower is better"}
+                  </span>
+                  <Switch
+                    checked={tempBigbetter === 1}
+                    onCheckedChange={(checked) => setTempBigbetter(checked ? 1 : 0)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {tempBigbetter === 1 
+                    ? "Items with higher scores/win rates rank higher"
+                    : "Items with lower scores (e.g., errors, latency) rank higher"}
+                </p>
+              </div>
+
+              {/* Ranking Items Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Ranking Items</h4>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={selectAllItems}>
+                      All
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={deselectAllItems}>
+                      None
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 p-3 rounded-lg bg-muted/50 max-h-32 overflow-y-auto">
+                  {schema.ranking_items.map((item) => (
+                    <Badge
+                      key={item}
+                      variant={tempSelectedItems.includes(item) ? "default" : "outline"}
+                      className="cursor-pointer text-xs"
+                      onClick={() => toggleItem(item)}
+                    >
+                      {tempSelectedItems.includes(item) && <Check className="h-3 w-3 mr-1" />}
+                      {item}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {tempSelectedItems.length} of {schema.ranking_items.length} items selected
+                </p>
+              </div>
+
+              {/* Indicator Values Selection (if applicable) */}
+              {schema.indicator_col && schema.indicator_values.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium">Indicator: {schema.indicator_col}</h4>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={selectAllIndicators}>
+                        All
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={deselectAllIndicators}>
+                        None
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 p-3 rounded-lg bg-muted/50">
+                    {schema.indicator_values.map((value) => (
+                      <Badge
+                        key={value}
+                        variant={tempSelectedIndicatorValues.includes(value) ? "default" : "outline"}
+                        className="cursor-pointer text-xs"
+                        onClick={() => toggleIndicatorValue(value)}
+                      >
+                        {tempSelectedIndicatorValues.includes(value) && <Check className="h-3 w-3 mr-1" />}
+                        {value}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Filter data by selected indicator values
+                  </p>
+                </div>
+              )}
+
+              {/* Advanced Settings (Collapsible) */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showAdvanced ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                  Advanced Settings
+                </button>
+                
+                {showAdvanced && (
+                  <div className="space-y-4 pl-6 pt-2">
+                    {/* Bootstrap Iterations */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Bootstrap Iterations</span>
+                        <span className="text-sm font-mono bg-muted px-2 py-0.5 rounded">
+                          {tempBootstrapIterations}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[tempBootstrapIterations]}
+                        onValueChange={([value]) => setTempBootstrapIterations(value)}
+                        min={100}
+                        max={5000}
+                        step={100}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        More iterations = more accurate CIs, longer runtime
+                      </p>
+                    </div>
+
+                    {/* Random Seed */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Random Seed</span>
+                        <Input
+                          type="number"
+                          value={tempRandomSeed}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 1;
+                            setTempRandomSeed(Math.max(1, Math.min(999999, val)));
+                          }}
+                          className="w-24 h-7 text-sm font-mono text-right"
+                          min={1}
+                          max={999999}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Set for reproducible results
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+            <Button onClick={handleSaveConfig} disabled={tempSelectedItems.length < 2}>
+              <Check className="h-4 w-4 mr-1" />
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

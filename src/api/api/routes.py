@@ -24,6 +24,9 @@ from core.schemas import (
     WSMessageType,
     AgentType,
     DataPreview,
+    DataAgentStartRequest,
+    DataAgentStartResponse,
+    DataAgentStartStatus,
 )
 
 # Example data configuration
@@ -61,15 +64,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["ranking"])
 
 
-@router.post("/upload", response_model=UploadResponse)
+class UploadOnlyResponse(BaseModel):
+    """Response for file upload (before Data Agent processing)."""
+    session_id: str
+    filename: str
+
+
+@router.post("/upload", response_model=UploadOnlyResponse)
 async def upload_file(file: Annotated[UploadFile, File(description="CSV or JSON file")]):
     """
     Upload a comparison data file for analysis.
     
-    The Data Agent will:
-    1. Detect the data format (pointwise/pairwise/multiway)
-    2. Infer the schema (bigbetter, ranking_items, indicators)
-    3. Validate the data and return warnings
+    Phase 1: Immediately save file and return session_id for data preview.
+    Phase 2: Data Agent is started explicitly after preview.
     """
     # Validate file type
     if not file.filename:
@@ -94,32 +101,22 @@ async def upload_file(file: Annotated[UploadFile, File(description="CSV or JSON 
     session.file_content = content
     session.file_path = file_path
     session.status = SessionStatus.UPLOADING
-    
-    # Run Data Agent
-    data_agent = DataAgent()
-    schema, warnings = data_agent.process(content, file.filename)
-    
-    # Update session
-    session.inferred_schema = schema
-    session.status = SessionStatus.CONFIGURING
     store.update_session(session)
     
-    return UploadResponse(
+    # Return immediately with session_id for data preview
+    return UploadOnlyResponse(
         session_id=session.session_id,
         filename=file.filename,
-        inferred_schema=schema,
-        warnings=warnings,
     )
 
 
-@router.post("/upload/example/{example_id}", response_model=UploadResponse)
+@router.post("/upload/example/{example_id}", response_model=UploadOnlyResponse)
 async def upload_example(example_id: str):
     """
     Load example data for analysis.
     
-    Available examples:
-    - pairwise: LLM pairwise comparison data
-    - pointwise: Model performance scores
+    Phase 1: Immediately save file and return session_id for data preview.
+    Phase 2: Data Agent is started explicitly after preview.
     """
     if example_id not in EXAMPLE_DATASETS:
         raise HTTPException(
@@ -150,21 +147,12 @@ async def upload_example(example_id: str):
     session.file_content = content
     session.file_path = saved_path
     session.status = SessionStatus.UPLOADING
-    
-    # Run Data Agent
-    data_agent = DataAgent()
-    schema, warnings = data_agent.process(content, filename)
-    
-    # Update session
-    session.inferred_schema = schema
-    session.status = SessionStatus.CONFIGURING
     store.update_session(session)
     
-    return UploadResponse(
+    # Return immediately with session_id for data preview
+    return UploadOnlyResponse(
         session_id=session.session_id,
         filename=filename,
-        inferred_schema=schema,
-        warnings=warnings,
     )
 
 
@@ -219,6 +207,45 @@ async def get_data_preview(session_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to parse data: {str(e)}")
 
 
+@router.post("/data-agent/start", response_model=DataAgentStartResponse)
+async def start_data_agent(request: DataAgentStartRequest):
+    """
+    Start Data Agent processing for a session.
+    
+    This should be called after data preview is loaded.
+    """
+    store = get_session_store()
+    session = store.get_session(request.session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not session.file_content or not session.filename:
+        raise HTTPException(status_code=400, detail="No file uploaded for this session")
+    
+    if session.inferred_schema:
+        return DataAgentStartResponse(
+            session_id=session.session_id,
+            status=DataAgentStartStatus.ALREADY_COMPLETED,
+        )
+    
+    if session.data_agent_started:
+        return DataAgentStartResponse(
+            session_id=session.session_id,
+            status=DataAgentStartStatus.ALREADY_STARTED,
+        )
+    
+    session.data_agent_started = True
+    store.update_session(session)
+    
+    asyncio.create_task(_run_data_agent_async(session.session_id, session.file_content, session.filename))
+    
+    return DataAgentStartResponse(
+        session_id=session.session_id,
+        status=DataAgentStartStatus.STARTED,
+    )
+
+
 async def _send_ws_progress(session_id: str, progress: float, message: str, agent: str = None):
     """Send progress update via WebSocket."""
     try:
@@ -230,6 +257,24 @@ async def _send_ws_progress(session_id: str, progress: float, message: str, agen
         await manager.send_message(session_id, ws_message)
     except Exception as e:
         logger.debug(f"WebSocket send failed (no clients?): {e}")
+
+
+async def _send_ws_schema_ready(session_id: str, schema, warnings: list):
+    """Send Data Agent schema inference result via WebSocket."""
+    try:
+        manager = get_connection_manager()
+        logger.info(f"Sending schema_ready to session {session_id}")
+        ws_message = WSMessage(
+            type=WSMessageType.SCHEMA_READY,
+            payload={
+                "inferred_schema": schema.model_dump() if schema else None,
+                "warnings": [w.model_dump() for w in warnings] if warnings else [],
+            },
+        )
+        await manager.send_message(session_id, ws_message)
+        logger.info(f"schema_ready sent successfully to session {session_id}")
+    except Exception as e:
+        logger.error(f"WebSocket send failed for session {session_id}: {e}")
 
 
 async def _send_ws_agent_message(session_id: str, agent: AgentType, message: str):
@@ -269,6 +314,44 @@ async def _send_ws_error(session_id: str, error: str):
         await manager.send_message(session_id, ws_message)
     except Exception as e:
         logger.debug(f"WebSocket send failed: {e}")
+
+
+async def _run_data_agent_async(session_id: str, content: bytes, filename: str):
+    """Run Data Agent in background and send results via WebSocket."""
+    store = get_session_store()
+    session = store.get_session(session_id)
+    
+    if not session:
+        logger.error(f"Session {session_id} not found for Data Agent")
+        return
+    
+    try:
+        # Run Data Agent (blocking call in thread pool)
+        data_agent = DataAgent()
+        loop = asyncio.get_event_loop()
+        schema, warnings, explanation = await loop.run_in_executor(
+            None, data_agent.process, content, filename, session
+        )
+        
+        # Log explanation if available
+        if explanation:
+            logger.info(f"Data Agent explanation: {explanation}")
+        
+        # Update session
+        session.inferred_schema = schema
+        session.status = SessionStatus.CONFIGURING
+        store.update_session(session)
+        
+        # Send schema ready via WebSocket
+        await _send_ws_schema_ready(session_id, schema, warnings)
+        
+    except Exception as e:
+        logger.error(f"Data Agent failed: {e}")
+        session.status = SessionStatus.ERROR
+        store.update_session(session)
+        await _send_ws_error(session_id, f"Data Agent error: {str(e)}")
+
+
 
 
 async def _run_analysis_async(session_id: str, config):

@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   uploadFile,
+  startDataAgent,
   analyze,
   getResults,
   createWebSocket,
@@ -11,6 +12,7 @@ import {
   getDataPreview,
   EXAMPLE_DATASETS,
   type UploadResponse,
+  type SchemaReadyPayload,
   type AnalysisConfig,
   type RankingResults,
   type ValidationWarning,
@@ -166,11 +168,17 @@ export function useOmniRank() {
     }));
   }, []);
 
-  // Handle file upload
+  // Handle file upload - Two phase process
+  // Phase 1: Upload file, show preview immediately
+  // Phase 2: Start Data Agent after preview, results via WebSocket
   const handleUpload = useCallback(async (file: File) => {
+    // Set uploading state with filename for immediate UI feedback
     setState((prev) => ({
       ...prev,
       status: "uploading",
+      filename: file.name,
+      dataSource: "upload",
+      dataPreview: null,
       error: null,
       progress: 0,
       progressMessage: "Uploading file...",
@@ -179,23 +187,78 @@ export function useOmniRank() {
     // 1. User message showing what was uploaded
     addMessage("user", `Uploaded: ${file.name}`);
 
-    // 2. Data Agent working message
-    const workingMessage = addMessage(
-      "assistant",
-      "",
-      "data",
-      { type: "data-agent-working", workingData: { isComplete: false } }
-    );
+    // Track working message ID for later update
+    let workingMessageId: string | null = null;
 
     try {
+      // Phase 1: Upload file (returns immediately)
       const response = await uploadFile(file);
 
-      // Connect WebSocket for this session
+      // File uploaded! Update state to show data preview
+      setState((prev) => ({
+        ...prev,
+        sessionId: response.session_id,
+        filename: response.filename,
+        status: "uploading",  // Keep uploading until schema is ready
+        dataSource: "upload",
+        exampleDataInfo: null,
+        dataPreview: null,
+      }));
+
+      // Fetch data preview before starting Data Agent
+      try {
+        const preview = await getDataPreview(response.session_id);
+        setState((prev) => ({
+          ...prev,
+          dataPreview: preview,
+        }));
+      } catch {
+        console.warn("Failed to fetch data preview");
+      }
+
+      // 2. Show Data Agent working message after preview is ready
+      const workingMessage = addMessage(
+        "assistant",
+        "",
+        "data",
+        { type: "data-agent-working", workingData: { isComplete: false } }
+      );
+      workingMessageId = workingMessage.id;
+
+      // Connect WebSocket to receive Data Agent results
       wsRef.current = createWebSocket(
         response.session_id,
         (msg) => {
           // Handle WebSocket messages
-          if (msg.type === "progress") {
+          if (msg.type === "schema_ready") {
+            // Data Agent completed! 
+            const payload = msg.payload as SchemaReadyPayload;
+            setState((prev) => ({
+              ...prev,
+              schema: payload.inferred_schema,
+              warnings: payload.warnings,
+              status: "configuring",
+            }));
+
+            // Add ranking config bubble
+            addMessage(
+              "assistant",
+              "",
+              "data",
+              { 
+                type: "ranking-config", 
+                configData: { schema: payload.inferred_schema } 
+              }
+            );
+
+            // Mark working message as complete after preview is shown
+            if (workingMessageId) {
+              const messageId = workingMessageId;
+              setTimeout(() => {
+                updateMessage(messageId, { workingData: { isComplete: true } });
+              }, 0);
+            }
+          } else if (msg.type === "progress") {
             const payload = msg.payload as { progress: number; message: string };
             setState((prev) => ({
               ...prev,
@@ -221,49 +284,30 @@ export function useOmniRank() {
               error: payload.error,
               status: "error",
             }));
+            // Mark working as complete on error
+            if (workingMessageId) {
+              updateMessage(workingMessageId, { workingData: { isComplete: true } });
+            }
             addMessage("system", `Error: ${payload.error}`);
           }
         },
         () => console.error("WebSocket error"),
-        () => console.log("WebSocket closed")
-      );
-
-      setState((prev) => ({
-        ...prev,
-        sessionId: response.session_id,
-        filename: response.filename,
-        schema: response.inferred_schema,
-        warnings: response.warnings,
-        status: "configuring",
-        dataSource: "upload",
-        exampleDataInfo: null,
-        progress: 0,
-        progressMessage: "",
-      }));
-
-      // Fetch data preview
-      try {
-        const preview = await getDataPreview(response.session_id);
-        setState((prev) => ({
-          ...prev,
-          dataPreview: preview,
-        }));
-      } catch {
-        // Preview is optional, don't fail the upload
-        console.warn("Failed to fetch data preview");
-      }
-
-      // 3. Mark working message as complete
-      updateMessage(workingMessage.id, { workingData: { isComplete: true } });
-
-      // 4. Add ranking config bubble
-      addMessage(
-        "assistant",
-        "",
-        "data",
-        { 
-          type: "ranking-config", 
-          configData: { schema: response.inferred_schema } 
+        () => console.log("WebSocket closed"),
+        async () => {
+          try {
+            await startDataAgent(response.session_id);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to start Data Agent";
+            setState((prev) => ({
+              ...prev,
+              status: "error",
+              error: errorMessage,
+            }));
+            if (workingMessageId) {
+              updateMessage(workingMessageId, { workingData: { isComplete: true } });
+            }
+            addMessage("system", `Error: ${errorMessage}`);
+          }
         }
       );
 
@@ -274,9 +318,11 @@ export function useOmniRank() {
         ...prev,
         status: "error",
         error: errorMessage,
+        filename: null,
       }));
-      // Mark working as complete even on error
-      updateMessage(workingMessage.id, { workingData: { isComplete: true } });
+      if (workingMessageId) {
+        updateMessage(workingMessageId, { workingData: { isComplete: true } });
+      }
       addMessage("system", `Error: ${errorMessage}`);
       throw error;
     }
@@ -376,16 +422,21 @@ export function useOmniRank() {
     }
   }, [state.sessionId, state.results, addMessage]);
 
-  // Load example data
+  // Load example data - Two phase process (same as file upload)
   const loadExampleData = useCallback(async (exampleId: string) => {
     const exampleInfo = EXAMPLE_DATASETS.find((d) => d.id === exampleId);
     if (!exampleInfo) {
       throw new Error("Unknown example dataset");
     }
 
+    // Set uploading state with filename for immediate UI feedback
     setState((prev) => ({
       ...prev,
       status: "uploading",
+      filename: exampleInfo.filename,
+      dataSource: "example",
+      exampleDataInfo: exampleInfo,
+      dataPreview: null,
       error: null,
       progress: 0,
       progressMessage: "Loading example data...",
@@ -394,22 +445,77 @@ export function useOmniRank() {
     // 1. User message showing what was selected
     addMessage("user", `Selected example: ${exampleInfo.title}`);
 
-    // 2. Data Agent working message
-    const workingMessage = addMessage(
-      "assistant",
-      "",
-      "data",
-      { type: "data-agent-working", workingData: { isComplete: false } }
-    );
+    // Track working message ID for later update
+    let workingMessageId: string | null = null;
 
     try {
+      // Phase 1: Load example file (returns immediately)
       const response = await apiLoadExampleData(exampleId);
 
-      // Connect WebSocket for this session
+      // File loaded! Update state
+      setState((prev) => ({
+        ...prev,
+        sessionId: response.session_id,
+        filename: response.filename,
+        status: "uploading",  // Keep uploading until schema is ready
+        dataSource: "example",
+        exampleDataInfo: exampleInfo,
+        dataPreview: null,
+      }));
+
+      // Fetch data preview before starting Data Agent
+      try {
+        const preview = await getDataPreview(response.session_id);
+        setState((prev) => ({
+          ...prev,
+          dataPreview: preview,
+        }));
+      } catch {
+        console.warn("Failed to fetch data preview");
+      }
+
+      // 2. Show Data Agent working message after preview is ready
+      const workingMessage = addMessage(
+        "assistant",
+        "",
+        "data",
+        { type: "data-agent-working", workingData: { isComplete: false } }
+      );
+      workingMessageId = workingMessage.id;
+
+      // Connect WebSocket to receive Data Agent results
       wsRef.current = createWebSocket(
         response.session_id,
         (msg) => {
-          if (msg.type === "progress") {
+          if (msg.type === "schema_ready") {
+            // Data Agent completed!
+            const payload = msg.payload as SchemaReadyPayload;
+            setState((prev) => ({
+              ...prev,
+              schema: payload.inferred_schema,
+              warnings: payload.warnings,
+              status: "configuring",
+            }));
+
+            // Add ranking config bubble
+            addMessage(
+              "assistant",
+              "",
+              "data",
+              { 
+                type: "ranking-config", 
+                configData: { schema: payload.inferred_schema } 
+              }
+            );
+
+            // Mark working message as complete after preview is shown
+            if (workingMessageId) {
+              const messageId = workingMessageId;
+              setTimeout(() => {
+                updateMessage(messageId, { workingData: { isComplete: true } });
+              }, 0);
+            }
+          } else if (msg.type === "progress") {
             const payload = msg.payload as { progress: number; message: string };
             setState((prev) => ({
               ...prev,
@@ -435,48 +541,29 @@ export function useOmniRank() {
               error: payload.error,
               status: "error",
             }));
+            if (workingMessageId) {
+              updateMessage(workingMessageId, { workingData: { isComplete: true } });
+            }
             addMessage("system", `Error: ${payload.error}`);
           }
         },
         () => console.error("WebSocket error"),
-        () => console.log("WebSocket closed")
-      );
-
-      setState((prev) => ({
-        ...prev,
-        sessionId: response.session_id,
-        filename: response.filename,
-        schema: response.inferred_schema,
-        warnings: response.warnings,
-        status: "configuring",
-        dataSource: "example",
-        exampleDataInfo: exampleInfo,
-        progress: 0,
-        progressMessage: "",
-      }));
-
-      // Fetch data preview
-      try {
-        const preview = await getDataPreview(response.session_id);
-        setState((prev) => ({
-          ...prev,
-          dataPreview: preview,
-        }));
-      } catch {
-        console.warn("Failed to fetch data preview");
-      }
-
-      // 3. Mark working message as complete
-      updateMessage(workingMessage.id, { workingData: { isComplete: true } });
-
-      // 4. Add ranking config bubble
-      addMessage(
-        "assistant",
-        "",
-        "data",
-        { 
-          type: "ranking-config", 
-          configData: { schema: response.inferred_schema } 
+        () => console.log("WebSocket closed"),
+        async () => {
+          try {
+            await startDataAgent(response.session_id);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to start Data Agent";
+            setState((prev) => ({
+              ...prev,
+              status: "error",
+              error: errorMessage,
+            }));
+            if (workingMessageId) {
+              updateMessage(workingMessageId, { workingData: { isComplete: true } });
+            }
+            addMessage("system", `Error: ${errorMessage}`);
+          }
         }
       );
 
@@ -487,9 +574,11 @@ export function useOmniRank() {
         ...prev,
         status: "error",
         error: errorMessage,
+        filename: null,
       }));
-      // Mark working as complete even on error
-      updateMessage(workingMessage.id, { workingData: { isComplete: true } });
+      if (workingMessageId) {
+        updateMessage(workingMessageId, { workingData: { isComplete: true } });
+      }
       addMessage("system", `Error: ${errorMessage}`);
       throw error;
     }

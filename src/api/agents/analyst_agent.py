@@ -144,8 +144,7 @@ Keep the report concise (3-5 paragraphs). Do not use overly technical jargon."""
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=500,
-                temperature=0.3,
+                max_completion_tokens=500,
             )
             
             report = response.choices[0].message.content.strip()
@@ -243,8 +242,7 @@ Use your knowledge of spectral ranking theory to provide a clear, accurate answe
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=300,
-                temperature=0.4,
+                max_completion_tokens=500,  # gpt-5-nano requires >= 500
             )
             
             return response.choices[0].message.content.strip()
@@ -305,10 +303,9 @@ Be concise and practical."""
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=300,
-                temperature=0.2,
+                max_completion_tokens=500,  # gpt-5-nano requires >= 500
             )
-            
+
             return response.choices[0].message.content.strip()
             
         except Exception as e:

@@ -30,7 +30,10 @@ export default function Home() {
 
   const isIdle = state.status === "idle";
   const isUploading = state.status === "uploading";
-  const hasData = state.filename && (state.status === "configuring" || state.status === "analyzing" || state.status === "completed");
+  const isPreviewLoading = isUploading && !state.dataPreview;
+  // Show sticker mode as soon as uploading starts (filename is set)
+  // or when in configuring/analyzing/completed state
+  const hasData = state.filename && (state.status === "uploading" || state.status === "configuring" || state.status === "analyzing" || state.status === "completed");
   const isAnalyzing = state.status === "analyzing";
   const showProgress = state.status === "analyzing";
   const showResults = state.status === "completed" && state.results;
@@ -81,39 +84,40 @@ export default function Home() {
           >
             <Card className="h-[calc(100vh-80px)] flex flex-col bg-card/80 backdrop-blur-sm glow-border py-4">
               <CardContent className="flex-1 flex flex-col min-h-0">
-                {/* Initial State: Upload zone + Example selector */}
-                {(isIdle || isUploading) && (
+                {/* Initial State: Upload zone + Example selector - only show when truly idle */}
+                {isIdle && !hasData && (
                   <div className="space-y-4 mb-4">
                     <FileUpload
                       onUpload={handleUpload}
                       mode="dropzone"
-                      isUploading={isUploading}
+                      isUploading={false}
                       isUploaded={false}
-                      filename={state.filename}
+                      filename={null}
                     />
                     <ExampleDataSelector
                       examples={exampleDatasets}
                       onSelect={loadExampleData}
-                      disabled={isUploading}
+                      disabled={false}
                     />
                   </div>
                 )}
 
-                {/* Data Loaded State: Sticker + Preview */}
+                {/* Data Loaded State: Sticker + Preview - shows immediately when file is selected */}
                 {hasData && (
                   <div className="space-y-4 flex-1 flex flex-col min-h-0">
                     <FileUpload
                       onUpload={handleUpload}
-                      onCancel={cancelData}
+                      onCancel={!isUploading ? cancelData : undefined}  // Disable cancel during upload
                       mode="sticker"
                       filename={state.filename}
                       isExample={state.dataSource === "example"}
+                      isUploading={isUploading}  // Pass uploading state for visual feedback
                     />
                     <div className="flex-1 min-h-0">
                       <DataPreviewComponent
                         preview={state.dataPreview}
                         exampleInfo={state.exampleDataInfo}
-                        isLoading={isUploading}
+                        isLoading={isPreviewLoading}
                         className="h-full"
                       />
                     </div>

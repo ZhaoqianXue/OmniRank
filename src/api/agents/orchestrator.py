@@ -5,13 +5,18 @@ Responsible for:
 - Coordinating R script execution (step1 and step2)
 - Making decisions about when to trigger step2 refinement
 - Managing execution flow and error handling
+- Preprocessing data based on user selections (items, indicator values)
 """
 
+import io
 import logging
 import os
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
+import pandas as pd
 from openai import OpenAI
 
 from core.r_executor import (
@@ -29,6 +34,7 @@ from core.schemas import (
     RankingItem,
     RankingMetadata,
     PairwiseComparison,
+    DataFormat,
 )
 from core.session_memory import SessionMemory, TraceType
 
@@ -112,8 +118,7 @@ CONFIDENCE: [0.0-1.0]"""
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=150,
-                temperature=0.1,
+                max_completion_tokens=500,  # gpt-5-nano requires >= 500
             )
             
             text = response.choices[0].message.content.strip()
@@ -175,6 +180,85 @@ CONFIDENCE: [0.0-1.0]"""
             reason=f"Step 2 {'triggered' if run else 'skipped'}: {reason}",
             confidence=0.85,
         )
+    
+    def _preprocess_data(
+        self,
+        session: SessionMemory,
+        config: AnalysisConfig,
+    ) -> str:
+        """
+        Preprocess data based on user selections (items and indicator values).
+        
+        Returns the path to the preprocessed CSV file (original or filtered).
+        """
+        # Check if any filtering is needed
+        needs_filtering = (
+            (config.selected_items is not None and len(config.selected_items) > 0) or
+            (config.selected_indicator_values is not None and len(config.selected_indicator_values) > 0)
+        )
+        
+        if not needs_filtering:
+            # No filtering needed, use original file
+            return session.file_path
+        
+        logger.info(f"Preprocessing data with filters: items={config.selected_items}, indicators={config.selected_indicator_values}")
+        
+        # Read the original data
+        df = pd.read_csv(session.file_path)
+        original_rows = len(df)
+        
+        # Get schema info
+        schema = session.inferred_schema
+        data_format = schema.format if schema else DataFormat.POINTWISE
+        
+        if data_format == DataFormat.POINTWISE:
+            # Pointwise: columns are items, filter columns
+            if config.selected_items:
+                # Keep only selected item columns (preserve non-item columns like indicators)
+                all_items = schema.ranking_items if schema else []
+                non_item_cols = [col for col in df.columns if col not in all_items]
+                selected_cols = non_item_cols + [item for item in config.selected_items if item in df.columns]
+                df = df[selected_cols]
+                logger.info(f"Filtered columns: {len(df.columns)} columns retained")
+        
+        elif data_format == DataFormat.PAIRWISE:
+            # Pairwise: items are column names (except indicator columns)
+            if config.selected_items:
+                all_items = schema.ranking_items if schema else []
+                indicator_col = schema.indicator_col if schema else None
+                
+                # For pairwise data, item names ARE the column names
+                # Keep: indicator column + selected items
+                selected_cols = []
+                for col in df.columns:
+                    # Keep indicator column
+                    if col == indicator_col:
+                        selected_cols.append(col)
+                    # Keep if it's a selected item
+                    elif col in config.selected_items:
+                        selected_cols.append(col)
+                    # Keep if it's not an item column (e.g., other metadata)
+                    elif col not in all_items:
+                        selected_cols.append(col)
+                
+                df = df[selected_cols]
+                logger.info(f"Filtered pairwise columns: {len(df.columns)} columns retained")
+        
+        # Filter by indicator values
+        if config.selected_indicator_values and schema and schema.indicator_col:
+            indicator_col = schema.indicator_col
+            if indicator_col in df.columns:
+                df = df[df[indicator_col].isin(config.selected_indicator_values)]
+                logger.info(f"Filtered by indicator values: {len(df)} rows retained from {original_rows}")
+        
+        # Save to temporary file
+        temp_dir = Path(tempfile.gettempdir()) / "omnirank" / session.session_id
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = temp_dir / "filtered_data.csv"
+        df.to_csv(temp_path, index=False)
+        
+        logger.info(f"Preprocessed data saved to: {temp_path}")
+        return str(temp_path)
     
     def _convert_to_ranking_results(
         self,
@@ -243,15 +327,22 @@ CONFIDENCE: [0.0-1.0]"""
         if not session.file_path:
             raise ValueError("No file uploaded in session")
         
+        # Preprocess data based on user selections
+        processed_csv_path = self._preprocess_data(session, config)
+        
         # Step 1: Vanilla spectral ranking
         session.add_trace(
             TraceType.STEP1_EXECUTION,
-            {"status": "started", "config": config.model_dump()},
+            {
+                "status": "started",
+                "config": config.model_dump(),
+                "filtered": processed_csv_path != session.file_path,
+            },
             agent=None,
         )
         
         step1_params = Step1Params(
-            csv_path=session.file_path,
+            csv_path=processed_csv_path,  # Use preprocessed data
             bigbetter=config.bigbetter,
             bootstrap_iterations=config.bootstrap_iterations,
             random_seed=config.random_seed,
@@ -309,7 +400,7 @@ CONFIDENCE: [0.0-1.0]"""
             )
             
             step2_params = Step2Params(
-                csv_path=session.file_path,
+                csv_path=processed_csv_path,  # Use same preprocessed data
                 step1_json_path=step1_result.json_path,
             )
             

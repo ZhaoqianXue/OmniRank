@@ -75,6 +75,7 @@ class SessionMemory:
     filename: Optional[str] = None
     file_content: Optional[bytes] = None
     file_path: Optional[str] = None
+    data_agent_started: bool = False
     
     # Schema and config
     inferred_schema: Optional[InferredSchema] = None
