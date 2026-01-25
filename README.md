@@ -21,7 +21,8 @@ OmniRank/
 └── .agent/
     ├── blueprints/        # Development blueprints
     ├── skills/            # Agent skills
-    └── rules.md           # Project rules
+    └── rules/             # Project rules
+        └── rules.md
 ```
 
 ## Tech Stack
