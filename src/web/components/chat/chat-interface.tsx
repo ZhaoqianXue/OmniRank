@@ -57,7 +57,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         layout
-        className="flex w-full gap-3 mb-4 items-end flex-row"
+        className="flex w-full gap-2 mb-4 items-end flex-row"
       >
         <MessageIcon role="assistant" />
         <DataAgentWorkingBubble
@@ -75,7 +75,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         layout
-        className="flex w-full gap-3 mb-4 items-end flex-row"
+        className="flex w-full gap-2 mb-4 items-end flex-row"
       >
         <MessageIcon role="assistant" />
         <RankingPreviewBubble
@@ -94,7 +94,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
       exit={{ opacity: 0, y: -10 }}
       layout
       className={cn(
-        "flex w-full gap-3 mb-4 items-end",
+        "flex w-full gap-2 mb-4 items-end",
         isUser ? "flex-row-reverse" : "flex-row"
       )}
     >
@@ -151,8 +151,8 @@ export function ChatInterface({
   }, [messages]);
 
   return (
-    <ScrollArea ref={scrollRef} className={cn("pr-2", className)}>
-      <div className="space-y-2 px-1 py-2">
+    <ScrollArea ref={scrollRef} className={cn("", className)}>
+      <div className="space-y-2 px-2 py-2">
         <AnimatePresence initial={false}>
           {messages.map((message) => (
             <ChatMessageItem 
