@@ -1088,29 +1088,44 @@ OmniRank Workflow:
 
 | Component | Recommended Model | Minimum Capability |
 |-----------|------------------|-------------------|
-| Planner Agent | GPT-4 / Claude 3.5 | Chain-of-thought reasoning |
-| Code Generator | GPT-4 / Codex | Code generation + debugging |
-| Inference Agent | GPT-4 / Claude 3.5 | Natural language explanation |
-| Inspector Agent | Any LLM | Pattern matching + reasoning |
+| Data Agent | GPT-5-nano | Schema inference, semantic analysis |
+| Engine Orchestrator | GPT-5-nano | Statistical reasoning, workflow decisions |
+| Analyst Agent | GPT-5-nano | Report generation, Q&A, error diagnosis |
 
 ### 8.2 Computational Requirements
 
 | Task | Complexity | Typical Runtime |
 |------|-----------|----------------|
 | Spectral Estimation | O(n³) | < 1s for n < 1000 |
-| Bootstrap CI (B=1000) | O(B × n²) | < 30s for n < 500 |
+| Bootstrap CI (B=2000) | O(B × n²) | < 30s for n < 500 |
 
 ### 8.3 System Dependencies
 
+**Backend (Python)**
 ```
-Python >= 3.9
-NumPy >= 1.21
-SciPy >= 1.7
-scikit-learn >= 1.0
-sentence-transformers >= 2.0
-openai >= 1.0 (for LLM integration)
-flask >= 2.0 (web interface)
-plotly >= 5.0 (visualization)
+Python >= 3.11
+FastAPI >= 0.110
+LangGraph >= 0.2
+Pydantic >= 2.0
+openai >= 1.0
+pandas >= 2.0
+networkx >= 3.0
+```
+
+**Frontend (Node.js)**
+```
+Node.js >= 20
+Next.js 15
+React 18
+TypeScript 5
+Tailwind CSS 3
+Recharts 2
+react-force-graph
+```
+
+**Spectral Engine (R)**
+```
+R >= 4.0
 ```
 
 ---

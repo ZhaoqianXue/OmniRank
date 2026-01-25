@@ -4,7 +4,7 @@ __pycache__/
 .DS_Store
 downloads/
 output/
-# Spectral_Ranking/
+Spectral_Ranking/
 
 # Large data files
 
