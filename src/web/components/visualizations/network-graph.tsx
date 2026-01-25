@@ -7,7 +7,7 @@ import type { RankingResults } from "@/lib/api";
 
 // Dynamic import to avoid SSR issues with react-force-graph
 const ForceGraph2D = dynamic(
-  () => import("react-force-graph").then((mod) => mod.ForceGraph2D),
+  () => import("react-force-graph-2d"),
   {
     ssr: false,
     loading: () => (
@@ -53,7 +53,7 @@ export function NetworkGraph({ results, className }: NetworkGraphProps) {
         setDimensions({ width, height });
       }
     };
-    
+
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
     return () => window.removeEventListener("resize", updateDimensions);
@@ -72,7 +72,7 @@ export function NetworkGraph({ results, className }: NetworkGraphProps) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const links: any[] = [];
-    
+
     // Build links from pairwise matrix or generate from scores
     if (results.pairwise_matrix.length > 0) {
       for (const pair of results.pairwise_matrix) {
@@ -92,7 +92,7 @@ export function NetworkGraph({ results, className }: NetworkGraphProps) {
           const itemA = results.items[i];
           const itemB = results.items[j];
           const diff = Math.abs(itemA.theta_hat - itemB.theta_hat);
-          
+
           if (diff > 0.3) {
             const winRate = itemA.theta_hat > itemB.theta_hat ? 0.7 : 0.3;
             links.push({
@@ -148,7 +148,7 @@ export function NetworkGraph({ results, className }: NetworkGraphProps) {
   const linkCanvasObject = (link: any, ctx: CanvasRenderingContext2D) => {
     const source = link.source;
     const target = link.target;
-    
+
     if (!source.x || !source.y || !target.x || !target.y) return;
 
     ctx.beginPath();

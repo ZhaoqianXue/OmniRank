@@ -26,35 +26,32 @@ export default function Home() {
     <main className="min-h-screen relative overflow-hidden">
       {/* Background grid pattern */}
       <div className="fixed inset-0 grid-pattern opacity-50" />
-      
+
       {/* Gradient overlay */}
       <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-accent/5" />
-      
+
       {/* Main content */}
-      <div className="relative z-10 container mx-auto px-4 py-8">
-        {/* Header */}
+      <div className="relative z-10 w-full px-6 pb-4 pt-2">
+        {/* Header - Compact Navbar */}
         <motion.header
           variants={fadeInUp}
           initial="hidden"
           animate="show"
-          className="mb-8"
+          className="mb-3 border-b border-border/40 pb-1"
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold gradient-text">OmniRank</h1>
-              <p className="text-muted-foreground mt-1">
-                Spectral Ranking Inference Platform
-              </p>
+          <div className="flex items-center justify-between h-9">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold gradient-text">OmniRank</h1>
             </div>
             <div className="flex items-center gap-2">
               {state.sessionId && (
-                <Button variant="outline" size="sm" onClick={reset}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
+                <Button variant="ghost" size="sm" onClick={reset} className="h-7 text-xs">
+                  <RotateCcw className="h-3 w-3 mr-1.5" />
                   New Session
                 </Button>
               )}
-              <Button variant="outline" size="icon" className="glow-border">
-                <Settings2 className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-accent/50">
+                <Settings2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
@@ -69,24 +66,24 @@ export default function Home() {
             animate="show"
             className="lg:col-span-2"
           >
-            <Card className="h-[calc(100vh-200px)] flex flex-col bg-card/80 backdrop-blur-sm glow-border">
+            <Card className="h-[calc(100vh-80px)] flex flex-col bg-card/80 backdrop-blur-sm glow-border">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Analysis Console</CardTitle>
                 <CardDescription>
                   {state.status === "idle"
                     ? "Upload your comparison data to get started"
                     : state.status === "configuring"
-                    ? "Configure your analysis parameters"
-                    : state.status === "analyzing"
-                    ? "Analysis in progress..."
-                    : state.status === "completed"
-                    ? "Analysis complete!"
-                    : state.status === "error"
-                    ? "An error occurred"
-                    : "Processing..."}
+                      ? "Configure your analysis parameters"
+                      : state.status === "analyzing"
+                        ? "Analysis in progress..."
+                        : state.status === "completed"
+                          ? "Analysis complete!"
+                          : state.status === "error"
+                            ? "An error occurred"
+                            : "Processing..."}
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent className="flex-1 flex flex-col min-h-0">
                 {/* Upload zone - show when idle or to allow re-upload */}
                 {(state.status === "idle" || state.status === "uploading") && (
@@ -169,12 +166,12 @@ export default function Home() {
             initial="hidden"
             animate="show"
           >
-            <Card className="h-[calc(100vh-200px)] bg-card/80 backdrop-blur-sm glow-border">
+            <Card className="h-[calc(100vh-80px)] bg-card/80 backdrop-blur-sm glow-border">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Results</CardTitle>
                 {showResults && state.results && (
                   <CardDescription>
-                    {state.results.metadata.n_items} items ranked • 
+                    {state.results.metadata.n_items} items ranked •
                     {state.results.metadata.step2_triggered ? " Step 2 applied" : " Step 1 only"}
                   </CardDescription>
                 )}
@@ -253,18 +250,7 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* Footer */}
-        <motion.footer
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-8 text-center text-sm text-muted-foreground"
-        >
-          <p>
-            Powered by Spectral Ranking Inference |{" "}
-            <span className="text-primary">LLM Agent Platform</span>
-          </p>
-        </motion.footer>
+
       </div>
     </main>
   );
