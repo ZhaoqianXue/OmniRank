@@ -17,7 +17,7 @@ interface DataPreviewProps {
   className?: string;
 }
 
-const ROWS_PER_PAGE = 20;
+const ROWS_PER_PAGE = 100;
 
 export function DataPreviewComponent({
   preview,
@@ -91,8 +91,8 @@ export function DataPreviewComponent({
   }
 
   return (
-    <Card className={cn("", className)}>
-      <CardHeader className="pb-3">
+    <Card className={cn("flex flex-col", className)}>
+      <CardHeader className="pb-0 shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
             <Table2 className="h-4 w-4" />
@@ -103,10 +103,10 @@ export function DataPreviewComponent({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="flex-1 flex flex-col min-h-0 pt-0">
         {/* Example data description */}
         {exampleInfo && (
-          <div className="flex gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900">
+          <div className="flex gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 mb-3 shrink-0 min-h-[72px] -mt-4">
             <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
               {exampleInfo.description}
@@ -114,16 +114,16 @@ export function DataPreviewComponent({
           </div>
         )}
 
-        {/* Data table preview */}
-        <ScrollArea className="h-[280px] rounded-md border">
+        {/* Data table preview - fills remaining space */}
+        <ScrollArea className="flex-1 min-h-0 rounded-md border">
           <div className="min-w-max">
             <table className="w-full text-xs">
-              <thead className="bg-muted/50 sticky top-0 z-10">
+              <thead className="bg-muted sticky top-0 z-10">
                 <tr>
                   {preview.columns.map((col, i) => (
                     <th
                       key={i}
-                      className="px-3 py-2 text-left font-medium text-muted-foreground border-b whitespace-nowrap bg-muted/50"
+                      className="px-3 py-2 text-left font-medium text-muted-foreground border-b whitespace-nowrap bg-muted"
                     >
                       {col}
                     </th>
@@ -166,7 +166,7 @@ export function DataPreviewComponent({
 
         {/* Pagination controls */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between pt-3 shrink-0">
             <p className="text-xs text-muted-foreground">
               Showing {startRow.toLocaleString()}-{endRow.toLocaleString()} of {preview.totalRows.toLocaleString()} rows
             </p>

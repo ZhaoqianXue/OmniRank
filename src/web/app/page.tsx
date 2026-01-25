@@ -79,9 +79,7 @@ export default function Home() {
             animate="show"
             className="lg:col-span-2"
           >
-            <Card className="h-[calc(100vh-80px)] flex flex-col bg-card/80 backdrop-blur-sm glow-border pt-4">
-
-
+            <Card className="h-[calc(100vh-80px)] flex flex-col bg-card/80 backdrop-blur-sm glow-border py-4">
               <CardContent className="flex-1 flex flex-col min-h-0">
                 {/* Initial State: Upload zone + Example selector */}
                 {(isIdle || isUploading) && (
@@ -103,7 +101,7 @@ export default function Home() {
 
                 {/* Data Loaded State: Sticker + Preview */}
                 {hasData && (
-                  <div className="space-y-4 mb-4 flex-1 flex flex-col min-h-0">
+                  <div className="space-y-4 flex-1 flex flex-col min-h-0">
                     <FileUpload
                       onUpload={handleUpload}
                       onCancel={cancelData}
@@ -144,18 +142,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Warnings display - show when data is loaded */}
-                {state.warnings.length > 0 && hasData && (
-                  <div className="mb-4 space-y-2">
-                    {state.warnings.map((warning, idx) => (
-                      <ErrorDisplay
-                        key={idx}
-                        message={warning.message}
-                        type={warning.severity === "error" ? "warning" : "info"}
-                      />
-                    ))}
-                  </div>
-                )}
 
                 {/* Results Visualization Tabs - only show when results available */}
                 {showResults && (
