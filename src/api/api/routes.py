@@ -9,6 +9,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, BackgroundTasks
 
+from pydantic import BaseModel
+
 from core.schemas import (
     UploadResponse,
     AnalyzeRequest,
@@ -19,6 +21,18 @@ from core.schemas import (
     WSMessageType,
     AgentType,
 )
+
+
+class ChatRequest(BaseModel):
+    """Request body for chat endpoint."""
+    session_id: str
+    question: str
+
+
+class ChatResponse(BaseModel):
+    """Response body for chat endpoint."""
+    answer: str
+    agent: str = "analyst"
 from core.session_memory import get_session_store
 from agents.data_agent import DataAgent
 from agents.orchestrator import EngineOrchestrator
@@ -282,3 +296,39 @@ async def get_messages(session_id: str):
         "session_id": session_id,
         "messages": [m.model_dump() for m in session.messages],
     }
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """
+    Ask a follow-up question about the analysis results.
+    
+    The Analyst Agent will answer using:
+    - Session context (data schema, execution trace)
+    - Ranking results (if available)
+    - Spectral ranking domain knowledge
+    """
+    store = get_session_store()
+    session = store.get_session(request.session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not session.results:
+        raise HTTPException(
+            status_code=400,
+            detail="No analysis results available. Please complete the analysis first.",
+        )
+    
+    # Add user question to session messages
+    session.add_message("user", request.question, agent=None)
+    
+    # Get answer from Analyst Agent
+    analyst = AnalystAgent()
+    answer = analyst.answer_question(request.question, session.results, session)
+    
+    # Add answer to session messages
+    session.add_message("assistant", answer, agent=AgentType.ANALYST)
+    store.update_session(session)
+    
+    return ChatResponse(answer=answer, agent="analyst")

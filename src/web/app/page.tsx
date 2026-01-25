@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUpload } from "@/components/upload/file-upload";
 import { ChatInterface } from "@/components/chat/chat-interface";
+import { ChatInput } from "@/components/chat/chat-input";
 import { ConfigPanel } from "@/components/config/config-panel";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { ErrorDisplay } from "@/components/ui/error-display";
@@ -15,7 +16,7 @@ import { RankingChart, HeatmapChart, NetworkGraph } from "@/components/visualiza
 import { useOmniRank } from "@/hooks/use-omnirank";
 
 export default function Home() {
-  const { state, handleUpload, startAnalysis, reset } = useOmniRank();
+  const { state, handleUpload, startAnalysis, sendMessage, reset } = useOmniRank();
 
   const showConfig = state.status === "configuring" && state.schema;
   const showProgress = state.status === "analyzing";
@@ -149,6 +150,15 @@ export default function Home() {
                   messages={state.messages}
                   className="flex-1 min-h-0"
                 />
+
+                {/* Chat input - show when analysis is complete */}
+                {showResults && (
+                  <ChatInput
+                    onSend={sendMessage}
+                    disabled={state.status !== "completed"}
+                    placeholder="Ask a follow-up question about the results..."
+                  />
+                )}
               </CardContent>
             </Card>
           </motion.div>

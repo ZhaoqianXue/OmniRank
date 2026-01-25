@@ -33,6 +33,44 @@ class AnalystAgent:
     3. Diagnose errors and provide actionable suggestions
     """
     
+    # Knowledge Layer: Domain expertise for spectral ranking inference
+    SPECTRAL_KNOWLEDGE = """
+## Spectral Ranking Theory Knowledge Base
+
+### Core Concept
+Spectral ranking inference uses the stationary distribution of a Markov chain 
+constructed from comparison data to estimate preference scores. The key formula:
+
+θ̂_i = log π̂_i - (1/n) Σ log π̂_k
+
+where π̂ is the stationary distribution of the transition matrix P.
+
+### Confidence Intervals
+- CI bounds indicate rank uncertainty; wider CIs suggest less reliable rankings
+- Overlapping CIs between items mean they may be statistically indistinguishable
+- 95% CI: We are 95% confident the true rank falls within this range
+
+### Two-Step Method
+- Step 1: Initial estimation with uniform weights f(A_l) = |A_l|
+- Step 2: Refined estimation with optimal weights f(A_l) ∝ Σ exp(θ̂_u)
+- Step 2 is triggered when heterogeneity is high (uneven comparison counts)
+
+### Heterogeneity Index
+- Measures variation in comparison frequency across items
+- High heterogeneity (>0.5) suggests Step 2 refinement is beneficial
+- Low heterogeneity means uniform weighting is sufficient
+
+### Sparsity Considerations
+- Minimum comparisons needed: M > n log(n) where n = number of items
+- Sparse data leads to wider confidence intervals
+- Disconnected comparison graphs make cross-component rankings meaningless
+
+### Comparing Items
+- Use confidence intervals to determine if rank differences are significant
+- If CI_A and CI_B overlap, A and B are statistically tied
+- Score difference (theta_hat) indicates magnitude of preference
+"""
+    
     def __init__(self):
         """Initialize Analyst Agent."""
         self.name = "analyst"
@@ -179,12 +217,16 @@ Keep the report concise (3-5 paragraphs). Do not use overly technical jargon."""
         context = session.to_context_dict()
         ranking_table = self._format_ranking_table(results.items)
         
-        prompt = f"""You are an expert assistant helping users understand spectral ranking analysis results.
+        prompt = f"""You are an expert statistical analyst specializing in spectral ranking inference.
+
+{self.SPECTRAL_KNOWLEDGE}
 
 **Analysis Context:**
 - File: {context.get('filename', 'Unknown')}
 - Format: {context.get('schema', {}).get('format', 'Unknown')}
 - Items ranked: {results.metadata.n_items}
+- Heterogeneity index: {results.metadata.heterogeneity_index:.3f}
+- Step 2 applied: {'Yes' if results.metadata.step2_triggered else 'No'}
 
 **Current Results:**
 {ranking_table}
@@ -192,7 +234,10 @@ Keep the report concise (3-5 paragraphs). Do not use overly technical jargon."""
 **User Question:**
 {question}
 
-Provide a clear, helpful answer. If the question cannot be answered from the available data, explain why and suggest what information would be needed."""
+Use your knowledge of spectral ranking theory to provide a clear, accurate answer. 
+- Reference confidence intervals when comparing items
+- Explain statistical significance when relevant
+- If the question cannot be answered from the data, explain why"""
 
         try:
             response = self.client.chat.completions.create(

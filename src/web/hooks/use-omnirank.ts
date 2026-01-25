@@ -6,6 +6,7 @@ import {
   analyze,
   getResults,
   createWebSocket,
+  askQuestion,
   type UploadResponse,
   type AnalysisConfig,
   type RankingResults,
@@ -262,6 +263,27 @@ export function useOmniRank() {
     }
   }, [state.sessionId, addMessage]);
 
+  // Send a follow-up question to the Analyst Agent
+  const sendMessage = useCallback(async (message: string) => {
+    if (!state.sessionId || !state.results) {
+      throw new Error("No analysis results available");
+    }
+
+    // Add user message
+    addMessage("user", message);
+
+    try {
+      const response = await askQuestion(state.sessionId, message);
+      
+      // Add assistant response
+      addMessage("assistant", response.answer, "analyst");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to get answer";
+      addMessage("system", `Error: ${errorMessage}`);
+      throw error;
+    }
+  }, [state.sessionId, state.results, addMessage]);
+
   // Reset state
   const reset = useCallback(() => {
     if (wsRef.current) {
@@ -279,6 +301,7 @@ export function useOmniRank() {
     state,
     handleUpload,
     startAnalysis,
+    sendMessage,
     addMessage,
     reset,
   };

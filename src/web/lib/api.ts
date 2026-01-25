@@ -165,6 +165,40 @@ export async function checkHealth(): Promise<{
   return response.json();
 }
 
+/**
+ * Chat response type.
+ */
+export interface ChatResponse {
+  answer: string;
+  agent: string;
+}
+
+/**
+ * Send a follow-up question about the analysis.
+ */
+export async function askQuestion(
+  sessionId: string,
+  question: string
+): Promise<ChatResponse> {
+  const response = await fetch(`${API_URL}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      question,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to get answer");
+  }
+
+  return response.json();
+}
+
 // ============================================================================
 // WebSocket Connection
 // ============================================================================
