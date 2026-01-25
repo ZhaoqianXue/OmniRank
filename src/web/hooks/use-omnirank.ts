@@ -7,11 +7,16 @@ import {
   getResults,
   createWebSocket,
   askQuestion,
+  loadExampleData as apiLoadExampleData,
+  getDataPreview,
+  EXAMPLE_DATASETS,
   type UploadResponse,
   type AnalysisConfig,
   type RankingResults,
   type ValidationWarning,
   type InferredSchema,
+  type DataPreview,
+  type ExampleDataInfo,
 } from "@/lib/api";
 
 // ============================================================================
@@ -26,12 +31,27 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   agent?: "data" | "orchestrator" | "analyst";
+  // Special message types for interactive components
+  type?: "text" | "data-agent-working" | "ranking-config";
+  // Data for ranking-config type
+  configData?: {
+    schema: InferredSchema;
+  };
+  // Data for data-agent-working type
+  workingData?: {
+    isComplete: boolean;
+  };
 }
 
 export interface OmniRankState {
   // Session
   sessionId: string | null;
   status: AnalysisStatus;
+
+  // Data source tracking
+  dataSource: "upload" | "example" | null;
+  exampleDataInfo: ExampleDataInfo | null;
+  dataPreview: DataPreview | null;
 
   // File
   filename: string | null;
@@ -70,6 +90,9 @@ const WELCOME_MESSAGE: ChatMessage = {
 const initialState: OmniRankState = {
   sessionId: null,
   status: "idle",
+  dataSource: null,
+  exampleDataInfo: null,
+  dataPreview: null,
   filename: null,
   schema: null,
   warnings: [],
@@ -103,19 +126,44 @@ export function useOmniRank() {
   }, []);
 
   // Add a chat message
-  const addMessage = useCallback((role: ChatMessage["role"], content: string, agent?: ChatMessage["agent"]) => {
+  const addMessage = useCallback((
+    role: ChatMessage["role"], 
+    content: string, 
+    agent?: ChatMessage["agent"],
+    options?: { 
+      type?: ChatMessage["type"]; 
+      configData?: ChatMessage["configData"];
+      workingData?: ChatMessage["workingData"];
+    }
+  ) => {
     const message: ChatMessage = {
       id: crypto.randomUUID(),
       role,
       content,
       timestamp: Date.now(),
       agent,
+      type: options?.type,
+      configData: options?.configData,
+      workingData: options?.workingData,
     };
     setState((prev) => ({
       ...prev,
       messages: [...prev.messages, message],
     }));
     return message;
+  }, []);
+
+  // Update an existing message by ID
+  const updateMessage = useCallback((
+    messageId: string,
+    updates: Partial<Pick<ChatMessage, "content" | "workingData" | "configData" | "type">>
+  ) => {
+    setState((prev) => ({
+      ...prev,
+      messages: prev.messages.map((msg) =>
+        msg.id === messageId ? { ...msg, ...updates } : msg
+      ),
+    }));
   }, []);
 
   // Handle file upload
@@ -128,7 +176,16 @@ export function useOmniRank() {
       progressMessage: "Uploading file...",
     }));
 
-    addMessage("user", `Uploading ${file.name}...`);
+    // 1. User message showing what was uploaded
+    addMessage("user", `Uploaded: ${file.name}`);
+
+    // 2. Data Agent working message
+    const workingMessage = addMessage(
+      "assistant",
+      "",
+      "data",
+      { type: "data-agent-working", workingData: { isComplete: false } }
+    );
 
     try {
       const response = await uploadFile(file);
@@ -178,18 +235,37 @@ export function useOmniRank() {
         schema: response.inferred_schema,
         warnings: response.warnings,
         status: "configuring",
+        dataSource: "upload",
+        exampleDataInfo: null,
         progress: 0,
         progressMessage: "",
       }));
 
-      // Add success message
-      addMessage("assistant", `File uploaded successfully! Detected format: **${response.inferred_schema.format}** with ${response.inferred_schema.ranking_items.length} items to rank.`, "data");
-
-      // Add warnings if any
-      if (response.warnings.length > 0) {
-        const warningText = response.warnings.map((w) => `- ${w.message}`).join("\n");
-        addMessage("system", `Warnings:\n${warningText}`);
+      // Fetch data preview
+      try {
+        const preview = await getDataPreview(response.session_id);
+        setState((prev) => ({
+          ...prev,
+          dataPreview: preview,
+        }));
+      } catch {
+        // Preview is optional, don't fail the upload
+        console.warn("Failed to fetch data preview");
       }
+
+      // 3. Mark working message as complete
+      updateMessage(workingMessage.id, { workingData: { isComplete: true } });
+
+      // 4. Add ranking config bubble
+      addMessage(
+        "assistant",
+        "",
+        "data",
+        { 
+          type: "ranking-config", 
+          configData: { schema: response.inferred_schema } 
+        }
+      );
 
       return response;
     } catch (error) {
@@ -199,10 +275,12 @@ export function useOmniRank() {
         status: "error",
         error: errorMessage,
       }));
+      // Mark working as complete even on error
+      updateMessage(workingMessage.id, { workingData: { isComplete: true } });
       addMessage("system", `Error: ${errorMessage}`);
       throw error;
     }
-  }, [addMessage]);
+  }, [addMessage, updateMessage]);
 
   // Start analysis
   const startAnalysis = useCallback(async (config: AnalysisConfig) => {
@@ -298,6 +376,154 @@ export function useOmniRank() {
     }
   }, [state.sessionId, state.results, addMessage]);
 
+  // Load example data
+  const loadExampleData = useCallback(async (exampleId: string) => {
+    const exampleInfo = EXAMPLE_DATASETS.find((d) => d.id === exampleId);
+    if (!exampleInfo) {
+      throw new Error("Unknown example dataset");
+    }
+
+    setState((prev) => ({
+      ...prev,
+      status: "uploading",
+      error: null,
+      progress: 0,
+      progressMessage: "Loading example data...",
+    }));
+
+    // 1. User message showing what was selected
+    addMessage("user", `Selected example: ${exampleInfo.title}`);
+
+    // 2. Data Agent working message
+    const workingMessage = addMessage(
+      "assistant",
+      "",
+      "data",
+      { type: "data-agent-working", workingData: { isComplete: false } }
+    );
+
+    try {
+      const response = await apiLoadExampleData(exampleId);
+
+      // Connect WebSocket for this session
+      wsRef.current = createWebSocket(
+        response.session_id,
+        (msg) => {
+          if (msg.type === "progress") {
+            const payload = msg.payload as { progress: number; message: string };
+            setState((prev) => ({
+              ...prev,
+              progress: payload.progress,
+              progressMessage: payload.message,
+            }));
+          } else if (msg.type === "agent_message") {
+            const payload = msg.payload as { agent: string; message: string };
+            addMessage("assistant", payload.message, payload.agent as ChatMessage["agent"]);
+          } else if (msg.type === "result") {
+            const payload = msg.payload as { results: RankingResults };
+            setState((prev) => ({
+              ...prev,
+              results: payload.results,
+              status: "completed",
+              progress: 1,
+              progressMessage: "Complete!",
+            }));
+          } else if (msg.type === "error") {
+            const payload = msg.payload as { error: string };
+            setState((prev) => ({
+              ...prev,
+              error: payload.error,
+              status: "error",
+            }));
+            addMessage("system", `Error: ${payload.error}`);
+          }
+        },
+        () => console.error("WebSocket error"),
+        () => console.log("WebSocket closed")
+      );
+
+      setState((prev) => ({
+        ...prev,
+        sessionId: response.session_id,
+        filename: response.filename,
+        schema: response.inferred_schema,
+        warnings: response.warnings,
+        status: "configuring",
+        dataSource: "example",
+        exampleDataInfo: exampleInfo,
+        progress: 0,
+        progressMessage: "",
+      }));
+
+      // Fetch data preview
+      try {
+        const preview = await getDataPreview(response.session_id);
+        setState((prev) => ({
+          ...prev,
+          dataPreview: preview,
+        }));
+      } catch {
+        console.warn("Failed to fetch data preview");
+      }
+
+      // 3. Mark working message as complete
+      updateMessage(workingMessage.id, { workingData: { isComplete: true } });
+
+      // 4. Add ranking config bubble
+      addMessage(
+        "assistant",
+        "",
+        "data",
+        { 
+          type: "ranking-config", 
+          configData: { schema: response.inferred_schema } 
+        }
+      );
+
+      return response;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to load example data";
+      setState((prev) => ({
+        ...prev,
+        status: "error",
+        error: errorMessage,
+      }));
+      // Mark working as complete even on error
+      updateMessage(workingMessage.id, { workingData: { isComplete: true } });
+      addMessage("system", `Error: ${errorMessage}`);
+      throw error;
+    }
+  }, [addMessage, updateMessage]);
+
+  // Cancel data selection and return to idle state
+  const cancelData = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    setState((prev) => ({
+      ...prev,
+      sessionId: null,
+      status: "idle",
+      dataSource: null,
+      exampleDataInfo: null,
+      dataPreview: null,
+      filename: null,
+      schema: null,
+      warnings: [],
+      config: null,
+      results: null,
+      progress: 0,
+      progressMessage: "",
+      error: null,
+    }));
+    addMessage("system", "Data selection cancelled. Please upload a new file or select an example dataset.");
+  }, [addMessage]);
+
   // Reset state
   const reset = useCallback(() => {
     if (wsRef.current) {
@@ -314,9 +540,12 @@ export function useOmniRank() {
   return {
     state,
     handleUpload,
+    loadExampleData,
+    cancelData,
     startAnalysis,
     sendMessage,
     addMessage,
     reset,
+    exampleDatasets: EXAMPLE_DATASETS,
   };
 }

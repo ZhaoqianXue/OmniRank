@@ -3,22 +3,31 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2, X, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+type UploadMode = "dropzone" | "sticker";
 
 interface FileUploadProps {
   onUpload: (file: File) => Promise<unknown>;
+  onCancel?: () => void;
+  mode?: UploadMode;
   isUploading?: boolean;
   isUploaded?: boolean;
   filename?: string | null;
+  isExample?: boolean;
   className?: string;
 }
 
 export function FileUpload({
   onUpload,
+  onCancel,
+  mode = "dropzone",
   isUploading = false,
   isUploaded = false,
   filename,
+  isExample = false,
   className,
 }: FileUploadProps) {
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +70,48 @@ export function FileUpload({
       "application/json": [".json"],
     },
     maxFiles: 1,
-    disabled: isUploading,
+    disabled: isUploading || mode === "sticker",
   });
 
+  // Sticker mode - compact display with cancel button
+  if (mode === "sticker" && filename) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn("relative", className)}
+      >
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30">
+          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-green-500/20 flex items-center justify-center">
+            {isExample ? (
+              <Database className="h-4 w-4 text-green-600 dark:text-green-400" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4 text-green-600 dark:text-green-400" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{filename}</p>
+            <p className="text-xs text-muted-foreground">
+              {isExample ? "Example dataset" : "Uploaded file"}
+            </p>
+          </div>
+          {onCancel && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
+              onClick={onCancel}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Remove file</span>
+            </Button>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Dropzone mode - standard upload interface
   return (
     <div className={cn("relative", className)}>
       <div

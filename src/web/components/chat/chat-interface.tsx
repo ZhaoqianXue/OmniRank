@@ -2,13 +2,18 @@
 
 import { useRef, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Sparkles, Bot, User } from "lucide-react";
+import { Bot, User } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { RankingPreviewBubble } from "./ranking-preview-bubble";
+import { DataAgentWorkingBubble } from "./data-agent-working-bubble";
 import type { ChatMessage } from "@/hooks/use-omnirank";
+import type { AnalysisConfig } from "@/lib/api";
 
 interface ChatInterfaceProps {
   messages: ChatMessage[];
+  onStartAnalysis?: (config: AnalysisConfig) => void;
+  isAnalyzing?: boolean;
   className?: string;
 }
 
@@ -28,9 +33,59 @@ const MessageIcon = memo(function MessageIcon({ role }: { role: ChatMessage["rol
   );
 });
 
-const ChatMessageItem = memo(function ChatMessageItem({ message }: { message: ChatMessage }) {
+interface ChatMessageItemProps {
+  message: ChatMessage;
+  onStartAnalysis?: (config: AnalysisConfig) => void;
+  isAnalyzing?: boolean;
+}
+
+const ChatMessageItem = memo(function ChatMessageItem({ 
+  message, 
+  onStartAnalysis,
+  isAnalyzing = false,
+}: ChatMessageItemProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
+  const isConfigMessage = message.type === "ranking-config" && message.configData;
+  const isWorkingMessage = message.type === "data-agent-working";
+
+  // Render Data Agent working bubble
+  if (isWorkingMessage) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        layout
+        className="flex w-full gap-3 mb-4 items-end flex-row"
+      >
+        <MessageIcon role="assistant" />
+        <DataAgentWorkingBubble
+          isComplete={message.workingData?.isComplete}
+        />
+      </motion.div>
+    );
+  }
+
+  // Render special ranking config bubble
+  if (isConfigMessage && message.configData && onStartAnalysis) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        layout
+        className="flex w-full gap-3 mb-4 items-end flex-row"
+      >
+        <MessageIcon role="assistant" />
+        <RankingPreviewBubble
+          schema={message.configData.schema}
+          onStartAnalysis={onStartAnalysis}
+          isAnalyzing={isAnalyzing}
+        />
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -80,7 +135,12 @@ const ChatMessageItem = memo(function ChatMessageItem({ message }: { message: Ch
   );
 });
 
-export function ChatInterface({ messages, className }: ChatInterfaceProps) {
+export function ChatInterface({ 
+  messages, 
+  onStartAnalysis,
+  isAnalyzing = false,
+  className,
+}: ChatInterfaceProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -95,7 +155,12 @@ export function ChatInterface({ messages, className }: ChatInterfaceProps) {
       <div className="space-y-2 px-1 py-2">
         <AnimatePresence initial={false}>
           {messages.map((message) => (
-            <ChatMessageItem key={message.id} message={message} />
+            <ChatMessageItem 
+              key={message.id} 
+              message={message}
+              onStartAnalysis={onStartAnalysis}
+              isAnalyzing={isAnalyzing}
+            />
           ))}
         </AnimatePresence>
       </div>

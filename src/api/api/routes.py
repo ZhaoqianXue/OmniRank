@@ -4,7 +4,10 @@ Handles file upload, analysis triggering, and results retrieval.
 """
 
 import asyncio
+import csv
+import io
 import logging
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, BackgroundTasks
@@ -20,7 +23,22 @@ from core.schemas import (
     WSMessage,
     WSMessageType,
     AgentType,
+    DataPreview,
 )
+
+# Example data configuration
+EXAMPLE_DATA_DIR = Path(__file__).parent.parent.parent.parent / "data" / "examples"
+
+EXAMPLE_DATASETS = {
+    "pairwise": {
+        "filename": "example_data_pairwise.csv",
+        "title": "LLM Pairwise Comparison",
+    },
+    "pointwise": {
+        "filename": "example_data_pointwise.csv",
+        "title": "Model Performance Scores",
+    },
+}
 
 
 class ChatRequest(BaseModel):
@@ -92,6 +110,113 @@ async def upload_file(file: Annotated[UploadFile, File(description="CSV or JSON 
         inferred_schema=schema,
         warnings=warnings,
     )
+
+
+@router.post("/upload/example/{example_id}", response_model=UploadResponse)
+async def upload_example(example_id: str):
+    """
+    Load example data for analysis.
+    
+    Available examples:
+    - pairwise: LLM pairwise comparison data
+    - pointwise: Model performance scores
+    """
+    if example_id not in EXAMPLE_DATASETS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown example dataset: {example_id}. Available: {list(EXAMPLE_DATASETS.keys())}",
+        )
+    
+    example_info = EXAMPLE_DATASETS[example_id]
+    file_path = EXAMPLE_DATA_DIR / example_info["filename"]
+    
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Example data file not found: {example_info['filename']}",
+        )
+    
+    # Read file content
+    content = file_path.read_bytes()
+    filename = example_info["filename"]
+    
+    # Create session
+    store = get_session_store()
+    session = store.create_session()
+    
+    # Save file
+    saved_path = store.save_file(session.session_id, filename, content)
+    session.filename = filename
+    session.file_content = content
+    session.file_path = saved_path
+    session.status = SessionStatus.UPLOADING
+    
+    # Run Data Agent
+    data_agent = DataAgent()
+    schema, warnings = data_agent.process(content, filename)
+    
+    # Update session
+    session.inferred_schema = schema
+    session.status = SessionStatus.CONFIGURING
+    store.update_session(session)
+    
+    return UploadResponse(
+        session_id=session.session_id,
+        filename=filename,
+        inferred_schema=schema,
+        warnings=warnings,
+    )
+
+
+@router.get("/preview/{session_id}", response_model=DataPreview)
+async def get_data_preview(session_id: str):
+    """
+    Get full data for preview and pagination in the UI.
+    
+    Returns all rows - pagination is handled client-side for better UX.
+    """
+    store = get_session_store()
+    session = store.get_session(session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not session.file_content:
+        raise HTTPException(status_code=400, detail="No file uploaded for this session")
+    
+    try:
+        # Decode content
+        content_str = session.file_content.decode("utf-8")
+        
+        # Parse CSV
+        reader = csv.DictReader(io.StringIO(content_str))
+        columns = reader.fieldnames or []
+        
+        rows = []
+        for row in reader:
+            # Convert numeric strings to numbers for cleaner display
+            processed_row = {}
+            for k, v in row.items():
+                try:
+                    # Try float conversion
+                    if v and "." in v:
+                        processed_row[k] = float(v)
+                    elif v:
+                        processed_row[k] = int(v)
+                    else:
+                        processed_row[k] = v
+                except (ValueError, TypeError):
+                    processed_row[k] = v
+            rows.append(processed_row)
+        
+        return DataPreview(
+            columns=columns,
+            rows=rows,
+            totalRows=len(rows),
+        )
+    except Exception as e:
+        logger.error(f"Failed to parse data preview: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to parse data: {str(e)}")
 
 
 async def _send_ws_progress(session_id: str, progress: float, message: str, agent: str = None):

@@ -174,6 +174,48 @@ export interface ChatResponse {
 }
 
 /**
+ * Example data metadata.
+ */
+export interface ExampleDataInfo {
+  id: string;
+  filename: string;
+  title: string;
+  description: string;
+  format: "pointwise" | "pairwise";
+}
+
+/**
+ * Data preview information.
+ */
+export interface DataPreview {
+  columns: string[];
+  rows: Array<Record<string, string | number>>;
+  totalRows: number;
+}
+
+/**
+ * Available example datasets.
+ */
+export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
+  {
+    id: "pairwise",
+    filename: "example_data_pairwise.csv",
+    title: "LLM Pairwise Comparison",
+    description:
+      "Arena-style pairwise comparisons of 6 LLMs (ChatGPT, Claude, Gemini, Llama, Qwen, Your Model) across 3 task types (code, math, writing). Contains 3000 comparison records where each row represents a single comparison with 0/1 indicating the losing/winning model.",
+    format: "pairwise",
+  },
+  {
+    id: "pointwise",
+    filename: "example_data_pointwise.csv",
+    title: "Model Performance Scores",
+    description:
+      "Pointwise performance scores for 6 models (model_1 to model_6) across 165 samples. Each row contains continuous accuracy scores (0-1 range) for each model on a specific evaluation sample, along with a sample description.",
+    format: "pointwise",
+  },
+];
+
+/**
  * Send a follow-up question about the analysis.
  */
 export async function askQuestion(
@@ -194,6 +236,37 @@ export async function askQuestion(
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || "Failed to get answer");
+  }
+
+  return response.json();
+}
+
+/**
+ * Load example data from the server.
+ * This uses the FastAPI backend's example endpoint.
+ */
+export async function loadExampleData(exampleId: string): Promise<UploadResponse> {
+  const response = await fetch(`${API_URL}/api/upload/example/${exampleId}`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to load example data");
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch data preview for a session.
+ */
+export async function getDataPreview(sessionId: string): Promise<DataPreview> {
+  const response = await fetch(`${API_URL}/api/preview/${sessionId}`);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to get data preview");
   }
 
   return response.json();

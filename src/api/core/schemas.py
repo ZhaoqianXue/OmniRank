@@ -49,6 +49,17 @@ class UploadResponse(BaseModel):
 
 
 # ============================================================================
+# Data Preview API
+# ============================================================================
+
+class DataPreview(BaseModel):
+    """Preview of uploaded data for display."""
+    columns: list[str]
+    rows: list[dict]  # List of row dictionaries
+    totalRows: int
+
+
+# ============================================================================
 # Analyze API
 # ============================================================================
 

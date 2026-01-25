@@ -2,23 +2,36 @@
 
 import { motion } from "framer-motion";
 import { BarChart3, Network, Settings2, RotateCcw } from "lucide-react";
-import { fadeInUp, fadeInLeft, fadeInRight, smoothSpring } from "@/lib/animations";
+import { fadeInUp, fadeInLeft, fadeInRight } from "@/lib/animations";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUpload } from "@/components/upload/file-upload";
+import { ExampleDataSelector } from "@/components/upload/example-data-selector";
+import { DataPreviewComponent } from "@/components/upload/data-preview";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { ChatInput } from "@/components/chat/chat-input";
-import { ConfigPanel } from "@/components/config/config-panel";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { RankingChart, HeatmapChart, NetworkGraph } from "@/components/visualizations";
 import { useOmniRank } from "@/hooks/use-omnirank";
 
 export default function Home() {
-  const { state, handleUpload, startAnalysis, sendMessage, reset } = useOmniRank();
+  const {
+    state,
+    handleUpload,
+    loadExampleData,
+    cancelData,
+    startAnalysis,
+    sendMessage,
+    reset,
+    exampleDatasets,
+  } = useOmniRank();
 
-  const showConfig = state.status === "configuring" && state.schema;
+  const isIdle = state.status === "idle";
+  const isUploading = state.status === "uploading";
+  const hasData = state.filename && (state.status === "configuring" || state.status === "analyzing" || state.status === "completed");
+  const isAnalyzing = state.status === "analyzing";
   const showProgress = state.status === "analyzing";
   const showResults = state.status === "completed" && state.results;
 
@@ -70,25 +83,42 @@ export default function Home() {
 
 
               <CardContent className="flex-1 flex flex-col min-h-0">
-                {/* Upload zone - show when idle or to allow re-upload */}
-                {(state.status === "idle" || state.status === "uploading") && (
-                  <FileUpload
-                    onUpload={handleUpload}
-                    isUploading={state.status === "uploading"}
-                    isUploaded={false}
-                    filename={state.filename}
-                    className="mb-4"
-                  />
+                {/* Initial State: Upload zone + Example selector */}
+                {(isIdle || isUploading) && (
+                  <div className="space-y-4 mb-4">
+                    <FileUpload
+                      onUpload={handleUpload}
+                      mode="dropzone"
+                      isUploading={isUploading}
+                      isUploaded={false}
+                      filename={state.filename}
+                    />
+                    <ExampleDataSelector
+                      examples={exampleDatasets}
+                      onSelect={loadExampleData}
+                      disabled={isUploading}
+                    />
+                  </div>
                 )}
 
-                {/* Config Panel - show when configuring */}
-                {showConfig && state.schema && (
-                  <div className="mb-4">
-                    <ConfigPanel
-                      schema={state.schema}
-                      onStartAnalysis={startAnalysis}
-                      isAnalyzing={state.status === "analyzing"}
+                {/* Data Loaded State: Sticker + Preview */}
+                {hasData && (
+                  <div className="space-y-4 mb-4 flex-1 flex flex-col min-h-0">
+                    <FileUpload
+                      onUpload={handleUpload}
+                      onCancel={cancelData}
+                      mode="sticker"
+                      filename={state.filename}
+                      isExample={state.dataSource === "example"}
                     />
+                    <div className="flex-1 min-h-0">
+                      <DataPreviewComponent
+                        preview={state.dataPreview}
+                        exampleInfo={state.exampleDataInfo}
+                        isLoading={isUploading}
+                        className="h-full"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -114,8 +144,8 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Warnings display */}
-                {state.warnings.length > 0 && state.status === "configuring" && (
+                {/* Warnings display - show when data is loaded */}
+                {state.warnings.length > 0 && hasData && (
                   <div className="mb-4 space-y-2">
                     {state.warnings.map((warning, idx) => (
                       <ErrorDisplay
@@ -127,79 +157,46 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Results Visualization Tabs */}
-                <div className="flex-1 min-h-0">
-                  <Tabs defaultValue="rankings" className="w-full h-full flex flex-col">
-                    <TabsList className="grid w-full grid-cols-3 mb-4">
-                      <TabsTrigger value="rankings" className="text-xs">
-                        <BarChart3 className="h-4 w-4 mr-1" />
-                        Rankings
-                      </TabsTrigger>
-                      <TabsTrigger value="heatmap" className="text-xs">
-                        <div className="h-4 w-4 mr-1 grid grid-cols-2 gap-0.5">
-                          <div className="bg-current rounded-sm" />
-                          <div className="bg-current/60 rounded-sm" />
-                          <div className="bg-current/40 rounded-sm" />
-                          <div className="bg-current/80 rounded-sm" />
-                        </div>
-                        Heatmap
-                      </TabsTrigger>
-                      <TabsTrigger value="network" className="text-xs">
-                        <Network className="h-4 w-4 mr-1" />
-                        Network
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <div className="flex-1 min-h-0">
-                      <TabsContent value="rankings" className="mt-0 h-full">
-                        {showResults && state.results ? (
-                          <RankingChart items={state.results.items} className="h-full" />
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
-                            <div className="text-center">
-                              <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                              <p>Upload data to see rankings</p>
-                            </div>
+                {/* Results Visualization Tabs - only show when results available */}
+                {showResults && (
+                  <div className="flex-1 min-h-0">
+                    <Tabs defaultValue="rankings" className="w-full h-full flex flex-col">
+                      <TabsList className="grid w-full grid-cols-3 mb-4">
+                        <TabsTrigger value="rankings" className="text-xs">
+                          <BarChart3 className="h-4 w-4 mr-1" />
+                          Rankings
+                        </TabsTrigger>
+                        <TabsTrigger value="heatmap" className="text-xs">
+                          <div className="h-4 w-4 mr-1 grid grid-cols-2 gap-0.5">
+                            <div className="bg-current rounded-sm" />
+                            <div className="bg-current/60 rounded-sm" />
+                            <div className="bg-current/40 rounded-sm" />
+                            <div className="bg-current/80 rounded-sm" />
                           </div>
-                        )}
-                      </TabsContent>
+                          Heatmap
+                        </TabsTrigger>
+                        <TabsTrigger value="network" className="text-xs">
+                          <Network className="h-4 w-4 mr-1" />
+                          Network
+                        </TabsTrigger>
+                      </TabsList>
 
-                      <TabsContent value="heatmap" className="mt-0 h-full">
-                        {showResults && state.results ? (
-                          <HeatmapChart results={state.results} className="h-full overflow-auto" />
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
-                            <div className="text-center">
-                              <div className="h-12 w-12 mx-auto mb-2 opacity-50 grid grid-cols-3 gap-1">
-                                {[...Array(9)].map((_, i) => (
-                                  <div
-                                    key={i}
-                                    className="bg-primary rounded-sm"
-                                    style={{ opacity: Math.random() * 0.5 + 0.2 }}
-                                  />
-                                ))}
-                              </div>
-                              <p>Upload data to see heatmap</p>
-                            </div>
-                          </div>
-                        )}
-                      </TabsContent>
+                      <div className="flex-1 min-h-0">
+                        <TabsContent value="rankings" className="mt-0 h-full">
+                          <RankingChart items={state.results!.items} className="h-full" />
+                        </TabsContent>
 
-                      <TabsContent value="network" className="mt-0 h-full">
-                        {showResults && state.results ? (
-                          <NetworkGraph results={state.results} className="h-full" />
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
-                            <div className="text-center">
-                              <Network className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                              <p>Upload data to see network</p>
-                            </div>
-                          </div>
-                        )}
-                      </TabsContent>
-                    </div>
-                  </Tabs>
-                </div>
+                        <TabsContent value="heatmap" className="mt-0 h-full">
+                          <HeatmapChart results={state.results!} className="h-full overflow-auto" />
+                        </TabsContent>
+
+                        <TabsContent value="network" className="mt-0 h-full">
+                          <NetworkGraph results={state.results!} className="h-full" />
+                        </TabsContent>
+                      </div>
+                    </Tabs>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -223,6 +220,8 @@ export default function Home() {
               <CardContent className="flex-1 min-h-0 p-0">
                 <ChatInterface
                   messages={state.messages}
+                  onStartAnalysis={startAnalysis}
+                  isAnalyzing={isAnalyzing}
                   className="h-full"
                 />
               </CardContent>
