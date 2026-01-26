@@ -1,0 +1,340 @@
+game_id,event,white,black,Magnus Carlsen,Fabiano Caruana,Ding Liren,Ian Nepomniachtchi,Alireza Firouzja,Wesley So,Anish Giri,Levon Aronian,Maxime Vachier-Lagrave
+1,Norway Chess,Anish Giri,Maxime Vachier-Lagrave,,,,,,,0.0,,1.0
+2,Norway Chess,Ding Liren,Ian Nepomniachtchi,,,0.5,0.5,,,,,
+3,Norway Chess,Anish Giri,Fabiano Caruana,,1.0,,,,,0.0,,
+4,Tata Steel,Ding Liren,Ian Nepomniachtchi,,,0.0,1.0,,,,,
+5,Norway Chess,Anish Giri,Levon Aronian,,,,,,,1.0,0.0,
+6,Tata Steel,Wesley So,Fabiano Caruana,,1.0,,,,0.0,,,
+7,World Championship,Ian Nepomniachtchi,Wesley So,,,,1.0,,0.0,,,
+8,Norway Chess,Levon Aronian,Ding Liren,,,1.0,,,,,0.0,
+9,Norway Chess,Anish Giri,Alireza Firouzja,,,,,0.5,,0.5,,
+10,Norway Chess,Anish Giri,Magnus Carlsen,0.0,,,,,,1.0,,
+11,World Championship,Anish Giri,Ding Liren,,,0.5,,,,0.5,,
+12,Norway Chess,Ian Nepomniachtchi,Wesley So,,,,1.0,,0.0,,,
+13,World Championship,Fabiano Caruana,Magnus Carlsen,0.0,1.0,,,,,,,
+14,Norway Chess,Wesley So,Ian Nepomniachtchi,,,,0.5,,0.5,,,
+15,Candidates,Ian Nepomniachtchi,Fabiano Caruana,,0.5,,0.5,,,,,
+16,Norway Chess,Maxime Vachier-Lagrave,Ian Nepomniachtchi,,,,0.0,,,,,1.0
+17,Tata Steel,Fabiano Caruana,Anish Giri,,0.5,,,,,0.5,,
+18,World Championship,Wesley So,Maxime Vachier-Lagrave,,,,,,1.0,,,0.0
+19,Norway Chess,Levon Aronian,Maxime Vachier-Lagrave,,,,,,,,1.0,0.0
+20,Candidates,Anish Giri,Fabiano Caruana,,0.0,,,,,1.0,,
+21,World Championship,Wesley So,Anish Giri,,,,,,1.0,0.0,,
+22,World Championship,Alireza Firouzja,Magnus Carlsen,1.0,,,,0.0,,,,
+23,Tata Steel,Levon Aronian,Alireza Firouzja,,,,,0.0,,,1.0,
+24,World Championship,Magnus Carlsen,Maxime Vachier-Lagrave,1.0,,,,,,,,0.0
+25,Tata Steel,Fabiano Caruana,Levon Aronian,,1.0,,,,,,0.0,
+26,Norway Chess,Alireza Firouzja,Maxime Vachier-Lagrave,,,,,1.0,,,,0.0
+27,Norway Chess,Anish Giri,Fabiano Caruana,,1.0,,,,,0.0,,
+28,Tata Steel,Levon Aronian,Magnus Carlsen,0.5,,,,,,,0.5,
+29,World Championship,Levon Aronian,Fabiano Caruana,,1.0,,,,,,0.0,
+30,World Championship,Magnus Carlsen,Ian Nepomniachtchi,1.0,,,0.0,,,,,
+31,Tata Steel,Ding Liren,Fabiano Caruana,,1.0,0.0,,,,,,
+32,Norway Chess,Ian Nepomniachtchi,Ding Liren,,,0.0,1.0,,,,,
+33,World Championship,Maxime Vachier-Lagrave,Magnus Carlsen,1.0,,,,,,,,0.0
+34,Norway Chess,Alireza Firouzja,Magnus Carlsen,0.0,,,,1.0,,,,
+35,Tata Steel,Fabiano Caruana,Alireza Firouzja,,1.0,,,0.0,,,,
+36,Tata Steel,Alireza Firouzja,Ding Liren,,,1.0,,0.0,,,,
+37,Candidates,Fabiano Caruana,Ding Liren,,1.0,0.0,,,,,,
+38,Candidates,Anish Giri,Levon Aronian,,,,,,,0.5,0.5,
+39,Norway Chess,Levon Aronian,Maxime Vachier-Lagrave,,,,,,,,0.0,1.0
+40,Norway Chess,Levon Aronian,Ian Nepomniachtchi,,,,0.0,,,,1.0,
+41,Candidates,Fabiano Caruana,Wesley So,,1.0,,,,0.0,,,
+42,Tata Steel,Ian Nepomniachtchi,Fabiano Caruana,,0.0,,1.0,,,,,
+43,Candidates,Magnus Carlsen,Ian Nepomniachtchi,1.0,,,0.0,,,,,
+44,World Championship,Levon Aronian,Anish Giri,,,,,,,0.0,1.0,
+45,Norway Chess,Wesley So,Ian Nepomniachtchi,,,,1.0,,0.0,,,
+46,World Championship,Alireza Firouzja,Levon Aronian,,,,,0.5,,,0.5,
+47,Tata Steel,Ding Liren,Ian Nepomniachtchi,,,0.0,1.0,,,,,
+48,Candidates,Levon Aronian,Ian Nepomniachtchi,,,,1.0,,,,0.0,
+49,Norway Chess,Fabiano Caruana,Alireza Firouzja,,1.0,,,0.0,,,,
+50,World Championship,Fabiano Caruana,Ding Liren,,1.0,0.0,,,,,,
+51,Tata Steel,Fabiano Caruana,Ian Nepomniachtchi,,1.0,,0.0,,,,,
+52,Tata Steel,Ding Liren,Alireza Firouzja,,,1.0,,0.0,,,,
+53,World Championship,Wesley So,Alireza Firouzja,,,,,0.0,1.0,,,
+54,Tata Steel,Wesley So,Anish Giri,,,,,,1.0,0.0,,
+55,World Championship,Maxime Vachier-Lagrave,Anish Giri,,,,,,,0.5,,0.5
+56,World Championship,Levon Aronian,Alireza Firouzja,,,,,0.5,,,0.5,
+57,Candidates,Anish Giri,Maxime Vachier-Lagrave,,,,,,,1.0,,0.0
+58,Tata Steel,Anish Giri,Ding Liren,,,1.0,,,,0.0,,
+59,World Championship,Maxime Vachier-Lagrave,Anish Giri,,,,,,,0.0,,1.0
+60,World Championship,Ian Nepomniachtchi,Fabiano Caruana,,0.0,,1.0,,,,,
+61,World Championship,Magnus Carlsen,Alireza Firouzja,1.0,,,,0.0,,,,
+62,Tata Steel,Alireza Firouzja,Ian Nepomniachtchi,,,,1.0,0.0,,,,
+63,Norway Chess,Anish Giri,Maxime Vachier-Lagrave,,,,,,,1.0,,0.0
+64,Candidates,Levon Aronian,Ian Nepomniachtchi,,,,0.0,,,,1.0,
+65,Norway Chess,Wesley So,Alireza Firouzja,,,,,1.0,0.0,,,
+66,Tata Steel,Magnus Carlsen,Fabiano Caruana,1.0,0.0,,,,,,,
+67,World Championship,Alireza Firouzja,Ian Nepomniachtchi,,,,0.0,1.0,,,,
+68,Tata Steel,Ding Liren,Maxime Vachier-Lagrave,,,1.0,,,,,,0.0
+69,Tata Steel,Ding Liren,Magnus Carlsen,1.0,,0.0,,,,,,
+70,Norway Chess,Wesley So,Magnus Carlsen,0.0,,,,,1.0,,,
+71,World Championship,Fabiano Caruana,Ding Liren,,0.5,0.5,,,,,,
+72,Tata Steel,Wesley So,Levon Aronian,,,,,,0.5,,0.5,
+73,World Championship,Ian Nepomniachtchi,Levon Aronian,,,,1.0,,,,0.0,
+74,Candidates,Alireza Firouzja,Ian Nepomniachtchi,,,,0.5,0.5,,,,
+75,Norway Chess,Ding Liren,Fabiano Caruana,,0.0,1.0,,,,,,
+76,Norway Chess,Levon Aronian,Maxime Vachier-Lagrave,,,,,,,,0.5,0.5
+77,World Championship,Levon Aronian,Alireza Firouzja,,,,,0.5,,,0.5,
+78,Tata Steel,Wesley So,Alireza Firouzja,,,,,1.0,0.0,,,
+79,World Championship,Fabiano Caruana,Alireza Firouzja,,0.5,,,0.5,,,,
+80,Candidates,Ding Liren,Anish Giri,,,0.5,,,,0.5,,
+81,Tata Steel,Wesley So,Levon Aronian,,,,,,1.0,,0.0,
+82,Candidates,Wesley So,Ian Nepomniachtchi,,,,1.0,,0.0,,,
+83,Tata Steel,Anish Giri,Fabiano Caruana,,1.0,,,,,0.0,,
+84,Norway Chess,Maxime Vachier-Lagrave,Ding Liren,,,0.5,,,,,,0.5
+85,Norway Chess,Wesley So,Anish Giri,,,,,,0.5,0.5,,
+86,Norway Chess,Alireza Firouzja,Ian Nepomniachtchi,,,,0.0,1.0,,,,
+87,Norway Chess,Fabiano Caruana,Anish Giri,,0.5,,,,,0.5,,
+88,Tata Steel,Alireza Firouzja,Fabiano Caruana,,1.0,,,0.0,,,,
+89,Norway Chess,Ding Liren,Levon Aronian,,,0.5,,,,,0.5,
+90,Norway Chess,Maxime Vachier-Lagrave,Ding Liren,,,0.5,,,,,,0.5
+91,World Championship,Fabiano Caruana,Alireza Firouzja,,1.0,,,0.0,,,,
+92,World Championship,Ian Nepomniachtchi,Alireza Firouzja,,,,0.0,1.0,,,,
+93,Tata Steel,Magnus Carlsen,Levon Aronian,1.0,,,,,,,0.0,
+94,Candidates,Wesley So,Magnus Carlsen,0.0,,,,,1.0,,,
+95,Candidates,Wesley So,Alireza Firouzja,,,,,1.0,0.0,,,
+96,Candidates,Fabiano Caruana,Alireza Firouzja,,1.0,,,0.0,,,,
+97,World Championship,Anish Giri,Fabiano Caruana,,0.5,,,,,0.5,,
+98,Tata Steel,Levon Aronian,Wesley So,,,,,,0.0,,1.0,
+99,World Championship,Anish Giri,Maxime Vachier-Lagrave,,,,,,,0.0,,1.0
+100,Candidates,Alireza Firouzja,Maxime Vachier-Lagrave,,,,,0.5,,,,0.5
+101,Candidates,Anish Giri,Wesley So,,,,,,1.0,0.0,,
+102,Candidates,Ian Nepomniachtchi,Alireza Firouzja,,,,1.0,0.0,,,,
+103,Tata Steel,Alireza Firouzja,Maxime Vachier-Lagrave,,,,,1.0,,,,0.0
+104,Tata Steel,Maxime Vachier-Lagrave,Ding Liren,,,0.5,,,,,,0.5
+105,Norway Chess,Fabiano Caruana,Ding Liren,,0.5,0.5,,,,,,
+106,Tata Steel,Maxime Vachier-Lagrave,Wesley So,,,,,,0.5,,,0.5
+107,Tata Steel,Levon Aronian,Anish Giri,,,,,,,1.0,0.0,
+108,Tata Steel,Magnus Carlsen,Maxime Vachier-Lagrave,0.5,,,,,,,,0.5
+109,Norway Chess,Fabiano Caruana,Ding Liren,,0.5,0.5,,,,,,
+110,Norway Chess,Ian Nepomniachtchi,Wesley So,,,,1.0,,0.0,,,
+111,World Championship,Magnus Carlsen,Anish Giri,1.0,,,,,,0.0,,
+112,World Championship,Levon Aronian,Maxime Vachier-Lagrave,,,,,,,,0.0,1.0
+113,World Championship,Magnus Carlsen,Alireza Firouzja,0.5,,,,0.5,,,,
+114,Tata Steel,Wesley So,Fabiano Caruana,,1.0,,,,0.0,,,
+115,World Championship,Wesley So,Magnus Carlsen,0.0,,,,,1.0,,,
+116,Tata Steel,Ian Nepomniachtchi,Ding Liren,,,0.5,0.5,,,,,
+117,Candidates,Ding Liren,Ian Nepomniachtchi,,,0.0,1.0,,,,,
+118,World Championship,Alireza Firouzja,Maxime Vachier-Lagrave,,,,,0.5,,,,0.5
+119,World Championship,Levon Aronian,Ian Nepomniachtchi,,,,0.0,,,,1.0,
+120,Candidates,Ding Liren,Fabiano Caruana,,0.5,0.5,,,,,,
+121,Tata Steel,Ian Nepomniachtchi,Fabiano Caruana,,0.5,,0.5,,,,,
+122,Norway Chess,Anish Giri,Magnus Carlsen,1.0,,,,,,0.0,,
+123,Candidates,Anish Giri,Levon Aronian,,,,,,,0.0,1.0,
+124,Tata Steel,Maxime Vachier-Lagrave,Alireza Firouzja,,,,,1.0,,,,0.0
+125,World Championship,Fabiano Caruana,Anish Giri,,1.0,,,,,0.0,,
+126,Candidates,Ding Liren,Maxime Vachier-Lagrave,,,0.5,,,,,,0.5
+127,Norway Chess,Ding Liren,Ian Nepomniachtchi,,,0.5,0.5,,,,,
+128,Tata Steel,Alireza Firouzja,Fabiano Caruana,,1.0,,,0.0,,,,
+129,World Championship,Wesley So,Alireza Firouzja,,,,,0.5,0.5,,,
+130,Candidates,Levon Aronian,Anish Giri,,,,,,,1.0,0.0,
+131,Tata Steel,Magnus Carlsen,Alireza Firouzja,1.0,,,,0.0,,,,
+132,Tata Steel,Magnus Carlsen,Alireza Firouzja,1.0,,,,0.0,,,,
+133,Tata Steel,Magnus Carlsen,Wesley So,0.0,,,,,1.0,,,
+134,Candidates,Levon Aronian,Alireza Firouzja,,,,,0.0,,,1.0,
+135,Tata Steel,Wesley So,Ian Nepomniachtchi,,,,0.0,,1.0,,,
+136,Candidates,Maxime Vachier-Lagrave,Fabiano Caruana,,0.0,,,,,,,1.0
+137,Candidates,Wesley So,Maxime Vachier-Lagrave,,,,,,1.0,,,0.0
+138,World Championship,Alireza Firouzja,Maxime Vachier-Lagrave,,,,,0.0,,,,1.0
+139,Candidates,Levon Aronian,Anish Giri,,,,,,,1.0,0.0,
+140,Norway Chess,Maxime Vachier-Lagrave,Alireza Firouzja,,,,,0.0,,,,1.0
+141,World Championship,Wesley So,Anish Giri,,,,,,1.0,0.0,,
+142,World Championship,Ding Liren,Ian Nepomniachtchi,,,1.0,0.0,,,,,
+143,Candidates,Levon Aronian,Maxime Vachier-Lagrave,,,,,,,,1.0,0.0
+144,Candidates,Ian Nepomniachtchi,Fabiano Caruana,,1.0,,0.0,,,,,
+145,World Championship,Anish Giri,Maxime Vachier-Lagrave,,,,,,,0.0,,1.0
+146,World Championship,Alireza Firouzja,Fabiano Caruana,,0.0,,,1.0,,,,
+147,World Championship,Levon Aronian,Wesley So,,,,,,0.5,,0.5,
+148,Tata Steel,Ding Liren,Wesley So,,,1.0,,,0.0,,,
+149,Candidates,Anish Giri,Ding Liren,,,1.0,,,,0.0,,
+150,Norway Chess,Ian Nepomniachtchi,Alireza Firouzja,,,,0.5,0.5,,,,
+151,Tata Steel,Ian Nepomniachtchi,Maxime Vachier-Lagrave,,,,0.5,,,,,0.5
+152,World Championship,Maxime Vachier-Lagrave,Ian Nepomniachtchi,,,,0.0,,,,,1.0
+153,Candidates,Fabiano Caruana,Ian Nepomniachtchi,,1.0,,0.0,,,,,
+154,World Championship,Magnus Carlsen,Wesley So,0.5,,,,,0.5,,,
+155,Tata Steel,Wesley So,Ding Liren,,,1.0,,,0.0,,,
+156,Tata Steel,Ian Nepomniachtchi,Maxime Vachier-Lagrave,,,,1.0,,,,,0.0
+157,Candidates,Maxime Vachier-Lagrave,Wesley So,,,,,,0.5,,,0.5
+158,Tata Steel,Fabiano Caruana,Levon Aronian,,1.0,,,,,,0.0,
+159,Norway Chess,Fabiano Caruana,Maxime Vachier-Lagrave,,1.0,,,,,,,0.0
+160,World Championship,Fabiano Caruana,Maxime Vachier-Lagrave,,1.0,,,,,,,0.0
+161,Norway Chess,Maxime Vachier-Lagrave,Wesley So,,,,,,0.0,,,1.0
+162,World Championship,Alireza Firouzja,Anish Giri,,,,,0.5,,0.5,,
+163,Candidates,Ding Liren,Alireza Firouzja,,,1.0,,0.0,,,,
+164,World Championship,Maxime Vachier-Lagrave,Alireza Firouzja,,,,,0.5,,,,0.5
+165,Norway Chess,Maxime Vachier-Lagrave,Fabiano Caruana,,1.0,,,,,,,0.0
+166,Norway Chess,Magnus Carlsen,Maxime Vachier-Lagrave,1.0,,,,,,,,0.0
+167,World Championship,Ian Nepomniachtchi,Wesley So,,,,0.0,,1.0,,,
+168,Norway Chess,Ding Liren,Ian Nepomniachtchi,,,0.5,0.5,,,,,
+169,World Championship,Magnus Carlsen,Ian Nepomniachtchi,1.0,,,0.0,,,,,
+170,World Championship,Wesley So,Fabiano Caruana,,1.0,,,,0.0,,,
+171,Norway Chess,Maxime Vachier-Lagrave,Levon Aronian,,,,,,,,1.0,0.0
+172,Candidates,Magnus Carlsen,Fabiano Caruana,1.0,0.0,,,,,,,
+173,Candidates,Wesley So,Anish Giri,,,,,,0.5,0.5,,
+174,Candidates,Magnus Carlsen,Maxime Vachier-Lagrave,1.0,,,,,,,,0.0
+175,World Championship,Maxime Vachier-Lagrave,Anish Giri,,,,,,,1.0,,0.0
+176,Tata Steel,Maxime Vachier-Lagrave,Levon Aronian,,,,,,,,0.0,1.0
+177,Candidates,Ding Liren,Anish Giri,,,0.5,,,,0.5,,
+178,Norway Chess,Fabiano Caruana,Levon Aronian,,1.0,,,,,,0.0,
+179,World Championship,Wesley So,Ian Nepomniachtchi,,,,0.0,,1.0,,,
+180,World Championship,Ian Nepomniachtchi,Maxime Vachier-Lagrave,,,,1.0,,,,,0.0
+181,World Championship,Ian Nepomniachtchi,Anish Giri,,,,0.5,,,0.5,,
+182,World Championship,Magnus Carlsen,Ian Nepomniachtchi,0.5,,,0.5,,,,,
+183,Norway Chess,Magnus Carlsen,Ding Liren,1.0,,0.0,,,,,,
+184,Candidates,Magnus Carlsen,Wesley So,1.0,,,,,0.0,,,
+185,Tata Steel,Alireza Firouzja,Ding Liren,,,0.5,,0.5,,,,
+186,Candidates,Fabiano Caruana,Maxime Vachier-Lagrave,,1.0,,,,,,,0.0
+187,Candidates,Levon Aronian,Wesley So,,,,,,1.0,,0.0,
+188,Norway Chess,Levon Aronian,Alireza Firouzja,,,,,1.0,,,0.0,
+189,World Championship,Ian Nepomniachtchi,Alireza Firouzja,,,,1.0,0.0,,,,
+190,Tata Steel,Magnus Carlsen,Wesley So,0.0,,,,,1.0,,,
+191,Candidates,Alireza Firouzja,Fabiano Caruana,,0.0,,,1.0,,,,
+192,Candidates,Maxime Vachier-Lagrave,Ian Nepomniachtchi,,,,0.5,,,,,0.5
+193,Candidates,Fabiano Caruana,Wesley So,,0.5,,,,0.5,,,
+194,Tata Steel,Magnus Carlsen,Ian Nepomniachtchi,0.5,,,0.5,,,,,
+195,World Championship,Fabiano Caruana,Magnus Carlsen,0.5,0.5,,,,,,,
+196,Norway Chess,Alireza Firouzja,Maxime Vachier-Lagrave,,,,,0.5,,,,0.5
+197,Tata Steel,Fabiano Caruana,Magnus Carlsen,0.0,1.0,,,,,,,
+198,Tata Steel,Levon Aronian,Magnus Carlsen,1.0,,,,,,,0.0,
+199,Tata Steel,Levon Aronian,Magnus Carlsen,0.5,,,,,,,0.5,
+200,Norway Chess,Ding Liren,Anish Giri,,,1.0,,,,0.0,,
+201,Norway Chess,Magnus Carlsen,Wesley So,0.0,,,,,1.0,,,
+202,Norway Chess,Alireza Firouzja,Ian Nepomniachtchi,,,,1.0,0.0,,,,
+203,World Championship,Anish Giri,Maxime Vachier-Lagrave,,,,,,,0.5,,0.5
+204,Norway Chess,Fabiano Caruana,Anish Giri,,0.0,,,,,1.0,,
+205,Norway Chess,Maxime Vachier-Lagrave,Levon Aronian,,,,,,,,0.5,0.5
+206,Candidates,Ding Liren,Anish Giri,,,1.0,,,,0.0,,
+207,Norway Chess,Ding Liren,Magnus Carlsen,0.0,,1.0,,,,,,
+208,Norway Chess,Fabiano Caruana,Ian Nepomniachtchi,,0.5,,0.5,,,,,
+209,Norway Chess,Wesley So,Anish Giri,,,,,,1.0,0.0,,
+210,World Championship,Wesley So,Alireza Firouzja,,,,,0.5,0.5,,,
+211,Norway Chess,Fabiano Caruana,Alireza Firouzja,,0.5,,,0.5,,,,
+212,World Championship,Alireza Firouzja,Ding Liren,,,0.5,,0.5,,,,
+213,Norway Chess,Levon Aronian,Magnus Carlsen,0.5,,,,,,,0.5,
+214,World Championship,Levon Aronian,Ian Nepomniachtchi,,,,0.5,,,,0.5,
+215,Tata Steel,Alireza Firouzja,Wesley So,,,,,0.0,1.0,,,
+216,Norway Chess,Ding Liren,Alireza Firouzja,,,0.5,,0.5,,,,
+217,Candidates,Alireza Firouzja,Levon Aronian,,,,,1.0,,,0.0,
+218,World Championship,Ding Liren,Magnus Carlsen,0.0,,1.0,,,,,,
+219,World Championship,Ding Liren,Levon Aronian,,,1.0,,,,,0.0,
+220,Norway Chess,Maxime Vachier-Lagrave,Ian Nepomniachtchi,,,,0.0,,,,,1.0
+221,Norway Chess,Alireza Firouzja,Magnus Carlsen,1.0,,,,0.0,,,,
+222,Norway Chess,Maxime Vachier-Lagrave,Magnus Carlsen,1.0,,,,,,,,0.0
+223,World Championship,Fabiano Caruana,Maxime Vachier-Lagrave,,1.0,,,,,,,0.0
+224,Norway Chess,Maxime Vachier-Lagrave,Fabiano Caruana,,0.5,,,,,,,0.5
+225,Tata Steel,Wesley So,Anish Giri,,,,,,1.0,0.0,,
+226,Norway Chess,Alireza Firouzja,Ding Liren,,,0.0,,1.0,,,,
+227,Norway Chess,Wesley So,Anish Giri,,,,,,0.0,1.0,,
+228,Candidates,Levon Aronian,Alireza Firouzja,,,,,1.0,,,0.0,
+229,Candidates,Wesley So,Magnus Carlsen,0.5,,,,,0.5,,,
+230,Norway Chess,Magnus Carlsen,Fabiano Caruana,0.5,0.5,,,,,,,
+231,Tata Steel,Maxime Vachier-Lagrave,Wesley So,,,,,,1.0,,,0.0
+232,World Championship,Magnus Carlsen,Ding Liren,1.0,,0.0,,,,,,
+233,Tata Steel,Fabiano Caruana,Ian Nepomniachtchi,,0.5,,0.5,,,,,
+234,World Championship,Maxime Vachier-Lagrave,Fabiano Caruana,,1.0,,,,,,,0.0
+235,Candidates,Levon Aronian,Maxime Vachier-Lagrave,,,,,,,,1.0,0.0
+236,Norway Chess,Alireza Firouzja,Ian Nepomniachtchi,,,,0.0,1.0,,,,
+237,World Championship,Ian Nepomniachtchi,Levon Aronian,,,,1.0,,,,0.0,
+238,Tata Steel,Ian Nepomniachtchi,Levon Aronian,,,,0.5,,,,0.5,
+239,World Championship,Wesley So,Fabiano Caruana,,0.5,,,,0.5,,,
+240,Tata Steel,Wesley So,Levon Aronian,,,,,,0.5,,0.5,
+241,Candidates,Anish Giri,Ian Nepomniachtchi,,,,0.5,,,0.5,,
+242,Tata Steel,Maxime Vachier-Lagrave,Ian Nepomniachtchi,,,,1.0,,,,,0.0
+243,Norway Chess,Ding Liren,Alireza Firouzja,,,0.5,,0.5,,,,
+244,Tata Steel,Wesley So,Fabiano Caruana,,0.0,,,,1.0,,,
+245,Candidates,Maxime Vachier-Lagrave,Ding Liren,,,1.0,,,,,,0.0
+246,World Championship,Ding Liren,Levon Aronian,,,1.0,,,,,0.0,
+247,Tata Steel,Anish Giri,Alireza Firouzja,,,,,1.0,,0.0,,
+248,Tata Steel,Fabiano Caruana,Ding Liren,,0.0,1.0,,,,,,
+249,Candidates,Magnus Carlsen,Ding Liren,0.0,,1.0,,,,,,
+250,Norway Chess,Maxime Vachier-Lagrave,Anish Giri,,,,,,,1.0,,0.0
+251,Candidates,Ding Liren,Anish Giri,,,0.5,,,,0.5,,
+252,Norway Chess,Alireza Firouzja,Fabiano Caruana,,0.5,,,0.5,,,,
+253,Norway Chess,Fabiano Caruana,Magnus Carlsen,0.0,1.0,,,,,,,
+254,Tata Steel,Levon Aronian,Anish Giri,,,,,,,0.5,0.5,
+255,Candidates,Alireza Firouzja,Levon Aronian,,,,,0.5,,,0.5,
+256,World Championship,Maxime Vachier-Lagrave,Fabiano Caruana,,0.0,,,,,,,1.0
+257,Tata Steel,Wesley So,Levon Aronian,,,,,,1.0,,0.0,
+258,World Championship,Ding Liren,Alireza Firouzja,,,0.0,,1.0,,,,
+259,World Championship,Ian Nepomniachtchi,Alireza Firouzja,,,,0.5,0.5,,,,
+260,Tata Steel,Maxime Vachier-Lagrave,Anish Giri,,,,,,,0.0,,1.0
+261,World Championship,Wesley So,Ding Liren,,,1.0,,,0.0,,,
+262,Norway Chess,Ian Nepomniachtchi,Anish Giri,,,,1.0,,,0.0,,
+263,World Championship,Fabiano Caruana,Wesley So,,1.0,,,,0.0,,,
+264,Candidates,Alireza Firouzja,Maxime Vachier-Lagrave,,,,,1.0,,,,0.0
+265,Norway Chess,Ding Liren,Alireza Firouzja,,,0.0,,1.0,,,,
+266,Candidates,Fabiano Caruana,Ian Nepomniachtchi,,0.5,,0.5,,,,,
+267,Candidates,Fabiano Caruana,Ian Nepomniachtchi,,0.5,,0.5,,,,,
+268,Candidates,Magnus Carlsen,Maxime Vachier-Lagrave,0.5,,,,,,,,0.5
+269,World Championship,Magnus Carlsen,Levon Aronian,0.5,,,,,,,0.5,
+270,Tata Steel,Wesley So,Ian Nepomniachtchi,,,,0.0,,1.0,,,
+271,Norway Chess,Levon Aronian,Ding Liren,,,1.0,,,,,0.0,
+272,Tata Steel,Fabiano Caruana,Maxime Vachier-Lagrave,,1.0,,,,,,,0.0
+273,Candidates,Levon Aronian,Alireza Firouzja,,,,,0.0,,,1.0,
+274,World Championship,Alireza Firouzja,Fabiano Caruana,,1.0,,,0.0,,,,
+275,Norway Chess,Ian Nepomniachtchi,Fabiano Caruana,,0.0,,1.0,,,,,
+276,World Championship,Alireza Firouzja,Levon Aronian,,,,,0.5,,,0.5,
+277,Norway Chess,Wesley So,Magnus Carlsen,0.5,,,,,0.5,,,
+278,World Championship,Ian Nepomniachtchi,Magnus Carlsen,1.0,,,0.0,,,,,
+279,Candidates,Ian Nepomniachtchi,Ding Liren,,,0.5,0.5,,,,,
+280,Tata Steel,Ian Nepomniachtchi,Alireza Firouzja,,,,0.5,0.5,,,,
+281,Candidates,Ding Liren,Levon Aronian,,,1.0,,,,,0.0,
+282,World Championship,Fabiano Caruana,Ian Nepomniachtchi,,1.0,,0.0,,,,,
+283,World Championship,Levon Aronian,Ian Nepomniachtchi,,,,1.0,,,,0.0,
+284,Candidates,Anish Giri,Alireza Firouzja,,,,,0.5,,0.5,,
+285,Candidates,Wesley So,Levon Aronian,,,,,,0.5,,0.5,
+286,Tata Steel,Alireza Firouzja,Ian Nepomniachtchi,,,,1.0,0.0,,,,
+287,Tata Steel,Levon Aronian,Anish Giri,,,,,,,0.5,0.5,
+288,Norway Chess,Alireza Firouzja,Fabiano Caruana,,0.0,,,1.0,,,,
+289,Tata Steel,Anish Giri,Levon Aronian,,,,,,,1.0,0.0,
+290,Norway Chess,Fabiano Caruana,Ding Liren,,0.5,0.5,,,,,,
+291,Candidates,Fabiano Caruana,Wesley So,,0.5,,,,0.5,,,
+292,Candidates,Levon Aronian,Maxime Vachier-Lagrave,,,,,,,,0.5,0.5
+293,Candidates,Magnus Carlsen,Alireza Firouzja,1.0,,,,0.0,,,,
+294,Norway Chess,Anish Giri,Magnus Carlsen,1.0,,,,,,0.0,,
+295,Tata Steel,Alireza Firouzja,Wesley So,,,,,1.0,0.0,,,
+296,World Championship,Anish Giri,Maxime Vachier-Lagrave,,,,,,,1.0,,0.0
+297,Norway Chess,Alireza Firouzja,Levon Aronian,,,,,0.5,,,0.5,
+298,Candidates,Magnus Carlsen,Alireza Firouzja,1.0,,,,0.0,,,,
+299,World Championship,Ding Liren,Ian Nepomniachtchi,,,0.0,1.0,,,,,
+300,World Championship,Wesley So,Ding Liren,,,0.5,,,0.5,,,
+301,Norway Chess,Magnus Carlsen,Anish Giri,1.0,,,,,,0.0,,
+302,Candidates,Wesley So,Fabiano Caruana,,1.0,,,,0.0,,,
+303,Tata Steel,Wesley So,Ian Nepomniachtchi,,,,1.0,,0.0,,,
+304,Norway Chess,Ian Nepomniachtchi,Alireza Firouzja,,,,0.0,1.0,,,,
+305,Candidates,Wesley So,Anish Giri,,,,,,1.0,0.0,,
+306,World Championship,Magnus Carlsen,Maxime Vachier-Lagrave,0.5,,,,,,,,0.5
+307,World Championship,Maxime Vachier-Lagrave,Anish Giri,,,,,,,1.0,,0.0
+308,Candidates,Ding Liren,Alireza Firouzja,,,1.0,,0.0,,,,
+309,World Championship,Ian Nepomniachtchi,Magnus Carlsen,0.0,,,1.0,,,,,
+310,Norway Chess,Anish Giri,Maxime Vachier-Lagrave,,,,,,,1.0,,0.0
+311,Tata Steel,Fabiano Caruana,Maxime Vachier-Lagrave,,1.0,,,,,,,0.0
+312,Candidates,Magnus Carlsen,Maxime Vachier-Lagrave,0.5,,,,,,,,0.5
+313,Norway Chess,Fabiano Caruana,Anish Giri,,1.0,,,,,0.0,,
+314,World Championship,Wesley So,Anish Giri,,,,,,0.5,0.5,,
+315,World Championship,Alireza Firouzja,Maxime Vachier-Lagrave,,,,,1.0,,,,0.0
+316,Tata Steel,Alireza Firouzja,Levon Aronian,,,,,1.0,,,0.0,
+317,Norway Chess,Fabiano Caruana,Ian Nepomniachtchi,,0.0,,1.0,,,,,
+318,Candidates,Levon Aronian,Alireza Firouzja,,,,,1.0,,,0.0,
+319,Tata Steel,Anish Giri,Magnus Carlsen,1.0,,,,,,0.0,,
+320,World Championship,Wesley So,Fabiano Caruana,,0.5,,,,0.5,,,
+321,Tata Steel,Anish Giri,Ian Nepomniachtchi,,,,0.5,,,0.5,,
+322,World Championship,Fabiano Caruana,Alireza Firouzja,,1.0,,,0.0,,,,
+323,Tata Steel,Fabiano Caruana,Ding Liren,,1.0,0.0,,,,,,
+324,Tata Steel,Ian Nepomniachtchi,Fabiano Caruana,,0.0,,1.0,,,,,
+325,Tata Steel,Maxime Vachier-Lagrave,Ian Nepomniachtchi,,,,0.0,,,,,1.0
+326,Norway Chess,Alireza Firouzja,Anish Giri,,,,,1.0,,0.0,,
+327,Tata Steel,Ding Liren,Magnus Carlsen,0.0,,1.0,,,,,,
+328,Tata Steel,Magnus Carlsen,Alireza Firouzja,0.5,,,,0.5,,,,
+329,Candidates,Maxime Vachier-Lagrave,Levon Aronian,,,,,,,,0.0,1.0
+330,World Championship,Wesley So,Levon Aronian,,,,,,0.5,,0.5,
+331,Tata Steel,Fabiano Caruana,Anish Giri,,0.5,,,,,0.5,,
+332,World Championship,Ding Liren,Magnus Carlsen,0.0,,1.0,,,,,,
+333,World Championship,Ding Liren,Ian Nepomniachtchi,,,1.0,0.0,,,,,
+334,Tata Steel,Magnus Carlsen,Anish Giri,1.0,,,,,,0.0,,
+335,Norway Chess,Ding Liren,Anish Giri,,,1.0,,,,0.0,,
+336,Norway Chess,Fabiano Caruana,Anish Giri,,0.0,,,,,1.0,,
+337,Norway Chess,Maxime Vachier-Lagrave,Wesley So,,,,,,0.5,,,0.5
+338,Candidates,Ding Liren,Maxime Vachier-Lagrave,,,1.0,,,,,,0.0
+339,Candidates,Wesley So,Alireza Firouzja,,,,,0.5,0.5,,,

@@ -119,3 +119,37 @@ def multiway_candidate_df():
         'Rank_3': ['C', 'A', 'B'],
     }
     return pd.DataFrame(data)
+
+
+@pytest.fixture
+def multiway_df():
+    """Create a proper multiway DataFrame with rank positions."""
+    data = {
+        'Race': ['race_1', 'race_2', 'race_3', 'race_4', 'race_5'],
+        'Horse_A': [1, 2, 1, 3, 2],  # Rank positions
+        'Horse_B': [2, 1, 3, 1, 1],
+        'Horse_C': [3, 3, 2, 2, 3],
+    }
+    return pd.DataFrame(data)
+
+
+@pytest.fixture
+def special_chars_df():
+    """Create a DataFrame with special characters in column names (needs standardization)."""
+    data = {
+        'Model A (v1.0)': [0.85, 0.78, 0.82],
+        'Model B - beta': [0.72, 0.81, 0.79],
+        'Model C/D': [0.68, 0.75, 0.71],
+    }
+    return pd.DataFrame(data)
+
+
+@pytest.fixture
+def engine_compatible_df():
+    """Create a DataFrame that should be directly engine compatible."""
+    data = {
+        'model_1': [0.85, 0.78, 0.82, 0.88, 0.75],
+        'model_2': [0.72, 0.81, 0.79, 0.85, 0.70],
+        'model_3': [0.68, 0.75, 0.71, 0.80, 0.65],
+    }
+    return pd.DataFrame(data)

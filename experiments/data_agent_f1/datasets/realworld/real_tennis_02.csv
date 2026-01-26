@@ -1,0 +1,366 @@
+match_num,tourney_name,surface,winner_name,loser_name,score
+1,French Open,Grass,Djokovic,Zverev,7-4 7-4
+2,Australian Open,Grass,Nadal,Thiem,6-4 6-5
+3,French Open,Clay,Djokovic,Thiem,6-4 7-5
+4,Wimbledon,Clay,Murray,Thiem,7-4 6-5
+5,Wimbledon,Grass,Djokovic,Federer,6-4 7-5
+6,French Open,Hard,Thiem,Zverev,7-3 7-5
+7,Australian Open,Clay,Thiem,Djokovic,7-3 7-4
+8,Wimbledon,Hard,Nadal,Zverev,6-4 6-4
+9,French Open,Hard,Zverev,Nadal,6-3 6-5
+10,US Open,Clay,Djokovic,Thiem,7-4 7-5
+11,French Open,Clay,Nadal,Murray,6-3 6-5
+12,French Open,Clay,Murray,Thiem,6-4 6-5
+13,Wimbledon,Clay,Federer,Djokovic,6-4 7-5
+14,French Open,Clay,Nadal,Thiem,7-4 6-5
+15,French Open,Clay,Nadal,Murray,7-4 7-4
+16,Wimbledon,Hard,Nadal,Thiem,7-3 7-5
+17,Wimbledon,Clay,Zverev,Nadal,6-3 7-5
+18,French Open,Clay,Nadal,Thiem,7-4 6-5
+19,French Open,Clay,Djokovic,Nadal,6-4 7-5
+20,French Open,Clay,Federer,Zverev,6-4 6-5
+21,Wimbledon,Clay,Zverev,Thiem,7-4 7-5
+22,Australian Open,Grass,Djokovic,Murray,6-3 7-5
+23,US Open,Hard,Thiem,Zverev,6-4 6-5
+24,Australian Open,Clay,Zverev,Federer,7-4 7-5
+25,Wimbledon,Grass,Zverev,Nadal,6-4 6-4
+26,US Open,Clay,Nadal,Murray,6-3 7-4
+27,US Open,Grass,Federer,Djokovic,7-4 6-4
+28,Wimbledon,Hard,Federer,Zverev,6-3 6-5
+29,French Open,Grass,Federer,Murray,7-3 6-5
+30,French Open,Clay,Zverev,Thiem,7-3 6-5
+31,Wimbledon,Clay,Federer,Zverev,6-3 6-5
+32,Australian Open,Clay,Federer,Murray,7-3 7-5
+33,French Open,Hard,Nadal,Thiem,7-4 7-4
+34,Wimbledon,Clay,Murray,Nadal,6-4 6-5
+35,Australian Open,Hard,Thiem,Federer,6-3 6-5
+36,French Open,Grass,Djokovic,Murray,7-3 7-4
+37,US Open,Hard,Djokovic,Nadal,6-4 7-4
+38,Wimbledon,Hard,Murray,Zverev,6-3 7-4
+39,Australian Open,Clay,Federer,Murray,7-3 7-4
+40,Australian Open,Hard,Nadal,Djokovic,7-3 6-5
+41,Wimbledon,Clay,Murray,Djokovic,7-3 6-4
+42,Wimbledon,Clay,Djokovic,Murray,7-4 7-4
+43,US Open,Clay,Djokovic,Zverev,7-4 6-5
+44,Wimbledon,Grass,Nadal,Djokovic,7-4 6-4
+45,Wimbledon,Hard,Federer,Thiem,6-4 6-5
+46,US Open,Grass,Djokovic,Nadal,7-3 6-5
+47,US Open,Hard,Nadal,Zverev,7-3 7-5
+48,Australian Open,Clay,Murray,Nadal,6-4 6-5
+49,Australian Open,Hard,Murray,Zverev,6-4 7-5
+50,Wimbledon,Hard,Thiem,Federer,6-4 7-5
+51,Australian Open,Grass,Federer,Thiem,6-3 7-4
+52,Australian Open,Hard,Djokovic,Federer,7-3 7-5
+53,US Open,Hard,Murray,Federer,6-3 6-4
+54,US Open,Grass,Djokovic,Murray,7-4 7-4
+55,US Open,Hard,Nadal,Federer,6-4 6-5
+56,Australian Open,Clay,Djokovic,Zverev,6-4 6-4
+57,US Open,Hard,Djokovic,Federer,6-4 6-4
+58,Wimbledon,Grass,Nadal,Thiem,7-3 7-5
+59,Wimbledon,Hard,Murray,Zverev,7-4 6-5
+60,French Open,Clay,Federer,Zverev,7-4 7-4
+61,French Open,Clay,Thiem,Zverev,7-4 7-4
+62,US Open,Grass,Djokovic,Zverev,6-4 6-5
+63,US Open,Grass,Zverev,Nadal,7-3 6-4
+64,French Open,Clay,Murray,Federer,6-3 7-5
+65,Wimbledon,Grass,Djokovic,Thiem,6-4 7-4
+66,US Open,Grass,Thiem,Murray,7-3 7-4
+67,Australian Open,Clay,Djokovic,Federer,6-3 6-5
+68,French Open,Grass,Djokovic,Federer,6-4 6-4
+69,US Open,Hard,Murray,Djokovic,7-4 7-4
+70,US Open,Grass,Nadal,Federer,7-4 6-5
+71,Wimbledon,Hard,Murray,Thiem,7-3 7-5
+72,Wimbledon,Hard,Zverev,Thiem,6-4 7-5
+73,Australian Open,Clay,Zverev,Thiem,7-4 6-5
+74,French Open,Hard,Thiem,Federer,7-4 6-5
+75,French Open,Hard,Djokovic,Nadal,6-3 6-4
+76,French Open,Hard,Nadal,Thiem,7-3 7-5
+77,Wimbledon,Hard,Murray,Djokovic,7-4 6-4
+78,US Open,Clay,Thiem,Murray,6-3 7-4
+79,Australian Open,Grass,Zverev,Thiem,6-3 7-5
+80,US Open,Clay,Federer,Zverev,7-3 7-4
+81,US Open,Hard,Murray,Federer,6-4 6-4
+82,Australian Open,Clay,Nadal,Thiem,6-3 7-5
+83,French Open,Hard,Federer,Zverev,7-4 6-5
+84,Australian Open,Grass,Nadal,Zverev,6-3 7-4
+85,Australian Open,Clay,Nadal,Murray,7-4 6-4
+86,Wimbledon,Hard,Nadal,Zverev,7-3 7-4
+87,French Open,Hard,Thiem,Zverev,6-3 7-4
+88,Australian Open,Clay,Djokovic,Zverev,7-4 7-4
+89,US Open,Grass,Nadal,Djokovic,7-3 6-4
+90,Australian Open,Hard,Djokovic,Zverev,7-4 6-5
+91,Wimbledon,Hard,Murray,Zverev,6-4 6-5
+92,Wimbledon,Hard,Nadal,Murray,6-3 7-5
+93,Wimbledon,Clay,Federer,Zverev,7-3 7-5
+94,US Open,Grass,Thiem,Murray,6-4 7-4
+95,US Open,Grass,Nadal,Thiem,7-3 6-5
+96,French Open,Clay,Zverev,Murray,6-4 7-4
+97,Australian Open,Grass,Thiem,Zverev,7-3 6-4
+98,Australian Open,Clay,Thiem,Zverev,7-3 6-5
+99,US Open,Clay,Nadal,Thiem,7-3 6-4
+100,US Open,Grass,Djokovic,Murray,7-3 7-5
+101,Wimbledon,Hard,Nadal,Djokovic,6-3 6-5
+102,Australian Open,Clay,Zverev,Federer,6-3 6-4
+103,US Open,Clay,Thiem,Djokovic,7-4 6-5
+104,Australian Open,Clay,Nadal,Zverev,7-4 6-4
+105,Wimbledon,Hard,Nadal,Thiem,6-3 6-5
+106,French Open,Clay,Nadal,Djokovic,6-3 6-5
+107,Wimbledon,Clay,Nadal,Zverev,7-3 6-5
+108,US Open,Clay,Zverev,Federer,6-4 7-4
+109,Australian Open,Grass,Djokovic,Federer,6-3 6-4
+110,Australian Open,Grass,Zverev,Thiem,7-4 7-5
+111,French Open,Hard,Zverev,Thiem,7-4 7-4
+112,Wimbledon,Hard,Nadal,Thiem,6-3 7-4
+113,Australian Open,Clay,Nadal,Zverev,6-4 7-4
+114,French Open,Hard,Nadal,Djokovic,7-4 7-4
+115,US Open,Hard,Djokovic,Federer,6-4 7-5
+116,Australian Open,Hard,Djokovic,Murray,7-4 7-5
+117,French Open,Grass,Djokovic,Zverev,7-3 6-5
+118,French Open,Hard,Djokovic,Federer,7-4 6-5
+119,French Open,Grass,Nadal,Thiem,7-3 7-5
+120,French Open,Clay,Murray,Djokovic,7-3 7-4
+121,Wimbledon,Hard,Federer,Djokovic,7-3 7-4
+122,French Open,Clay,Federer,Nadal,6-3 6-4
+123,US Open,Hard,Djokovic,Zverev,7-3 6-5
+124,French Open,Hard,Murray,Djokovic,7-3 7-4
+125,French Open,Clay,Nadal,Federer,6-4 6-4
+126,US Open,Hard,Federer,Djokovic,7-4 7-4
+127,Wimbledon,Hard,Federer,Zverev,7-4 7-4
+128,US Open,Hard,Djokovic,Nadal,7-3 6-5
+129,Australian Open,Grass,Nadal,Murray,7-4 7-4
+130,Australian Open,Grass,Zverev,Thiem,6-3 7-4
+131,Australian Open,Clay,Federer,Murray,6-3 6-5
+132,French Open,Clay,Federer,Murray,7-4 6-4
+133,Australian Open,Hard,Murray,Djokovic,7-4 6-4
+134,US Open,Clay,Murray,Djokovic,7-4 7-4
+135,Australian Open,Clay,Nadal,Thiem,6-4 6-5
+136,Wimbledon,Hard,Thiem,Murray,6-4 6-5
+137,Australian Open,Hard,Federer,Thiem,7-4 6-4
+138,Australian Open,Clay,Thiem,Zverev,7-3 6-4
+139,US Open,Hard,Thiem,Nadal,6-4 7-5
+140,Wimbledon,Grass,Thiem,Zverev,7-4 7-5
+141,US Open,Grass,Federer,Zverev,7-3 7-4
+142,US Open,Grass,Thiem,Federer,7-3 7-4
+143,Australian Open,Grass,Murray,Nadal,7-4 7-5
+144,Wimbledon,Clay,Murray,Thiem,6-3 7-5
+145,Wimbledon,Hard,Murray,Nadal,6-3 6-4
+146,Wimbledon,Hard,Murray,Zverev,6-4 7-5
+147,Australian Open,Grass,Nadal,Thiem,7-4 7-4
+148,Australian Open,Grass,Murray,Nadal,6-4 7-5
+149,French Open,Hard,Djokovic,Zverev,7-3 6-5
+150,US Open,Hard,Murray,Thiem,7-3 7-4
+151,Australian Open,Clay,Thiem,Federer,7-4 7-5
+152,French Open,Grass,Federer,Zverev,7-3 7-4
+153,French Open,Grass,Djokovic,Thiem,6-4 7-4
+154,French Open,Clay,Nadal,Thiem,6-4 7-5
+155,Wimbledon,Grass,Djokovic,Zverev,7-4 6-5
+156,US Open,Clay,Nadal,Zverev,6-3 6-5
+157,Australian Open,Grass,Murray,Zverev,6-3 7-4
+158,US Open,Hard,Federer,Zverev,6-4 7-5
+159,Wimbledon,Clay,Murray,Federer,7-4 7-4
+160,Australian Open,Clay,Thiem,Murray,7-3 6-5
+161,French Open,Clay,Thiem,Murray,7-4 6-5
+162,Wimbledon,Grass,Zverev,Thiem,6-4 6-5
+163,US Open,Hard,Djokovic,Thiem,7-3 6-5
+164,French Open,Hard,Nadal,Federer,6-3 6-4
+165,US Open,Grass,Nadal,Thiem,6-3 6-5
+166,Wimbledon,Hard,Thiem,Zverev,6-4 7-5
+167,French Open,Clay,Djokovic,Zverev,7-4 6-4
+168,French Open,Hard,Federer,Djokovic,7-4 6-5
+169,Wimbledon,Grass,Murray,Djokovic,7-3 7-4
+170,Wimbledon,Grass,Thiem,Nadal,6-4 7-4
+171,French Open,Clay,Djokovic,Zverev,6-4 6-4
+172,French Open,Clay,Djokovic,Murray,6-4 7-5
+173,US Open,Clay,Djokovic,Murray,7-3 7-5
+174,US Open,Clay,Federer,Zverev,7-3 7-5
+175,US Open,Clay,Zverev,Nadal,6-4 7-4
+176,Australian Open,Grass,Federer,Zverev,6-3 6-4
+177,Australian Open,Hard,Djokovic,Thiem,7-4 7-4
+178,US Open,Clay,Djokovic,Federer,6-3 7-4
+179,US Open,Hard,Zverev,Thiem,6-4 6-5
+180,Wimbledon,Hard,Thiem,Djokovic,6-3 7-4
+181,US Open,Hard,Murray,Thiem,6-4 6-4
+182,Australian Open,Clay,Nadal,Murray,6-3 7-4
+183,US Open,Hard,Djokovic,Thiem,7-3 7-4
+184,Australian Open,Hard,Federer,Zverev,6-3 6-5
+185,US Open,Hard,Djokovic,Nadal,6-3 6-5
+186,Wimbledon,Hard,Zverev,Murray,7-4 7-4
+187,Wimbledon,Grass,Thiem,Nadal,7-3 7-5
+188,Wimbledon,Hard,Djokovic,Murray,6-4 6-5
+189,Wimbledon,Hard,Zverev,Nadal,6-4 7-4
+190,French Open,Clay,Nadal,Djokovic,6-4 7-5
+191,US Open,Grass,Thiem,Murray,6-3 6-5
+192,Wimbledon,Grass,Thiem,Djokovic,7-4 7-4
+193,US Open,Clay,Zverev,Federer,6-3 6-5
+194,US Open,Clay,Murray,Nadal,7-3 7-4
+195,Australian Open,Clay,Nadal,Thiem,6-4 6-5
+196,US Open,Grass,Federer,Nadal,6-4 6-4
+197,French Open,Hard,Murray,Zverev,7-3 6-4
+198,Australian Open,Hard,Murray,Djokovic,7-4 7-4
+199,Wimbledon,Hard,Murray,Zverev,7-4 6-4
+200,US Open,Hard,Djokovic,Thiem,7-3 7-5
+201,Wimbledon,Hard,Djokovic,Murray,6-4 6-4
+202,US Open,Hard,Federer,Zverev,7-4 6-5
+203,Australian Open,Clay,Thiem,Zverev,6-4 6-5
+204,US Open,Grass,Murray,Zverev,6-4 7-4
+205,Wimbledon,Grass,Murray,Federer,6-4 6-5
+206,Australian Open,Grass,Djokovic,Zverev,6-4 7-4
+207,Wimbledon,Hard,Thiem,Zverev,7-3 6-5
+208,Wimbledon,Grass,Thiem,Zverev,6-4 7-5
+209,US Open,Clay,Thiem,Murray,7-4 7-4
+210,French Open,Clay,Thiem,Murray,7-3 6-5
+211,Wimbledon,Clay,Djokovic,Zverev,6-3 6-5
+212,Wimbledon,Grass,Djokovic,Nadal,6-4 7-4
+213,US Open,Clay,Murray,Federer,6-3 6-4
+214,French Open,Grass,Federer,Thiem,7-4 7-5
+215,French Open,Hard,Federer,Thiem,7-3 7-5
+216,French Open,Clay,Federer,Djokovic,6-3 7-4
+217,US Open,Hard,Nadal,Zverev,7-3 7-5
+218,US Open,Grass,Federer,Nadal,7-4 6-5
+219,French Open,Hard,Thiem,Murray,6-4 7-4
+220,French Open,Grass,Murray,Federer,7-4 7-4
+221,US Open,Grass,Thiem,Murray,7-3 6-4
+222,Wimbledon,Clay,Djokovic,Federer,7-3 7-4
+223,Wimbledon,Clay,Nadal,Thiem,6-3 6-5
+224,Australian Open,Hard,Djokovic,Zverev,7-4 6-5
+225,Australian Open,Clay,Nadal,Murray,7-4 6-5
+226,Australian Open,Grass,Federer,Zverev,6-3 7-5
+227,Australian Open,Grass,Murray,Federer,7-3 6-4
+228,French Open,Hard,Nadal,Federer,7-3 6-5
+229,Australian Open,Grass,Federer,Zverev,6-3 6-5
+230,French Open,Grass,Federer,Thiem,7-4 7-4
+231,French Open,Grass,Djokovic,Zverev,7-3 7-5
+232,Wimbledon,Hard,Murray,Nadal,6-4 7-4
+233,Australian Open,Clay,Federer,Thiem,7-3 7-4
+234,Wimbledon,Clay,Nadal,Federer,7-3 7-4
+235,French Open,Hard,Djokovic,Federer,7-4 6-4
+236,Wimbledon,Grass,Nadal,Zverev,7-4 7-5
+237,French Open,Hard,Zverev,Federer,6-3 7-5
+238,Wimbledon,Hard,Murray,Zverev,6-3 6-4
+239,US Open,Clay,Zverev,Thiem,7-3 6-4
+240,French Open,Hard,Djokovic,Murray,7-4 6-5
+241,Wimbledon,Grass,Djokovic,Zverev,6-4 6-4
+242,US Open,Hard,Nadal,Djokovic,6-4 7-4
+243,US Open,Clay,Nadal,Djokovic,6-4 6-4
+244,US Open,Grass,Djokovic,Federer,6-3 6-5
+245,French Open,Grass,Djokovic,Zverev,7-4 6-4
+246,US Open,Grass,Thiem,Zverev,6-3 7-4
+247,US Open,Hard,Djokovic,Thiem,7-4 6-5
+248,French Open,Clay,Zverev,Djokovic,7-3 6-5
+249,US Open,Grass,Djokovic,Federer,6-4 7-5
+250,Australian Open,Hard,Thiem,Djokovic,7-4 7-5
+251,Australian Open,Clay,Zverev,Murray,7-3 6-5
+252,Australian Open,Grass,Zverev,Federer,6-4 7-4
+253,US Open,Grass,Djokovic,Nadal,6-3 7-4
+254,Australian Open,Hard,Nadal,Federer,6-4 7-5
+255,Australian Open,Clay,Thiem,Zverev,7-4 7-5
+256,French Open,Clay,Nadal,Murray,7-3 6-4
+257,Australian Open,Grass,Zverev,Djokovic,6-3 7-5
+258,US Open,Hard,Federer,Nadal,7-4 6-5
+259,French Open,Grass,Murray,Zverev,7-3 6-5
+260,Australian Open,Clay,Djokovic,Murray,7-3 6-4
+261,Wimbledon,Clay,Federer,Thiem,7-3 7-5
+262,Australian Open,Grass,Djokovic,Murray,7-4 6-4
+263,Australian Open,Grass,Federer,Murray,7-4 7-4
+264,French Open,Clay,Djokovic,Thiem,6-4 7-4
+265,Australian Open,Clay,Federer,Murray,6-3 6-4
+266,US Open,Clay,Federer,Zverev,6-4 6-4
+267,Australian Open,Grass,Thiem,Federer,7-4 6-5
+268,Australian Open,Grass,Djokovic,Thiem,7-4 6-5
+269,French Open,Hard,Djokovic,Nadal,7-4 7-4
+270,Wimbledon,Clay,Djokovic,Murray,7-3 7-5
+271,US Open,Grass,Thiem,Nadal,6-4 7-4
+272,Wimbledon,Clay,Thiem,Zverev,6-4 7-5
+273,Australian Open,Clay,Zverev,Thiem,7-4 6-4
+274,Australian Open,Hard,Thiem,Zverev,7-4 7-4
+275,Wimbledon,Hard,Nadal,Thiem,6-4 7-5
+276,Australian Open,Clay,Djokovic,Federer,7-3 7-4
+277,Wimbledon,Hard,Murray,Nadal,6-4 7-5
+278,US Open,Hard,Thiem,Murray,6-4 6-4
+279,Wimbledon,Grass,Zverev,Federer,6-4 6-4
+280,US Open,Clay,Federer,Djokovic,7-3 7-4
+281,US Open,Grass,Djokovic,Nadal,7-4 6-4
+282,French Open,Clay,Djokovic,Thiem,7-3 7-4
+283,French Open,Clay,Nadal,Djokovic,7-4 6-5
+284,US Open,Clay,Federer,Thiem,7-4 6-5
+285,French Open,Clay,Nadal,Federer,6-3 6-4
+286,French Open,Grass,Federer,Thiem,6-3 7-5
+287,French Open,Clay,Murray,Djokovic,6-3 7-4
+288,Australian Open,Hard,Murray,Nadal,7-3 7-5
+289,French Open,Grass,Murray,Zverev,7-3 6-5
+290,French Open,Clay,Djokovic,Thiem,6-3 6-5
+291,Wimbledon,Grass,Zverev,Nadal,7-4 6-4
+292,Wimbledon,Grass,Nadal,Zverev,7-4 7-5
+293,French Open,Clay,Zverev,Nadal,6-3 7-5
+294,Wimbledon,Hard,Murray,Nadal,6-3 6-5
+295,Wimbledon,Hard,Federer,Nadal,7-4 7-4
+296,US Open,Hard,Djokovic,Federer,7-4 7-4
+297,French Open,Clay,Nadal,Zverev,7-4 6-5
+298,French Open,Grass,Nadal,Thiem,6-4 6-5
+299,French Open,Hard,Nadal,Djokovic,7-3 7-5
+300,French Open,Grass,Djokovic,Zverev,7-3 7-5
+301,US Open,Grass,Zverev,Thiem,6-3 7-4
+302,US Open,Hard,Federer,Murray,7-4 7-5
+303,US Open,Grass,Zverev,Federer,6-4 6-5
+304,French Open,Grass,Federer,Murray,7-3 7-4
+305,Australian Open,Clay,Djokovic,Federer,7-4 7-5
+306,Australian Open,Hard,Federer,Thiem,7-4 6-5
+307,Wimbledon,Hard,Djokovic,Nadal,6-4 7-4
+308,Australian Open,Hard,Murray,Zverev,7-4 7-5
+309,Wimbledon,Hard,Djokovic,Murray,7-3 6-5
+310,French Open,Grass,Zverev,Nadal,6-3 6-5
+311,US Open,Clay,Nadal,Djokovic,6-4 6-5
+312,US Open,Clay,Thiem,Federer,6-3 6-5
+313,French Open,Grass,Murray,Zverev,6-4 6-5
+314,US Open,Grass,Federer,Thiem,7-4 6-4
+315,Australian Open,Clay,Thiem,Zverev,6-3 7-4
+316,Australian Open,Clay,Djokovic,Nadal,6-3 7-5
+317,Wimbledon,Clay,Federer,Murray,6-4 6-5
+318,Australian Open,Hard,Murray,Zverev,7-4 6-5
+319,French Open,Clay,Zverev,Murray,6-3 7-4
+320,Australian Open,Clay,Federer,Murray,6-3 7-4
+321,US Open,Grass,Thiem,Murray,6-3 6-5
+322,French Open,Clay,Djokovic,Murray,7-3 6-4
+323,Wimbledon,Clay,Zverev,Murray,6-3 7-5
+324,Australian Open,Grass,Thiem,Federer,7-4 6-4
+325,French Open,Grass,Djokovic,Nadal,6-4 6-4
+326,Australian Open,Clay,Murray,Djokovic,7-4 7-5
+327,US Open,Hard,Murray,Zverev,6-3 6-4
+328,Wimbledon,Clay,Nadal,Djokovic,6-3 7-4
+329,Wimbledon,Clay,Federer,Djokovic,7-3 6-4
+330,Australian Open,Hard,Murray,Nadal,7-3 6-5
+331,US Open,Hard,Thiem,Murray,7-4 7-5
+332,Australian Open,Hard,Djokovic,Murray,6-3 7-5
+333,Australian Open,Clay,Thiem,Djokovic,6-4 7-5
+334,French Open,Grass,Zverev,Murray,6-4 7-5
+335,French Open,Grass,Nadal,Thiem,7-3 7-5
+336,Wimbledon,Grass,Federer,Murray,6-4 6-5
+337,Australian Open,Hard,Nadal,Zverev,7-4 7-4
+338,US Open,Clay,Nadal,Thiem,7-4 6-4
+339,French Open,Clay,Djokovic,Thiem,6-3 6-4
+340,French Open,Hard,Federer,Murray,7-3 6-4
+341,US Open,Hard,Zverev,Murray,6-3 6-4
+342,French Open,Hard,Djokovic,Zverev,7-4 7-4
+343,Wimbledon,Hard,Nadal,Federer,6-4 7-4
+344,Wimbledon,Hard,Nadal,Murray,7-4 7-5
+345,Australian Open,Hard,Zverev,Nadal,6-4 7-5
+346,French Open,Hard,Thiem,Murray,7-3 6-4
+347,Wimbledon,Clay,Djokovic,Federer,6-4 6-4
+348,French Open,Clay,Djokovic,Thiem,7-4 7-5
+349,Wimbledon,Grass,Federer,Djokovic,7-4 6-5
+350,Australian Open,Hard,Federer,Zverev,7-3 6-5
+351,French Open,Hard,Nadal,Murray,6-4 7-4
+352,French Open,Hard,Zverev,Djokovic,7-4 6-4
+353,French Open,Hard,Federer,Zverev,6-3 7-5
+354,Wimbledon,Grass,Djokovic,Thiem,6-4 7-5
+355,Australian Open,Grass,Thiem,Zverev,6-3 7-4
+356,Australian Open,Clay,Federer,Murray,6-3 6-5
+357,US Open,Clay,Nadal,Murray,7-4 7-5
+358,Australian Open,Grass,Murray,Zverev,7-3 6-4
+359,US Open,Grass,Murray,Zverev,6-4 7-4
+360,French Open,Hard,Nadal,Zverev,7-3 6-5
+361,Wimbledon,Hard,Thiem,Federer,7-4 7-5
+362,Wimbledon,Hard,Federer,Murray,7-3 7-5
+363,Australian Open,Hard,Zverev,Nadal,6-4 6-4
+364,Australian Open,Clay,Murray,Zverev,7-4 6-4
+365,Australian Open,Hard,Murray,Thiem,7-3 7-5

@@ -1,0 +1,172 @@
+{
+  "experiment_id": "data_agent_f1",
+  "paper_section": "4.2.1 Format Recognition & Standardization",
+  "run_timestamp": "20260126_002143",
+  "n_datasets": 41,
+  "n_runs": 1,
+  "agent_enabled": true,
+  "results": {
+    "data_agent": {
+      "format_accuracy": {
+        "mean": 0.8536585365853658,
+        "std": 0.0
+      },
+      "category_accuracies": {
+        "standard": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "ambiguous": {
+          "mean": 0.875,
+          "std": 0.0
+        },
+        "transposed": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "invalid": {
+          "mean": 0.5,
+          "std": 0.0
+        },
+        "realworld": {
+          "mean": 0.9166666666666666,
+          "std": 0.0
+        }
+      },
+      "per_class_format_metrics": {
+        "pointwise": {
+          "precision": {
+            "mean": 0.7916666666666666,
+            "std": 0.0
+          },
+          "recall": {
+            "mean": 1.0,
+            "std": 0.0
+          },
+          "f1": {
+            "mean": 0.8837209302325582,
+            "std": 0.0
+          },
+          "support": {
+            "mean": 19.0,
+            "std": 0.0
+          }
+        },
+        "pairwise": {
+          "precision": {
+            "mean": 0.9,
+            "std": 0.0
+          },
+          "recall": {
+            "mean": 1.0,
+            "std": 0.0
+          },
+          "f1": {
+            "mean": 0.9473684210526316,
+            "std": 0.0
+          },
+          "support": {
+            "mean": 9.0,
+            "std": 0.0
+          }
+        },
+        "multiway": {
+          "precision": {
+            "mean": 1.0,
+            "std": 0.0
+          },
+          "recall": {
+            "mean": 0.7777777777777778,
+            "std": 0.0
+          },
+          "f1": {
+            "mean": 0.8750000000000001,
+            "std": 0.0
+          },
+          "support": {
+            "mean": 9.0,
+            "std": 0.0
+          }
+        },
+        "invalid": {
+          "precision": {
+            "mean": 0.0,
+            "std": 0.0
+          },
+          "recall": {
+            "mean": 0.0,
+            "std": 0.0
+          },
+          "f1": {
+            "mean": 0.0,
+            "std": 0.0
+          },
+          "support": {
+            "mean": 4.0,
+            "std": 0.0
+          }
+        }
+      }
+    },
+    "baseline": {
+      "format_accuracy": {
+        "mean": 0.7560975609756098,
+        "std": 0.0
+      },
+      "category_accuracies": {
+        "standard": {
+          "mean": 0.8888888888888888,
+          "std": 0.0
+        },
+        "ambiguous": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "transposed": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "invalid": {
+          "mean": 0.75,
+          "std": 0.0
+        },
+        "realworld": {
+          "mean": 0.4166666666666667,
+          "std": 0.0
+        }
+      }
+    }
+  },
+  "confusion_matrix_format": [
+    [
+      19,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      9,
+      0,
+      0
+    ],
+    [
+      1,
+      1,
+      7,
+      0
+    ],
+    [
+      4,
+      0,
+      0,
+      0
+    ]
+  ],
+  "labels": [
+    "pointwise",
+    "pairwise",
+    "multiway",
+    "invalid"
+  ]
+}

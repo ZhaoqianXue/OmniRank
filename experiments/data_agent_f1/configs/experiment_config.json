@@ -1,0 +1,72 @@
+{
+  "experiment_id": "data_agent_f1",
+  "paper_section": "4.2.1 Format Recognition & Standardization",
+  "purpose": "Evaluate Data Agent's format recognition and standardization capabilities on realistic datasets",
+  
+  "evaluation_targets": {
+    "format_detection": {
+      "description": "Correctly identify data format (pointwise/pairwise/multiway/invalid)",
+      "metrics": ["accuracy", "precision", "recall", "f1"],
+      "labels": ["pointwise", "pairwise", "multiway", "invalid"]
+    },
+    "engine_compatibility": {
+      "description": "Correctly assess whether spectral engine can process data directly",
+      "metrics": ["accuracy", "precision", "recall", "f1"],
+      "labels": ["compatible", "incompatible"]
+    },
+    "standardization_decision": {
+      "description": "Correctly decide standardization action (none/standardize/reject)",
+      "metrics": ["accuracy", "precision", "recall", "f1"],
+      "labels": ["none", "standardize", "reject"]
+    }
+  },
+  
+  "dataset_categories": {
+    "standard": {
+      "description": "Clean, unambiguous format examples",
+      "expected_difficulty": "easy",
+      "expected_accuracy": 0.95
+    },
+    "ambiguous": {
+      "description": "Edge cases where format could be misinterpreted",
+      "expected_difficulty": "medium-hard",
+      "expected_accuracy": 0.70
+    },
+    "transposed": {
+      "description": "Data with rows/columns swapped",
+      "expected_difficulty": "hard",
+      "expected_accuracy": 0.60
+    },
+    "invalid": {
+      "description": "Data that should trigger rejection/errors",
+      "expected_difficulty": "easy-medium",
+      "expected_accuracy": 0.85
+    },
+    "realworld": {
+      "description": "Formats based on actual internet data sources",
+      "expected_difficulty": "medium",
+      "expected_accuracy": 0.80
+    }
+  },
+  
+  "experiment_settings": {
+    "n_runs": 5,
+    "random_seed_base": 42,
+    "confidence_level": 0.95,
+    "timeout_seconds": 30
+  },
+  
+  "baseline_settings": {
+    "enabled": true,
+    "name": "rule_based_heuristic",
+    "description": "Simple rule-based format detection using value patterns"
+  },
+  
+  "output_format": {
+    "tables": ["latex", "markdown"],
+    "figures": ["confusion_matrix_png", "error_distribution_png"],
+    "reports": ["results.json", "error_analysis.json"]
+  },
+  
+  "random_seed": 42
+}

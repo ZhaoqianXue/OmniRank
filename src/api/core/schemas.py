@@ -17,6 +17,7 @@ class DataFormat(str, Enum):
     POINTWISE = "pointwise"
     PAIRWISE = "pairwise"
     MULTIWAY = "multiway"
+    INVALID = "invalid"  # Data unsuitable for ranking analysis
 
 
 class InferredSchema(BaseModel):
@@ -27,6 +28,10 @@ class InferredSchema(BaseModel):
     indicator_col: Optional[str] = None
     indicator_values: list[str] = []
     confidence: float = Field(ge=0.0, le=1.0)
+    # Function 1: Format Recognition & Standardization fields
+    engine_compatible: bool = Field(default=True, description="Whether data can be directly processed by spectral engine")
+    standardization_needed: bool = Field(default=False, description="Whether standardization is required before engine execution")
+    standardization_reason: Optional[str] = Field(default=None, description="Reason for standardization if needed")
 
 
 class ValidationWarning(BaseModel):

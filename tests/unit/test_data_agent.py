@@ -693,3 +693,206 @@ class TestLegacyFunctionCompatibility:
         
         assert isinstance(schema, InferredSchema)
         assert schema.format == DataFormat.POINTWISE
+
+
+# =============================================================================
+# Test Class: Function 1 - Engine Compatibility Assessment
+# =============================================================================
+
+class TestEngineCompatibility:
+    """Test Function 1: Engine Compatibility Assessment."""
+    
+    def test_engine_compatible_default_true(self, engine_compatible_df):
+        """Test that engine_compatible defaults to True for standard data."""
+        with patch.dict('os.environ', {}, clear=True):
+            import os
+            orig_key = os.environ.pop('OPENAI_API_KEY', None)
+            try:
+                agent = DataAgent()
+                content = engine_compatible_df.to_csv(index=False).encode()
+                schema, warnings, explanation = agent.process(content, "test.csv")
+                
+                # Standard numeric columns should be engine compatible
+                assert schema.engine_compatible is True
+                assert schema.standardization_needed is False
+            finally:
+                if orig_key:
+                    os.environ['OPENAI_API_KEY'] = orig_key
+    
+    def test_engine_compatible_with_llm(self, agent_with_mock, engine_compatible_df):
+        """Test engine compatibility assessment with LLM."""
+        mock_response = Mock()
+        mock_response.choices = [Mock(message=Mock(content=json.dumps({
+            "format": "pointwise",
+            "format_reasoning": "Dense numeric matrix",
+            "engine_compatible": True,
+            "standardization_needed": False,
+            "standardization_reason": None,
+            "bigbetter": 1,
+            "bigbetter_reasoning": "Standard scores",
+            "ranking_items": ["model_1", "model_2", "model_3"],
+            "ranking_items_reasoning": "Numeric columns",
+            "indicator_col": None,
+            "indicator_reasoning": "None found",
+            "confidence": 0.95
+        })))]
+        mock_response.usage = Mock(total_tokens=100)
+        
+        agent_with_mock.client.chat.completions.create.return_value = mock_response
+        
+        content = engine_compatible_df.to_csv(index=False).encode()
+        schema, warnings, explanation = agent_with_mock.process(content, "test.csv")
+        
+        assert schema.engine_compatible is True
+        assert schema.standardization_needed is False
+        assert schema.standardization_reason is None
+    
+    def test_schema_has_new_fields(self, pointwise_df):
+        """Test that InferredSchema has new Function 1 fields."""
+        with patch.dict('os.environ', {}, clear=True):
+            import os
+            orig_key = os.environ.pop('OPENAI_API_KEY', None)
+            try:
+                agent = DataAgent()
+                content = pointwise_df.to_csv(index=False).encode()
+                schema, warnings, explanation = agent.process(content, "test.csv")
+                
+                # Check new fields exist
+                assert hasattr(schema, 'engine_compatible')
+                assert hasattr(schema, 'standardization_needed')
+                assert hasattr(schema, 'standardization_reason')
+            finally:
+                if orig_key:
+                    os.environ['OPENAI_API_KEY'] = orig_key
+
+
+# =============================================================================
+# Test Class: Function 1 - Conditional Standardization
+# =============================================================================
+
+class TestConditionalStandardization:
+    """Test Function 1: Conditional Standardization logic."""
+    
+    def test_standardize_if_needed_returns_original_when_not_needed(self, pointwise_df):
+        """Test that standardization is skipped when not needed."""
+        with patch.dict('os.environ', {}, clear=True):
+            import os
+            orig_key = os.environ.pop('OPENAI_API_KEY', None)
+            try:
+                agent = DataAgent()
+                
+                # Create schema with standardization_needed=False
+                schema = InferredSchema(
+                    format=DataFormat.POINTWISE,
+                    bigbetter=1,
+                    ranking_items=["model_A", "model_B", "model_C"],
+                    confidence=0.9,
+                    engine_compatible=True,
+                    standardization_needed=False,
+                )
+                
+                result_df, was_standardized = agent.standardize_if_needed(pointwise_df, schema)
+                
+                assert was_standardized is False
+                # DataFrame should be the same object (not modified)
+                assert result_df is pointwise_df
+            finally:
+                if orig_key:
+                    os.environ['OPENAI_API_KEY'] = orig_key
+    
+    def test_standardize_if_needed_fixes_special_characters(self, special_chars_df):
+        """Test that standardization fixes special characters in column names."""
+        with patch.dict('os.environ', {}, clear=True):
+            import os
+            orig_key = os.environ.pop('OPENAI_API_KEY', None)
+            try:
+                agent = DataAgent()
+                
+                # Create schema with standardization_needed=True
+                schema = InferredSchema(
+                    format=DataFormat.POINTWISE,
+                    bigbetter=1,
+                    ranking_items=list(special_chars_df.columns),
+                    confidence=0.8,
+                    engine_compatible=False,
+                    standardization_needed=True,
+                    standardization_reason="Column names contain special characters",
+                )
+                
+                result_df, was_standardized = agent.standardize_if_needed(special_chars_df, schema)
+                
+                assert was_standardized is True
+                # Check that special characters are removed/replaced
+                for col in result_df.columns:
+                    # No parentheses, hyphens, or slashes in column names
+                    assert "(" not in col
+                    assert ")" not in col
+                    assert "/" not in col
+            finally:
+                if orig_key:
+                    os.environ['OPENAI_API_KEY'] = orig_key
+    
+    def test_standardize_preserves_data_values(self, special_chars_df):
+        """Test that standardization preserves data values."""
+        with patch.dict('os.environ', {}, clear=True):
+            import os
+            orig_key = os.environ.pop('OPENAI_API_KEY', None)
+            try:
+                agent = DataAgent()
+                
+                original_values = special_chars_df.values.copy()
+                
+                schema = InferredSchema(
+                    format=DataFormat.POINTWISE,
+                    bigbetter=1,
+                    ranking_items=list(special_chars_df.columns),
+                    confidence=0.8,
+                    engine_compatible=False,
+                    standardization_needed=True,
+                    standardization_reason="Column names contain special characters",
+                )
+                
+                result_df, was_standardized = agent.standardize_if_needed(special_chars_df, schema)
+                
+                # Data values should be preserved
+                import numpy as np
+                np.testing.assert_array_equal(result_df.values, original_values)
+            finally:
+                if orig_key:
+                    os.environ['OPENAI_API_KEY'] = orig_key
+
+
+# =============================================================================
+# Test Class: Multiway Format Detection
+# =============================================================================
+
+class TestMultiwayFormatDetection:
+    """Test multiway format detection."""
+    
+    def test_multiway_detection_with_llm(self, agent_with_mock, multiway_df):
+        """Test multiway format detection using LLM."""
+        mock_response = Mock()
+        mock_response.choices = [Mock(message=Mock(content=json.dumps({
+            "format": "multiway",
+            "format_reasoning": "Each row contains unique rank positions (1, 2, 3)",
+            "engine_compatible": True,
+            "standardization_needed": False,
+            "standardization_reason": None,
+            "bigbetter": 0,
+            "bigbetter_reasoning": "Lower rank is better (1st place)",
+            "ranking_items": ["Horse_A", "Horse_B", "Horse_C"],
+            "ranking_items_reasoning": "Columns with rank position values",
+            "indicator_col": None,
+            "indicator_reasoning": "Race column is ID, not indicator",
+            "confidence": 0.9
+        })))]
+        mock_response.usage = Mock(total_tokens=100)
+        
+        agent_with_mock.client.chat.completions.create.return_value = mock_response
+        
+        content = multiway_df.to_csv(index=False).encode()
+        schema, warnings, explanation = agent_with_mock.process(content, "test.csv")
+        
+        assert schema.format == DataFormat.MULTIWAY
+        assert schema.bigbetter == 0  # Lower rank is better
+        assert "Horse_A" in schema.ranking_items

@@ -52,10 +52,10 @@ class DataAgent:
     SYSTEM_PROMPT = """
 # Role
 
-You are a Data Schema Analyst, an expert in understanding and interpreting structured data for spectral ranking analysis. Your expertise includes:
-- Identifying data formats (pointwise, pairwise, multiway)
-- Inferring semantic meaning from column names and value distributions
-- Detecting preference directions and stratification dimensions
+You are a Data Schema Analyst for OmniRank, an expert in understanding structured data for spectral ranking analysis. You perform two critical functions:
+
+1. **Format Recognition**: Identify data structure (Pointwise, Pairwise, Multiway)
+2. **Standardization Assessment**: Determine if data can be directly processed by the spectral engine
 
 # Knowledge Base
 
@@ -66,29 +66,69 @@ You are a Data Schema Analyst, an expert in understanding and interpreting struc
 - Columns represent items being ranked (e.g., models, products)
 - Cell values are scores/metrics for that item on that sample
 - Example: LLM benchmark scores, product ratings across criteria
+- REQUIREMENT: Must have at least 2 numeric columns (items) to rank
 
 ### Pairwise Format
+
+**Standard Matrix Format:**
 - Sparse matrix encoding head-to-head comparisons
 - Each row is one comparison between exactly 2 items
 - Values: 1 = winner, 0 = loser, NaN = not compared
 - May have indicator column (e.g., "Task") for stratified analysis
 
+**Winner/Loser Column Format (REQUIRES STANDARDIZATION):**
+- Two columns containing item names: winner_name/loser_name, white/black, home/away
+- Each row represents a match with outcome encoded in column semantics
+- Example: tennis matches, chess games, sports fixtures
+- CRITICAL: This format REQUIRES standardization=true, engine_compatible=false
+- Transformation needed: pivot to sparse 0/1 matrix with items as columns
+
 ### Multiway Format
 - Encodes rankings where multiple items compete simultaneously
+- Values are rank positions (1st, 2nd, 3rd, etc.)
+- Each row has unique integer values representing placement
 - Example: Horse race results, multi-player game outcomes
-- Columns may be Rank_1 (winner), Rank_2, ..., Rank_k
+
+### Invalid Format (Unsuitable for Ranking)
+Data should be classified as INVALID if:
+- Only 1 numeric column (need at least 2 items to compare)
+- All columns are text/non-numeric (no quantitative data)
+- Data is completely empty or has only headers
+- No discernible comparison structure
+
+CRITICAL: If data is invalid, set format="invalid", engine_compatible=false, and provide clear reasoning.
+
+## Spectral Engine Compatibility
+
+The spectral ranking engine (spectral_ranking_step1.R) has built-in tolerance:
+- Automatically drops non-numeric columns
+- Automatically removes known metadata columns (case_num, model, description)
+- Requires at least 2 numeric columns
+
+### Engine Compatible (standardization NOT needed):
+- CSV with numeric ranking columns (even if mixed with non-numeric metadata)
+- Standard column names without special characters
+- At least 2 numeric columns present
+
+### Standardization REQUIRED (rare cases):
+- Column names contain characters that break R parsing (e.g., spaces, special symbols)
+- Data encoding issues (non-UTF8)
+- Fewer than 2 numeric columns after metadata removal
+- Critical structural issues that would cause engine failure
+
+IMPORTANT: Default to engine_compatible=true. Only set to false if you identify a specific issue that would cause engine failure.
 
 ## BigBetter Inference Rules
 
 ### Higher is Better (bigbetter=1)
 - Column name patterns: score, accuracy, f1, auc, precision, recall, win, reward
-- Distribution patterns: bounded [0,1], unbounded positive, increasing metrics
-- Context: performance metrics, success rates, quality scores
+- Distribution patterns: bounded [0,1], unbounded positive
+- Context: performance metrics, success rates
 
 ### Lower is Better (bigbetter=0)
 - Column name patterns: error, loss, time, latency, distance, cost, rank
-- Distribution patterns: non-negative with right-skew, time/duration values
-- Context: error rates, response times, costs, rank positions
+- Distribution patterns: non-negative with right-skew
+- Context: error rates, response times, rank positions
 
 ## Indicator Column Rules
 
@@ -96,7 +136,7 @@ An indicator column is a categorical dimension for stratified analysis:
 - Examples: "Task" (code/math/writing), "Category" (sports/news/tech)
 - CRITICAL: Select AT MOST ONE indicator column
 - Prefer columns with semantic meaning over arbitrary IDs
-- Good cardinality: 2-20 unique values (not too few, not too many)
+- Good cardinality: 2-20 unique values
 
 # Output Format
 
@@ -189,6 +229,16 @@ You are a Data Validation Advisor who explains technical validation results in p
         
         if warnings:
             logger.warning(f"Validation warnings: {[w.message for w in warnings]}")
+            
+            # Hybrid Intelligence: Override LLM format if deterministic validation finds critical structure issues
+            for w in warnings:
+                # If we identify that we don't have enough items to rank, it's INVALID, not Pointwise
+                if w.severity == "error" and "at least 2 ranking items" in w.message.lower():
+                    logger.info("Overriding format to INVALID due to insufficient ranking items")
+                    schema.format = DataFormat.INVALID
+                    schema.engine_compatible = False
+                    schema.standardization_needed = False
+                    schema.standardization_reason = "Insufficient ranking items (need at least 2)"
         
         # Generate explanation
         explanation = self._generate_validation_explanation(warnings, df, schema)
@@ -276,25 +326,40 @@ You are a Data Validation Advisor who explains technical validation results in p
 
 ## Task
 
-Infer the complete schema by analyzing:
-1. FORMAT: Check sparsity pattern, value types (0/1 vs continuous), structure
-2. BIGBETTER: Analyze BOTH column name semantics AND value distributions
-3. RANKING_ITEMS: Identify numeric columns representing entities to rank (exclude IDs, descriptions)
-4. INDICATOR: Select AT MOST ONE categorical column suitable for stratification
-5. CONFIDENCE: How certain are you about this inference (consider ambiguity)
+Perform two-stage analysis:
+
+### Stage 1: Format Recognition
+1. FORMAT: Identify data structure (pointwise/pairwise/multiway/invalid) by checking:
+   - INVALID IF: Only 1 numeric column exists (ranking requires >=2 items to compare)
+   - Sparsity pattern (pairwise: exactly 2 non-null values per row)
+   - Value types (pairwise: 0/1 only; multiway: unique integers per row; pointwise: continuous scores)
+   - Column structure and naming patterns
+
+### Stage 2: Engine Compatibility Assessment
+2. ENGINE_COMPATIBLE: Can the spectral engine process this data directly?
+   - Default to TRUE (engine has built-in tolerance for non-numeric columns)
+   - Set to FALSE only if: column names have special characters, encoding issues, or <2 numeric columns
+
+### Stage 3: Semantic Inference
+3. BIGBETTER: Analyze column name semantics AND value distributions
+4. RANKING_ITEMS: Identify numeric columns representing entities to rank
+5. INDICATOR: Select AT MOST ONE categorical column for stratification
 
 ## Required Output
 
 Respond in EXACTLY this JSON format:
 {{
-    "format": "pointwise" | "pairwise" | "multiway",
-    "format_reasoning": "Brief explanation of why this format was detected",
+    "format": "pointwise" | "pairwise" | "multiway" | "invalid",
+    "format_reasoning": "Brief explanation of format detection logic",
+    "engine_compatible": true | false,
+    "standardization_needed": true | false,
+    "standardization_reason": "Reason if standardization needed, null otherwise",
     "bigbetter": 1 | 0,
-    "bigbetter_reasoning": "Brief explanation combining column name patterns AND value distribution analysis",
+    "bigbetter_reasoning": "Brief explanation combining column names AND value distributions",
     "ranking_items": ["item1", "item2", ...],
-    "ranking_items_reasoning": "Brief explanation of which columns are items to be ranked",
+    "ranking_items_reasoning": "Brief explanation of ranking item identification",
     "indicator_col": "column_name" | null,
-    "indicator_reasoning": "Brief explanation of indicator selection (remember: AT MOST ONE)",
+    "indicator_reasoning": "Brief explanation of indicator selection (AT MOST ONE)",
     "confidence": 0.0-1.0
 }}"""
 
@@ -354,6 +419,10 @@ Respond in EXACTLY this JSON format:
                 indicator_col=result.get("indicator_col"),
                 indicator_values=indicator_values,
                 confidence=result.get("confidence", 0.7),
+                # Function 1: Format Recognition & Standardization fields
+                engine_compatible=result.get("engine_compatible", True),
+                standardization_needed=result.get("standardization_needed", False),
+                standardization_reason=result.get("standardization_reason"),
             )
             
         except Exception as e:
@@ -370,31 +439,37 @@ Respond in EXACTLY this JSON format:
             return self._infer_schema_fallback(df, filename)
     
     # =========================================================================
-    # Fallback Schema Inference (Heuristic-based)
+    # Fallback Schema Inference (Heuristic-based) - DEPRECATED
+    # =========================================================================
+    # NOTE: This fallback should rarely be used. The Data Agent is an LLM Agent,
+    # and all intelligent decisions should be made by the LLM. This fallback exists
+    # only for graceful degradation when LLM is unavailable.
     # =========================================================================
     
     def _infer_schema_fallback(self, df: pd.DataFrame, filename: str) -> InferredSchema:
         """
-        Fallback schema inference using heuristics when LLM is unavailable.
+        DEPRECATED: Fallback schema inference using heuristics when LLM is unavailable.
         
-        This preserves the original hardcoded logic for robustness.
+        WARNING: This method uses hardcoded heuristics and should be avoided.
+        The Data Agent is designed as an LLM Agent where all intelligent decisions
+        should be made by the LLM, not by hardcoded rules.
         """
-        logger.info("Using fallback schema inference (no LLM)")
+        logger.warning("Using DEPRECATED fallback schema inference (LLM unavailable)")
         
-        # Detect format (existing logic)
+        # Detect format (DEPRECATED heuristic logic)
         data_format = self._detect_format_heuristic(df)
         
-        # Infer bigbetter (existing logic)
+        # Infer bigbetter (DEPRECATED heuristic logic)
         bigbetter, bb_confidence = self._infer_bigbetter_heuristic(df, data_format)
         
-        # Extract ranking items (existing logic)
+        # Extract ranking items (DEPRECATED heuristic logic)
         ranking_items = self._extract_ranking_items_heuristic(df, data_format)
         
-        # Detect indicator column (existing logic)
+        # Detect indicator column (DEPRECATED heuristic logic)
         indicator_col, indicator_values = self._detect_indicator_heuristic(df)
         
-        # Calculate overall confidence (lower for fallback)
-        confidence = bb_confidence * 0.7  # Penalize for using fallback
+        # Calculate overall confidence (heavily penalized for using fallback)
+        confidence = bb_confidence * 0.5  # Heavily penalize for using deprecated fallback
         
         return InferredSchema(
             format=data_format,
@@ -403,10 +478,19 @@ Respond in EXACTLY this JSON format:
             indicator_col=indicator_col,
             indicator_values=indicator_values,
             confidence=round(confidence, 2),
+            # Function 1: Default to engine_compatible=True (conservative assumption)
+            engine_compatible=True,
+            standardization_needed=False,
+            standardization_reason=None,
         )
 
     def _detect_format_heuristic(self, df: pd.DataFrame) -> DataFormat:
-        """Heuristic-based format detection (fallback)."""
+        """
+        DEPRECATED: Heuristic-based format detection.
+        
+        This method should not be used directly. Format detection should be
+        performed by the LLM in _infer_schema_with_llm().
+        """
         numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
         
         if len(numeric_cols) < 2:
@@ -431,7 +515,12 @@ Respond in EXACTLY this JSON format:
         df: pd.DataFrame,
         data_format: DataFormat
     ) -> tuple[int, float]:
-        """Heuristic-based bigbetter inference (fallback)."""
+        """
+        DEPRECATED: Heuristic-based bigbetter inference.
+        
+        This method should not be used directly. BigBetter inference should be
+        performed by the LLM in _infer_schema_with_llm().
+        """
         if data_format == DataFormat.PAIRWISE:
             return 1, 0.95
         
@@ -466,7 +555,12 @@ Respond in EXACTLY this JSON format:
         df: pd.DataFrame,
         data_format: DataFormat
     ) -> list[str]:
-        """Heuristic-based ranking items extraction (fallback)."""
+        """
+        DEPRECATED: Heuristic-based ranking items extraction.
+        
+        This method should not be used directly. Ranking items identification
+        should be performed by the LLM in _infer_schema_with_llm().
+        """
         exclude_patterns = [
             "sample", "case", "id", "description", "task", "category", 
             "indicator", "index", "row", "unnamed"
@@ -489,7 +583,12 @@ Respond in EXACTLY this JSON format:
         self,
         df: pd.DataFrame
     ) -> tuple[Optional[str], list[str]]:
-        """Heuristic-based indicator column detection (fallback)."""
+        """
+        DEPRECATED: Heuristic-based indicator column detection.
+        
+        This method should not be used directly. Indicator column detection
+        should be performed by the LLM in _infer_schema_with_llm().
+        """
         string_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
         
         # Priority keywords for indicator columns
@@ -510,6 +609,62 @@ Respond in EXACTLY this JSON format:
                 return col, values
         
         return None, []
+    
+    # =========================================================================
+    # Conditional Standardization (Function 1)
+    # =========================================================================
+    
+    def standardize_if_needed(
+        self,
+        df: pd.DataFrame,
+        schema: InferredSchema
+    ) -> tuple[pd.DataFrame, bool]:
+        """
+        Apply standardization only if LLM determined it's necessary.
+        
+        This method implements the "conditional trigger" design: standardization
+        is only performed when the spectral engine cannot process the data directly.
+        
+        Args:
+            df: Original DataFrame
+            schema: InferredSchema with standardization flags from LLM
+            
+        Returns:
+            tuple of (processed DataFrame, whether standardization was applied)
+        """
+        # If standardization not needed, return original data
+        if not schema.standardization_needed:
+            logger.info("Standardization not needed - data is engine compatible")
+            return df, False
+        
+        logger.warning(f"Applying standardization: {schema.standardization_reason}")
+        
+        # Apply standardization based on LLM's assessment
+        standardized_df = df.copy()
+        
+        # Standardization Step 1: Fix column names with special characters
+        # (R cannot handle spaces, special symbols in column names)
+        new_columns = {}
+        for col in standardized_df.columns:
+            # Replace problematic characters with underscores
+            new_col = col.replace(" ", "_").replace("-", "_")
+            # Remove other special characters
+            new_col = "".join(c if c.isalnum() or c == "_" else "" for c in new_col)
+            if new_col != col:
+                new_columns[col] = new_col
+        
+        if new_columns:
+            standardized_df = standardized_df.rename(columns=new_columns)
+            logger.info(f"Renamed columns: {new_columns}")
+        
+        # Standardization Step 2: Ensure UTF-8 encoding for string columns
+        for col in standardized_df.select_dtypes(include=["object"]).columns:
+            try:
+                standardized_df[col] = standardized_df[col].astype(str).str.encode("utf-8", errors="replace").str.decode("utf-8")
+            except Exception as e:
+                logger.warning(f"Could not fix encoding for column {col}: {e}")
+        
+        return standardized_df, True
     
     # =========================================================================
     # Data Validation

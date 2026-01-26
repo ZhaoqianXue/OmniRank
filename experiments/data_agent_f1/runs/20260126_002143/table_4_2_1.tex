@@ -1,0 +1,37 @@
+% Table: Format Detection Performance (Section 4.2.1)
+% Results over 1 runs
+\begin{table}[htbp]
+\centering
+\caption{Format Detection Performance of Data Agent (Mean $\pm$ Std over 1 runs)}
+\label{tab:format_detection}
+\begin{tabular}{lcccc}
+\toprule
+Format & Precision & Recall & F1 & Support \\
+\midrule
+Pointwise & 0.792$\pm$0.000 & 1.000$\pm$0.000 & 0.884$\pm$0.000 & 19 \\
+Pairwise & 0.900$\pm$0.000 & 1.000$\pm$0.000 & 0.947$\pm$0.000 & 9 \\
+Multiway & 1.000$\pm$0.000 & 0.778$\pm$0.000 & 0.875$\pm$0.000 & 9 \\
+Invalid & 0.000$\pm$0.000 & 0.000$\pm$0.000 & 0.000$\pm$0.000 & 4 \\
+\midrule
+\textbf{Overall Accuracy} & \multicolumn{4}{c}{0.854$\pm$0.000} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Table: Performance by Dataset Category
+\begin{table}[htbp]
+\centering
+\caption{Format Detection Accuracy by Dataset Category}
+\label{tab:format_by_category}
+\begin{tabular}{lc}
+\toprule
+Category & Accuracy \\
+\midrule
+Standard & 1.000$\pm$0.000 \\
+Ambiguous & 0.875$\pm$0.000 \\
+Transposed & 1.000$\pm$0.000 \\
+Invalid & 0.500$\pm$0.000 \\
+Realworld & 0.917$\pm$0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,65 @@
+{
+  "misclassified_datasets": {
+    "multiway -> pairwise": [
+      "amb_2way_02"
+    ],
+    "invalid -> pointwise": [
+      "inv_single_col_01",
+      "inv_single_col_02",
+      "inv_all_text_01",
+      "inv_all_text_02"
+    ],
+    "multiway -> pointwise": [
+      "real_league_01"
+    ]
+  },
+  "error_patterns": {
+    "multiway -> pairwise": 1,
+    "invalid -> pointwise": 4,
+    "multiway -> pointwise": 1
+  },
+  "category_error_rates": {
+    "standard": {
+      "total": 9,
+      "errors": 0,
+      "error_rate": 0.0
+    },
+    "ambiguous": {
+      "total": 8,
+      "errors": 1,
+      "error_rate": 0.125
+    },
+    "transposed": {
+      "total": 4,
+      "errors": 0,
+      "error_rate": 0.0
+    },
+    "invalid": {
+      "total": 8,
+      "errors": 4,
+      "error_rate": 0.5
+    },
+    "realworld": {
+      "total": 12,
+      "errors": 1,
+      "error_rate": 0.08333333333333333
+    }
+  },
+  "difficulty_error_rates": {
+    "easy": {
+      "total": 17,
+      "errors": 5,
+      "error_rate": 0.29411764705882354
+    },
+    "medium": {
+      "total": 14,
+      "errors": 0,
+      "error_rate": 0.0
+    },
+    "hard": {
+      "total": 10,
+      "errors": 1,
+      "error_rate": 0.1
+    }
+  }
+}
