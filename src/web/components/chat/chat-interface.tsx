@@ -14,6 +14,9 @@ interface ChatInterfaceProps {
   messages: ChatMessage[];
   onStartAnalysis?: (config: AnalysisConfig) => void;
   isAnalyzing?: boolean;
+  isCompleted?: boolean;
+  isReportVisible?: boolean;
+  onToggleReport?: () => void;
   className?: string;
 }
 
@@ -37,12 +40,18 @@ interface ChatMessageItemProps {
   message: ChatMessage;
   onStartAnalysis?: (config: AnalysisConfig) => void;
   isAnalyzing?: boolean;
+  isCompleted?: boolean;
+  isReportVisible?: boolean;
+  onToggleReport?: () => void;
 }
 
 const ChatMessageItem = memo(function ChatMessageItem({ 
   message, 
   onStartAnalysis,
   isAnalyzing = false,
+  isCompleted = false,
+  isReportVisible = true,
+  onToggleReport,
 }: ChatMessageItemProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
@@ -83,6 +92,9 @@ const ChatMessageItem = memo(function ChatMessageItem({
           warnings={message.configData.warnings}
           onStartAnalysis={onStartAnalysis}
           isAnalyzing={isAnalyzing}
+          isCompleted={isCompleted}
+          isReportVisible={isReportVisible}
+          onToggleReport={onToggleReport}
         />
       </motion.div>
     );
@@ -140,6 +152,9 @@ export function ChatInterface({
   messages, 
   onStartAnalysis,
   isAnalyzing = false,
+  isCompleted = false,
+  isReportVisible = true,
+  onToggleReport,
   className,
 }: ChatInterfaceProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -161,6 +176,9 @@ export function ChatInterface({
               message={message}
               onStartAnalysis={onStartAnalysis}
               isAnalyzing={isAnalyzing}
+              isCompleted={isCompleted}
+              isReportVisible={isReportVisible}
+              onToggleReport={onToggleReport}
             />
           ))}
         </AnimatePresence>

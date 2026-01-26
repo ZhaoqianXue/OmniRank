@@ -67,6 +67,9 @@ export interface OmniRankState {
   // Results
   results: RankingResults | null;
 
+  // Report visibility
+  isReportVisible: boolean;
+
   // Chat
   messages: ChatMessage[];
 
@@ -101,6 +104,7 @@ const initialState: OmniRankState = {
   warnings: [],
   config: null,
   results: null,
+  isReportVisible: true,  // Report is visible by default when results are ready
   messages: [WELCOME_MESSAGE],
   progress: 0,
   progressMessage: "",
@@ -277,6 +281,7 @@ export function useOmniRank() {
               status: "completed",
               progress: 1,
               progressMessage: "Complete!",
+              isReportVisible: true,  // Auto-show report when ranking completes
             }));
           } else if (msg.type === "error") {
             const payload = msg.payload as { error: string };
@@ -366,6 +371,7 @@ export function useOmniRank() {
                   status: "completed",
                   progress: 1,
                   progressMessage: "Complete!",
+                  isReportVisible: true,  // Auto-show report when ranking completes
                 };
               }
               return prev;
@@ -534,6 +540,7 @@ export function useOmniRank() {
               status: "completed",
               progress: 1,
               progressMessage: "Complete!",
+              isReportVisible: true,  // Auto-show report when ranking completes
             }));
           } else if (msg.type === "error") {
             const payload = msg.payload as { error: string };
@@ -627,6 +634,30 @@ export function useOmniRank() {
     setState(initialState);
   }, []);
 
+  // Toggle report visibility
+  const toggleReportVisibility = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      isReportVisible: !prev.isReportVisible,
+    }));
+  }, []);
+
+  // Hide report
+  const hideReport = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      isReportVisible: false,
+    }));
+  }, []);
+
+  // Show report
+  const showReport = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      isReportVisible: true,
+    }));
+  }, []);
+
   return {
     state,
     handleUpload,
@@ -636,6 +667,9 @@ export function useOmniRank() {
     sendMessage,
     addMessage,
     reset,
+    toggleReportVisibility,
+    hideReport,
+    showReport,
     exampleDatasets: EXAMPLE_DATASETS,
   };
 }

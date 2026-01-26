@@ -115,10 +115,6 @@ The Analyst Agent is responsible for all post-computation tasks: report generati
 
 This architecture enables natural conversational workflows—for example, after computing initial rankings, a user can simply ask "Is model A significantly better than model B?" without re-uploading data or restating the analysis context.
 
-**Error Diagnosis.** When execution errors occur, the Analyst Agent employs a ReAct (Reasoning and Acting) loop to diagnose the root cause: observing error patterns, reasoning about causes, and acting to request corrections. Errors are classified into two categories:
-- **DATA_ERROR** (e.g., incorrect `bigbetter` inference): Requests the Data Agent to re-analyze the data
-- **EXECUTION_ERROR** (e.g., numerical issues): Requests the Engine Orchestrator to revise parameters
-
 ### 3.5 Agent System Prompts
 
 We present the system prompts design for the two reasoning agents: the **Data Agent** and the **Analyst Agent**. The Engine Orchestrator, being a deterministic component, does not utilize LLM prompts.

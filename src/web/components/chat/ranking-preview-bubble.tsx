@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Play, Loader2, Settings2, Check, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Play, Loader2, Settings2, Check, X, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -23,6 +23,9 @@ interface RankingPreviewBubbleProps {
   warnings?: ValidationWarning[];
   onStartAnalysis: (config: AnalysisConfig) => void;
   isAnalyzing?: boolean;
+  isCompleted?: boolean;
+  isReportVisible?: boolean;
+  onToggleReport?: () => void;
   className?: string;
 }
 
@@ -71,6 +74,9 @@ export function RankingPreviewBubble({
   warnings = [],
   onStartAnalysis,
   isAnalyzing = false,
+  isCompleted = false,
+  isReportVisible = true,
+  onToggleReport,
   className,
 }: RankingPreviewBubbleProps) {
   // Configuration state
@@ -265,31 +271,56 @@ export function RankingPreviewBubble({
           </Section>
         </div>
 
-        {/* Start Ranking Button */}
+        {/* Action Button - changes based on state */}
         <div className="px-4 pb-4">
-          <Button
-            onClick={handleStartAnalysis}
-            disabled={isAnalyzing || selectedItems.length < 2}
-            variant="outline"
-            className="w-full"
-            size="lg"
-          >
-            {isAnalyzing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Start Ranking
-              </>
-            )}
-          </Button>
-          {selectedItems.length < 2 && (
-            <p className="text-xs text-destructive mt-1 text-center">
-              Select at least 2 items to rank
-            </p>
+          {isCompleted ? (
+            // After ranking is completed: Show/Hide Report toggle
+            <Button
+              onClick={onToggleReport}
+              variant="outline"
+              className="w-full"
+              size="lg"
+            >
+              {isReportVisible ? (
+                <>
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  Hide Report
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Show Report
+                </>
+              )}
+            </Button>
+          ) : (
+            // Before/during analysis: Start Ranking button
+            <>
+              <Button
+                onClick={handleStartAnalysis}
+                disabled={isAnalyzing || selectedItems.length < 2}
+                variant="outline"
+                className="w-full"
+                size="lg"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Start Ranking
+                  </>
+                )}
+              </Button>
+              {selectedItems.length < 2 && (
+                <p className="text-xs text-destructive mt-1 text-center">
+                  Select at least 2 items to rank
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
