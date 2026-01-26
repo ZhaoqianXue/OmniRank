@@ -68,7 +68,7 @@ When users upload comparison data, the workflow proceeds as follows: The Data Ag
     
 The Data Agent acts as the intelligent interface between user data and the spectral engine, performing three critical functions to ensure data readiness and semantic understanding.
 
-**Function 1: Format Recognition & Standardization.** The agent automatically identifies the structure of uploaded data (e.g., Pointwise, Pairwise) and performs lightweight standardization to ensure compatibility with the spectral engine (`spectral_ranking_step1.R`). Instead of enforcing a rigid conversion to a single format, it adapts to the input structure, preserving the original data fidelity while ensuring it meets the engine's interface requirements.
+**Function 1: Format Recognition & Standardization.** The agent automatically identifies the structure of uploaded data (e.g., Pointwise, Pairwise, Multiway) and performs lightweight standardization to ensure compatibility with the spectral engine (`spectral_ranking_step1.R`). Instead of enforcing a rigid conversion to a single format, it adapts to the input structure, preserving the original data fidelity while ensuring it meets the engine's interface requirements.
 
 **Function 2: Semantic Schema Inference.** Beyond simple formatting, the agent infers the semantic role of data components to facilitate flexible downstream analysis. This includes:
 - **Preference Direction (`bigbetter`)**: Inferring whether higher values indicate better performance (e.g., accuracy) or worse performance (e.g., latency) using both macro-level column naming patterns and micro-level value distributions.
@@ -166,47 +166,123 @@ Finally, the inferred ranking is produced by sorting $\tilde{\theta}_i$ in desce
 
 ## 4 Experiments
 
-In this section, we evaluate the performance of OmniRank across multiple dimensions. We first verify the mathematical fidelity of the agentic pipeline against established statistical benchmarks, and then assess the unique capabilities of the Engine Orchestrator in making autonomous statistical decisions.
+In this section, we evaluate OmniRank's performance through three experimental dimensions: (1) verifying the computational fidelity of the spectral ranking engine, (2) evaluating the intelligent capabilities of OmniRank's agent components, and (3) demonstrating OmniRank's advantage over generic data analysis agents.
 
-### 4.1 Fidelity and Robustness on Ranking Tasks
+### 4.1 Computational Fidelity Validation
 
-The primary objective of this experiment is to demonstrate that the agent-mediated execution of spectral ranking preserves the minimax optimality of the underlying theory while maintaining robustness across diverse data scales and structures.
+The primary objective of this section is to verify that OmniRank's spectral ranking engine produces mathematically correct results.
 
-#### 4.1.1 Comparison with Standard Statistical Implementations
+#### 4.1.1 Comparison with Standard R Implementation
 
-We first evaluate the accuracy of OmniRank by comparing its outputs with the standard R implementation of spectral ranking (Yu et al., 2023). We utilize synthetic datasets generated from the Plackett-Luce model with $n \in \{50, 100, 200\}$ items and varying comparison counts $M$. For each scenario, we measure the Spearman correlation coefficient ($\rho$) and the Ranking Mean Squared Error (RMSE) between the true preference scores and the estimated scores produced by both the R package and the OmniRank pipeline.
+**Purpose**: Verify that agent-mediated execution produces numerically identical results to direct R package calls, confirming no precision loss in the delegation pipeline.
 
-Table S.2 summarizes the results. Consistent with the findings in Section 4.1 of the LAMBDA paper, OmniRank achieves results that are numerically identical to the standard R implementations (e.g., $\rho > 0.98$ for $M > n \log n$). This confirms that the LLM-driven "Instruction Following to Computation" delegation does not introduce numerical artifacts or precision loss.
+**What to include**:
+- **Experimental Setup**: 
+  - Synthetic datasets generated from Plackett-Luce model
+  - Parameter ranges: $n \in \{50, 100, 200\}$ items, varying comparison counts $M$
+  - Baseline: Standard R implementation of spectral ranking (Yu et al., 2023)
+- **Metrics**: 
+  - Spearman correlation coefficient ($\rho$) between true and estimated preference scores
+  - Ranking Mean Squared Error (RMSE)
+- **Results Table**: 
+  - OmniRank vs R package results side-by-side
+  - Should show numerical identity (e.g., $\rho > 0.98$ for $M > n \log n$)
+- **Discussion**: 
+  - Confirm that LLM-driven "Instruction Following to Computation" delegation does not introduce numerical artifacts
+  - Note that this is a necessary but not sufficient validation (the real value is in agentic capabilities)
 
-#### 4.1.2 Handling Diverse Data Structures
+### 4.2 OmniRank Agents Capability Evaluation
 
-To assess the robustness of the Data Agent, we test OmniRank on datasets with varying levels of complexity, including:
-- **Pairwise vs. Multiway Comparisons**: Data containing standard pairwise matches and multiway hyperedges (e.g., top-k results from search engines).
-- **Sparse and Disjoint Graphs**: Scenarios where the comparison count is below the information-theoretic threshold ($M < n \log n$) or the hypergraph is not strongly connected.
-- **Heterogeneous Target Scales**: Datasets where the ranking indicators are in different units (e.g., accuracy vs. latency).
+This section evaluates the intelligent capabilities of OmniRank's agent components, including the Data Agent's data understanding abilities and the Engine Orchestrator's adaptive decision-making.
 
-The Data Agent effectively identified the correct schema in 95% of the test cases, demonstrating its ability to handle unstructured real-world data without manual preprocessing.
+#### 4.2.1 Format Recognition & Standardization
 
-### 4.2 Performance of Agentic Adaptive Orchestration
+**Purpose**: Assess the Data Agent's ability to automatically identify and handle diverse data formats.
 
-Crucial to the agentic nature of OmniRank is the Engine Orchestrator's capability to autonomously manage the computation workflow. This experiment evaluates whether the LLM-driven components can correctly trigger statistical refinement.
+**What to include**:
+- **Test Datasets**: Pointwise, Pairwise, and Multiway formats
+- **Metrics**: Format detection accuracy (precision/recall per format type)
+- **Results**: Overall accuracy percentage, confusion matrix if applicable
 
-#### 4.2.1 Statistical Triggering Accuracy
+#### 4.2.2 Semantic Schema Inference
 
-We evaluate the Engine Orchestrator’s ability to correctly activate the **Two-Step Spectral Method** based on the statistical properties of the data. We define a scoring system following Section 4.2 of the LAMBDA paper (Table 8):
-- **1.0**: Correct decision (e.g., Step 2 triggered when heterogeneity index is high).
-- **0.5**: Successful execution but suboptimal decision (e.g., Step 2 executed when Step 1 was sufficient).
-- **0.0**: Decision leading to execution failure or significant estimation bias.
+**Purpose**: Evaluate the Data Agent's semantic understanding of uploaded data.
 
-Experiments on synthetic datasets with controlled heterogeneity show that OmniRank achieves an average decision score of 0.94, outperforming heuristic-based hardcoded triggers.
+**What to include**:
+- **BigBetter Direction**: Inference accuracy (higher vs lower is better)
+- **Ranking Items Identification**: Precision/recall for item column detection
+- **Indicator Column Detection**: Accuracy of identifying categorical stratification dimensions
+- **Indicator Values Extraction**: Correctness of extracting unique semantic groups
+- **Results Table**: Schema inference metrics across test datasets
 
-#### 4.2.2 Comparison with Generic Data Agents
+#### 4.2.3 Edge Case Handling
 
-We compare OmniRank with leading general-purpose data agents, including GPT-4-Advanced Data Analysis and Data Interpreter (Hong et al., 2024). We use a "Knowledge-Intensive Ranking" task where the ranking requires precise handling of the hypergraph Laplacian and specific weighting schemes.
+**Purpose**: Test the Data Agent's robustness on challenging data scenarios.
 
-Our results indicate that while generic agents can generate Python code for simple Bradley-Terry models, they suffer from significant performance degradation (Score < 0.3) when faced with the $n \log n$ sparsity constraints and the optimal weights required for the spectral method. OmniRank, by grounding the Agent's reasoning in a specialized Spectral Calculation Engine, consistently provides statistically rigorous results where general-purpose agents fail.
+**What to include**:
+- **Sparse Graphs**: Performance when $M < n \log n$ (should issue warnings, not fail)
+- **Disjoint Components**: Handling of disconnected comparison graphs (using networkx)
+- **Heterogeneous Scales**: Datasets with mixed units (e.g., accuracy vs latency)
+- **Failure Case Analysis**: What causes errors and how the system handles them
+- **Discussion**: Highlight limitations and failure modes
 
-### 4.3 Efficiency of Self-Correction and Error Diagnosis
+#### 4.2.4 Two-Step Method Triggering Accuracy
+
+**Purpose**: Evaluate the Engine Orchestrator's ability to make correct statistical decisions about when to apply the two-step refinement method.
+
+**What to include**:
+- **Test Scenarios**: Datasets with varying levels of heterogeneity and sparsity
+- **Trigger Conditions Evaluated**:
+  - **Sparsity Gatekeeper**: Does the orchestrator correctly skip refinement when $M < n \log n$?
+  - **Heterogeneity Trigger**: Does it correctly activate when CV > 0.5?
+  - **Uncertainty Trigger**: Does it correctly activate when top-5 CI width > 5 ranks?
+- **Metrics**: 
+  - Trigger decision accuracy (true positive/negative rates)
+  - Ranking improvement when Step 2 is correctly triggered vs. incorrectly skipped
+- **Results Table**: Decision accuracy across different data conditions
+- **Discussion**: Demonstrate that dynamic orchestration improves ranking quality without user intervention
+
+### 4.3 Comparison with Generic Agents
+
+This section demonstrates OmniRank's advantage over generic data analysis agents on knowledge-intensive ranking tasks that require specialized spectral ranking expertise.
+
+#### 4.3.1 Knowledge-Intensive Task Performance
+
+**Purpose**: Show that OmniRank's specialized architecture outperforms generic agents on tasks requiring spectral ranking theory, hypergraph construction, and optimal weighting schemes.
+
+**What to include**:
+- **Knowledge-Intensive Tasks**:
+  - **Task 1**: Spectral ranking with hypergraph Laplacian construction
+  - **Task 2**: Two-step method decision (when to trigger Step 2 based on heterogeneity)
+  - **Task 3**: Optimal weighting scheme application ($f(A_l) \propto \sum e^{\hat{\theta}_u}$)
+  - **Task 4**: User Q&A requiring spectral ranking knowledge (e.g., "Is model A significantly better than model B?" requires confidence interval interpretation)
+  - Each task requires precise handling of spectral ranking theory beyond simple Bradley-Terry models
+- **Case Study** (optional but recommended):
+  - Detailed example where generic agents fail but OmniRank succeeds
+  - Demonstrate specific failure modes (e.g., incorrect hypergraph construction, missing two-step logic)
+  - Highlight how specialized Spectral Calculation Engine enables correct results
+
+#### 4.3.2 Scoring System & Baseline Comparison
+
+**Purpose**: Provide quantitative comparison between OmniRank and generic data analysis agents.
+
+**What to include**:
+- **Scoring System Definition** (similar to LAMBDA Table 8):
+  - **1.0**: Both code generation and execution successful, correct statistical decisions
+  - **0.8**: Code successful but execution error due to environment/configuration issues
+  - **0.5**: Code error but execution successful (partial functionality)
+  - **0.0**: Code error and execution error, or exceeded runtime limit
+- **Comparison Baselines**:
+  - GPT-4 Advanced Data Analysis (OpenAI)
+  - Data Interpreter (Hong et al., 2024)
+  - Other relevant general-purpose data agents if applicable
+- **Results Table** (similar to LAMBDA Table 8):
+  - Score comparison across agents for each task
+  - Failure reasons annotated (code error, execution error, timeout, etc.)
+  - Should show OmniRank consistently achieving 1.0 while generic agents score < 0.3
+- **Discussion**:
+  - Explain why generic agents struggle (lack of spectral ranking knowledge, no specialized engine)
+  - Emphasize OmniRank's unique value: combining LLM reasoning with rigorous mathematical backend
 
 ## 5 Case Study
 

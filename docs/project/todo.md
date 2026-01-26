@@ -18,3 +18,8 @@
 ## Optional Enhancements
 - [ ] **Export Functionality**: Export reports as MD/PDF, visualizations as PNG/PDF
 - [ ] **Score Distribution Visualization**: Bootstrap distribution chart (4th tab)
+
+## Error Diagnosis (Low Priority - Time Permitting)
+- [ ] **Methodology**: Write Section 3.4 Error Diagnosis details (ReAct loop, DATA_ERROR vs EXECUTION_ERROR classification)
+- [ ] **Experiments**: Design evaluation for Error Diagnosis success rate (inject common errors, measure recovery rate)
+- [ ] **Coding**: Implement ReAct-based error diagnosis in Analyst Agent (`src/api/agents/analyst_agent.py`)
