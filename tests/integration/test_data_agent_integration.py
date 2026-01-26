@@ -51,9 +51,6 @@ class TestRealDataIntegration:
         
         # Verify bigbetter (scores are higher=better)
         assert schema.bigbetter == 1
-        
-        # Verify confidence is reasonable
-        assert schema.confidence > 0
     
     def test_real_pairwise_inference(self, agent, example_pairwise_data):
         """Test schema inference on real pairwise data."""
@@ -153,9 +150,6 @@ class TestLLMIntegration:
         expected_models = ['model_1', 'model_2', 'model_3', 'model_4', 'model_5', 'model_6']
         for model in expected_models:
             assert model in schema.ranking_items, f"Missing {model}"
-        
-        # Confidence should be reasonable (may be lower if LLM fails and falls back)
-        assert schema.confidence > 0
     
     def test_llm_pairwise_inference(self, agent, example_pairwise_data):
         """Test LLM-powered inference on real pairwise data."""
@@ -174,9 +168,6 @@ class TestLLMIntegration:
         expected_llms = ['Your Model', 'ChatGPT', 'Claude', 'Gemini', 'Llama', 'Qwen']
         for llm in expected_llms:
             assert llm in schema.ranking_items, f"Missing {llm}"
-        
-        # Confidence should be reasonable (may be lower if LLM fails and falls back)
-        assert schema.confidence > 0
 
 
 # =============================================================================

@@ -168,7 +168,6 @@ class SessionMemory:
                 "bigbetter": self.inferred_schema.bigbetter,
                 "n_items": len(self.inferred_schema.ranking_items),
                 "items": self.inferred_schema.ranking_items[:10],  # First 10
-                "confidence": self.inferred_schema.confidence,
             }
         
         if self.config:

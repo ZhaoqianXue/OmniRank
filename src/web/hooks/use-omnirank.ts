@@ -38,6 +38,7 @@ export interface ChatMessage {
   // Data for ranking-config type
   configData?: {
     schema: InferredSchema;
+    warnings: ValidationWarning[];
   };
   // Data for data-agent-working type
   workingData?: {
@@ -247,7 +248,7 @@ export function useOmniRank() {
               "data",
               { 
                 type: "ranking-config", 
-                configData: { schema: payload.inferred_schema } 
+                configData: { schema: payload.inferred_schema, warnings: payload.warnings } 
               }
             );
 
@@ -504,7 +505,7 @@ export function useOmniRank() {
               "data",
               { 
                 type: "ranking-config", 
-                configData: { schema: payload.inferred_schema } 
+                configData: { schema: payload.inferred_schema, warnings: payload.warnings } 
               }
             );
 

@@ -45,6 +45,37 @@ This experiment corresponds to **Section 3.2 Data Agent** of the OmniRank paper,
    - Values are rank positions (1st, 2nd, 3rd, etc.)
    - Example: Horse race results, league standings
 
+### Data Validation Checks
+
+The Data Agent performs validation checks after format recognition to assess data quality:
+
+| Check | Condition | Severity | User-Facing Message |
+|-------|-----------|----------|---------------------|
+| **Minimum Items** | `len(ranking_items) < 2` | Critical Error | "We need at least 2 items to create a ranking." |
+| **Columns Exist** | Referenced columns missing from data | Critical Error | "Some expected columns are missing from your data." |
+| **Sample Size** | `len(df) < 10` | Warning | "Your dataset has only X rows. For more reliable rankings, we recommend at least 10 data points." |
+| **Sparsity** | $M < n \log n$ | Warning | "Your data has relatively few comparisons between items. The ranking results may have wider uncertainty ranges." |
+| **Connectivity** | Comparison graph is disconnected | Warning | "Some items have no comparisons with others. They cannot be ranked relative to the rest." |
+
+**Design Principle:** All user-facing messages are written in plain, non-technical language per the project goal of making spectral ranking accessible to non-statisticians.
+
+**Sparsity Check Details:**
+
+The sparsity threshold $M > n \log n$ comes from spectral ranking theory (Fan et al. 2023):
+- $M$ = total number of pairwise comparisons (calculated as $\sum C(k,2)$ where $k$ = non-null values per row)
+- $n$ = number of items to rank
+- $n \log n$ = theoretical lower bound for consistent estimation (coupon collector problem)
+
+If $M < n \log n$, the spectral estimates may have high variance and rankings may be unstable.
+
+**Connectivity Check Details:**
+
+Uses `networkx` to verify the comparison graph is connected:
+1. Build undirected graph $G$ where nodes = ranking items
+2. Add edge $(i, j)$ if items $i$ and $j$ are compared in any row
+3. Check `nx.is_connected(G)`
+4. If disconnected, rankings are only meaningful within each connected component
+
 ---
 
 ## 2. Experiments Reference

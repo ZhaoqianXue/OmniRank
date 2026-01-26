@@ -41,6 +41,10 @@ EXAMPLE_DATASETS = {
         "filename": "example_data_pointwise.csv",
         "title": "Model Performance Scores",
     },
+    "multiway": {
+        "filename": "example_data_multiway.csv",
+        "title": "Horse Racing Results",
+    },
 }
 
 

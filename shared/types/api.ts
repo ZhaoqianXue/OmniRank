@@ -15,7 +15,6 @@ export interface InferredSchema {
   ranking_items: string[];
   indicator_col: string | null;
   indicator_values: string[];
-  confidence: number;
 }
 
 export interface ValidationWarning {

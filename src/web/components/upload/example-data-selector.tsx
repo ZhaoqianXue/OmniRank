@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { UsersRound, ListOrdered, Loader2 } from "lucide-react";
+import { UsersRound, ListOrdered, Trophy, Loader2, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import type { ExampleDataInfo } from "@/lib/api";
 
 interface ExampleDataSelectorProps {
@@ -17,6 +17,20 @@ interface ExampleDataSelectorProps {
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   pairwise: UsersRound,
   pointwise: ListOrdered,
+  multiway: Trophy,
+};
+
+const formatLabels: Record<string, string> = {
+  pairwise: "Pairwise",
+  pointwise: "Pointwise",
+  multiway: "Multiway",
+};
+
+// Short descriptions for each example
+const shortDescriptions: Record<string, string> = {
+  pairwise: "AI chatbots competing head-to-head on coding, math, and writing tasks",
+  pointwise: "ML models evaluated with accuracy scores across test samples",
+  multiway: "Horses ranked by finish position across multiple races",
 };
 
 export function ExampleDataSelector({
@@ -39,16 +53,23 @@ export function ExampleDataSelector({
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-border/50" />
-        <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-          or try an example
-        </span>
-        <div className="flex-1 h-px bg-border/50" />
+    <div className={cn("space-y-4", className)}>
+      {/* Header with introduction */}
+      <div className="text-center space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-border/50" />
+          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+            or try an example
+          </span>
+          <div className="flex-1 h-px bg-border/50" />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          See how OmniRank transforms comparison data into statistically rigorous rankings
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      {/* Vertical list of examples */}
+      <div className="space-y-2">
         {examples.map((example) => {
           const Icon = iconMap[example.id] || ListOrdered;
           const isLoading = loadingId === example.id;
@@ -57,41 +78,48 @@ export function ExampleDataSelector({
           return (
             <motion.div
               key={example.id}
-              whileHover={isDisabled ? {} : { scale: 1.02 }}
-              whileTap={isDisabled ? {} : { scale: 0.98 }}
+              whileHover={isDisabled ? {} : { x: 4 }}
+              whileTap={isDisabled ? {} : { scale: 0.99 }}
             >
-              <Card
+              <div
                 className={cn(
-                  "cursor-pointer transition-all border-2",
+                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
                   isLoading && "border-primary bg-primary/5",
                   isDisabled && !isLoading && "opacity-50 cursor-not-allowed",
-                  !isDisabled && !isLoading && "hover:border-primary/50 hover:bg-primary/5"
+                  !isDisabled && !isLoading && "hover:border-primary/50 hover:bg-muted/50"
                 )}
                 onClick={() => handleSelect(example.id)}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={cn(
-                        "flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center",
-                        isLoading ? "bg-primary/20" : "bg-muted"
-                      )}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                      ) : (
-                        <Icon className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium truncate">{example.title}</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                        {example.format === "pairwise" ? "Pairwise comparison" : "Pointwise scores"}
-                      </p>
-                    </div>
+                {/* Icon */}
+                <div
+                  className={cn(
+                    "flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center",
+                    isLoading ? "bg-primary/20" : "bg-muted"
+                  )}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                  ) : (
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-medium">{example.title}</h4>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {formatLabels[example.format] || example.format}
+                    </Badge>
                   </div>
-                </CardContent>
-              </Card>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                    {shortDescriptions[example.id] || ""}
+                  </p>
+                </div>
+
+                {/* Arrow */}
+                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              </div>
             </motion.div>
           );
         })}

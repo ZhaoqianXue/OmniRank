@@ -1,0 +1,45 @@
+{
+  "bigbetter_errors": [],
+  "indicator_errors": [],
+  "items_low_jaccard": [],
+  "by_category": {
+    "bigbetter_high": {
+      "total": 8,
+      "errors": 0
+    },
+    "bigbetter_low": {
+      "total": 10,
+      "errors": 0
+    },
+    "bigbetter_ambiguous": {
+      "total": 6,
+      "errors": 0
+    },
+    "indicator_clear": {
+      "total": 8,
+      "errors": 0
+    },
+    "indicator_none": {
+      "total": 6,
+      "errors": 0
+    },
+    "items_complex": {
+      "total": 6,
+      "errors": 0
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "total": 28,
+      "errors": 0
+    },
+    "medium": {
+      "total": 12,
+      "errors": 0
+    },
+    "hard": {
+      "total": 4,
+      "errors": 0
+    }
+  }
+}

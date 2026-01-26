@@ -1,0 +1,979 @@
+{
+  "experiment_id": "data_agent_f2",
+  "paper_section": "4.2.2 Semantic Schema Inference",
+  "generated_at": "2026-01-26T01:06:03.450019",
+  "random_seed": 42,
+  "total_datasets": 44,
+  "categories": [
+    "bigbetter_high",
+    "bigbetter_low",
+    "bigbetter_ambiguous",
+    "indicator_clear",
+    "indicator_none",
+    "items_complex"
+  ],
+  "evaluation_targets": [
+    "bigbetter",
+    "ranking_items",
+    "indicator_col",
+    "indicator_values"
+  ],
+  "datasets": [
+    {
+      "dataset_id": "bb_high_accuracy_01",
+      "category": "bigbetter_high",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_accuracy",
+      "expected_ranking_items": [
+        "acc_1",
+        "acc_2",
+        "acc_3",
+        "acc_4"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Accuracy scores - column names contain 'accuracy'",
+      "filename": "bigbetter_high/bb_high_accuracy_01.csv",
+      "n_rows": 33,
+      "n_columns": 4
+    },
+    {
+      "dataset_id": "bb_high_accuracy_02",
+      "category": "bigbetter_high",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_accuracy",
+      "expected_ranking_items": [
+        "accuracy_A",
+        "accuracy_B",
+        "accuracy_C",
+        "accuracy_D",
+        "accuracy_E",
+        "accuracy_F"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Accuracy scores - column names contain 'accuracy'",
+      "filename": "bigbetter_high/bb_high_accuracy_02.csv",
+      "n_rows": 61,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "bb_high_score_01",
+      "category": "bigbetter_high",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_score",
+      "expected_ranking_items": [
+        "model_A_score",
+        "model_B_score",
+        "model_C_score",
+        "model_D_score",
+        "model_E_score"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Score values - column names contain 'score' or 'f1'",
+      "filename": "bigbetter_high/bb_high_score_01.csv",
+      "n_rows": 43,
+      "n_columns": 5
+    },
+    {
+      "dataset_id": "bb_high_score_02",
+      "category": "bigbetter_high",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_score",
+      "expected_ranking_items": [
+        "model_A_score",
+        "model_B_score",
+        "model_C_score",
+        "model_D_score",
+        "model_E_score",
+        "model_F_score",
+        "model_G_score",
+        "model_H_score"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Score values - column names contain 'score' or 'f1'",
+      "filename": "bigbetter_high/bb_high_score_02.csv",
+      "n_rows": 41,
+      "n_columns": 8
+    },
+    {
+      "dataset_id": "bb_high_win_01",
+      "category": "bigbetter_high",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_win_or_reward",
+      "expected_ranking_items": [
+        "win_rate_A",
+        "win_rate_B",
+        "win_rate_C",
+        "win_rate_D",
+        "win_rate_E",
+        "win_rate_F",
+        "win_rate_G"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Win rates or rewards - column names contain 'win' or 'reward'",
+      "filename": "bigbetter_high/bb_high_win_01.csv",
+      "n_rows": 44,
+      "n_columns": 7
+    },
+    {
+      "dataset_id": "bb_high_win_02",
+      "category": "bigbetter_high",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_win_or_reward",
+      "expected_ranking_items": [
+        "win_rate_A",
+        "win_rate_B",
+        "win_rate_C",
+        "win_rate_D"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Win rates or rewards - column names contain 'win' or 'reward'",
+      "filename": "bigbetter_high/bb_high_win_02.csv",
+      "n_rows": 67,
+      "n_columns": 4
+    },
+    {
+      "dataset_id": "bb_high_metric_01",
+      "category": "bigbetter_high",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_precision",
+      "expected_ranking_items": [
+        "precision_A",
+        "precision_B",
+        "precision_C",
+        "precision_D",
+        "precision_E",
+        "precision_F"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "ML metrics (precision) - higher is better",
+      "filename": "bigbetter_high/bb_high_metric_01.csv",
+      "n_rows": 68,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "bb_high_metric_02",
+      "category": "bigbetter_high",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_mAP",
+      "expected_ranking_items": [
+        "mAP_A",
+        "mAP_B",
+        "mAP_C",
+        "mAP_D",
+        "mAP_E",
+        "mAP_F"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "ML metrics (mAP) - higher is better",
+      "filename": "bigbetter_high/bb_high_metric_02.csv",
+      "n_rows": 42,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "bb_low_error_01",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_error_or_mse",
+      "expected_ranking_items": [
+        "mse_1",
+        "mse_2",
+        "mse_3",
+        "mse_4",
+        "mse_5"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Error metrics - column names contain 'error', 'mse', 'rmse'",
+      "filename": "bigbetter_low/bb_low_error_01.csv",
+      "n_rows": 87,
+      "n_columns": 5
+    },
+    {
+      "dataset_id": "bb_low_error_02",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_error_or_mse",
+      "expected_ranking_items": [
+        "rmse_A",
+        "rmse_B",
+        "rmse_C",
+        "rmse_D"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Error metrics - column names contain 'error', 'mse', 'rmse'",
+      "filename": "bigbetter_low/bb_low_error_02.csv",
+      "n_rows": 50,
+      "n_columns": 4
+    },
+    {
+      "dataset_id": "bb_low_loss_01",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_loss",
+      "expected_ranking_items": [
+        "loss_A",
+        "loss_B",
+        "loss_C",
+        "loss_D",
+        "loss_E",
+        "loss_F"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Loss values - column names contain 'loss' or 'cross_entropy'",
+      "filename": "bigbetter_low/bb_low_loss_01.csv",
+      "n_rows": 65,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "bb_low_loss_02",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_loss",
+      "expected_ranking_items": [
+        "loss_A",
+        "loss_B",
+        "loss_C",
+        "loss_D",
+        "loss_E"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Loss values - column names contain 'loss' or 'cross_entropy'",
+      "filename": "bigbetter_low/bb_low_loss_02.csv",
+      "n_rows": 73,
+      "n_columns": 5
+    },
+    {
+      "dataset_id": "bb_low_latency_01",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_latency_or_time",
+      "expected_ranking_items": [
+        "latency_A",
+        "latency_B",
+        "latency_C",
+        "latency_D"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Latency/time metrics - column names contain 'latency', 'time'",
+      "filename": "bigbetter_low/bb_low_latency_01.csv",
+      "n_rows": 88,
+      "n_columns": 4
+    },
+    {
+      "dataset_id": "bb_low_latency_02",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_latency_or_time",
+      "expected_ranking_items": [
+        "time_A_ms",
+        "time_B_ms",
+        "time_C_ms",
+        "time_D_ms",
+        "time_E_ms",
+        "time_F_ms"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Latency/time metrics - column names contain 'latency', 'time'",
+      "filename": "bigbetter_low/bb_low_latency_02.csv",
+      "n_rows": 84,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "bb_low_rank_01",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_rank_or_position",
+      "expected_ranking_items": [
+        "position_1",
+        "position_2",
+        "position_3",
+        "position_4"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Rank positions - column names contain 'rank' or 'position'",
+      "filename": "bigbetter_low/bb_low_rank_01.csv",
+      "n_rows": 76,
+      "n_columns": 4
+    },
+    {
+      "dataset_id": "bb_low_rank_02",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_rank_or_position",
+      "expected_ranking_items": [
+        "position_1",
+        "position_2",
+        "position_3",
+        "position_4",
+        "position_5",
+        "position_6",
+        "position_7",
+        "position_8"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Rank positions - column names contain 'rank' or 'position'",
+      "filename": "bigbetter_low/bb_low_rank_02.csv",
+      "n_rows": 37,
+      "n_columns": 8
+    },
+    {
+      "dataset_id": "bb_low_cost_01",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_cost_or_distance",
+      "expected_ranking_items": [
+        "distance_1",
+        "distance_2",
+        "distance_3",
+        "distance_4"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Cost/distance metrics - column names contain 'cost', 'distance', 'penalty'",
+      "filename": "bigbetter_low/bb_low_cost_01.csv",
+      "n_rows": 65,
+      "n_columns": 4
+    },
+    {
+      "dataset_id": "bb_low_cost_02",
+      "category": "bigbetter_low",
+      "expected_bigbetter": 0,
+      "bigbetter_hint": "column_names_contain_cost_or_distance",
+      "expected_ranking_items": [
+        "distance_1",
+        "distance_2",
+        "distance_3",
+        "distance_4",
+        "distance_5",
+        "distance_6"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Cost/distance metrics - column names contain 'cost', 'distance', 'penalty'",
+      "filename": "bigbetter_low/bb_low_cost_02.csv",
+      "n_rows": 69,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "bb_amb_model_01",
+      "category": "bigbetter_ambiguous",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "neutral_names_but_bounded_0_1_values",
+      "expected_ranking_items": [
+        "model_A",
+        "model_B",
+        "model_C",
+        "model_D",
+        "model_E",
+        "model_F",
+        "model_G",
+        "model_H"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "Neutral names (model_X) with [0,1] values - ambiguous but likely accuracy",
+      "filename": "bigbetter_ambiguous/bb_amb_model_01.csv",
+      "n_rows": 54,
+      "n_columns": 8
+    },
+    {
+      "dataset_id": "bb_amb_model_02",
+      "category": "bigbetter_ambiguous",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "neutral_names_but_bounded_0_1_values",
+      "expected_ranking_items": [
+        "model_A",
+        "model_B",
+        "model_C",
+        "model_D"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "Neutral names (model_X) with [0,1] values - ambiguous but likely accuracy",
+      "filename": "bigbetter_ambiguous/bb_amb_model_02.csv",
+      "n_rows": 35,
+      "n_columns": 4
+    },
+    {
+      "dataset_id": "bb_amb_item_01",
+      "category": "bigbetter_ambiguous",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "neutral_names_unbounded_positive_values",
+      "expected_ranking_items": [
+        "item_1",
+        "item_2",
+        "item_3",
+        "item_4",
+        "item_5"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "hard",
+      "description": "Neutral names (item_X) with unbounded values - truly ambiguous",
+      "filename": "bigbetter_ambiguous/bb_amb_item_01.csv",
+      "n_rows": 67,
+      "n_columns": 5
+    },
+    {
+      "dataset_id": "bb_amb_item_02",
+      "category": "bigbetter_ambiguous",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "neutral_names_unbounded_positive_values",
+      "expected_ranking_items": [
+        "item_1",
+        "item_2",
+        "item_3",
+        "item_4"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "hard",
+      "description": "Neutral names (item_X) with unbounded values - truly ambiguous",
+      "filename": "bigbetter_ambiguous/bb_amb_item_02.csv",
+      "n_rows": 59,
+      "n_columns": 4
+    },
+    {
+      "dataset_id": "bb_amb_algo_01",
+      "category": "bigbetter_ambiguous",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "neutral_names_bounded_values",
+      "expected_ranking_items": [
+        "system_A",
+        "system_B",
+        "system_C",
+        "system_D"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "Neutral names (algorithm/system/method) with [0,1] values",
+      "filename": "bigbetter_ambiguous/bb_amb_algo_01.csv",
+      "n_rows": 54,
+      "n_columns": 4
+    },
+    {
+      "dataset_id": "bb_amb_algo_02",
+      "category": "bigbetter_ambiguous",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "neutral_names_bounded_values",
+      "expected_ranking_items": [
+        "system_A",
+        "system_B",
+        "system_C",
+        "system_D",
+        "system_E"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "Neutral names (algorithm/system/method) with [0,1] values",
+      "filename": "bigbetter_ambiguous/bb_amb_algo_02.csv",
+      "n_rows": 70,
+      "n_columns": 5
+    },
+    {
+      "dataset_id": "ind_clear_task_01",
+      "category": "indicator_clear",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "model_A",
+        "model_B",
+        "model_C",
+        "model_D",
+        "model_E"
+      ],
+      "expected_indicator_col": "Task",
+      "expected_indicator_values": [
+        "code",
+        "math",
+        "reasoning",
+        "writing"
+      ],
+      "difficulty": "easy",
+      "description": "Clear 'Task' indicator with semantic categories",
+      "filename": "indicator_clear/ind_clear_task_01.csv",
+      "n_rows": 87,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "ind_clear_task_02",
+      "category": "indicator_clear",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "model_A",
+        "model_B",
+        "model_C",
+        "model_D",
+        "model_E",
+        "model_F",
+        "model_G",
+        "model_H"
+      ],
+      "expected_indicator_col": "Task",
+      "expected_indicator_values": [
+        "code",
+        "math",
+        "reasoning",
+        "writing"
+      ],
+      "difficulty": "easy",
+      "description": "Clear 'Task' indicator with semantic categories",
+      "filename": "indicator_clear/ind_clear_task_02.csv",
+      "n_rows": 56,
+      "n_columns": 9
+    },
+    {
+      "dataset_id": "ind_clear_category_01",
+      "category": "indicator_clear",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "rating_scale_1_to_5",
+      "expected_ranking_items": [
+        "product_1",
+        "product_2",
+        "product_3",
+        "product_4",
+        "product_5",
+        "product_6"
+      ],
+      "expected_indicator_col": "Category",
+      "expected_indicator_values": [
+        "electronics",
+        "clothing",
+        "food",
+        "home"
+      ],
+      "difficulty": "easy",
+      "description": "Clear 'Category' indicator for product ratings",
+      "filename": "indicator_clear/ind_clear_category_01.csv",
+      "n_rows": 46,
+      "n_columns": 7
+    },
+    {
+      "dataset_id": "ind_clear_category_02",
+      "category": "indicator_clear",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "rating_scale_1_to_5",
+      "expected_ranking_items": [
+        "product_1",
+        "product_2",
+        "product_3",
+        "product_4",
+        "product_5"
+      ],
+      "expected_indicator_col": "Category",
+      "expected_indicator_values": [
+        "electronics",
+        "clothing",
+        "food",
+        "home"
+      ],
+      "difficulty": "easy",
+      "description": "Clear 'Category' indicator for product ratings",
+      "filename": "indicator_clear/ind_clear_category_02.csv",
+      "n_rows": 53,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "ind_clear_domain_01",
+      "category": "indicator_clear",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "algorithm_A",
+        "algorithm_B",
+        "algorithm_C",
+        "algorithm_D"
+      ],
+      "expected_indicator_col": "domain",
+      "expected_indicator_values": [
+        "biology",
+        "physics",
+        "chemistry",
+        "medicine"
+      ],
+      "difficulty": "easy",
+      "description": "Clear 'domain' indicator for scientific domains",
+      "filename": "indicator_clear/ind_clear_domain_01.csv",
+      "n_rows": 59,
+      "n_columns": 5
+    },
+    {
+      "dataset_id": "ind_clear_domain_02",
+      "category": "indicator_clear",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "algorithm_A",
+        "algorithm_B",
+        "algorithm_C",
+        "algorithm_D"
+      ],
+      "expected_indicator_col": "domain",
+      "expected_indicator_values": [
+        "biology",
+        "physics",
+        "chemistry",
+        "medicine"
+      ],
+      "difficulty": "easy",
+      "description": "Clear 'domain' indicator for scientific domains",
+      "filename": "indicator_clear/ind_clear_domain_02.csv",
+      "n_rows": 63,
+      "n_columns": 5
+    },
+    {
+      "dataset_id": "ind_clear_group_01",
+      "category": "indicator_clear",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "method_1",
+        "method_2",
+        "method_3",
+        "method_4",
+        "method_5",
+        "method_6"
+      ],
+      "expected_indicator_col": "class",
+      "expected_indicator_values": [
+        "A",
+        "B",
+        "C"
+      ],
+      "difficulty": "easy",
+      "description": "Clear 'class' indicator with simple categories",
+      "filename": "indicator_clear/ind_clear_group_01.csv",
+      "n_rows": 52,
+      "n_columns": 7
+    },
+    {
+      "dataset_id": "ind_clear_group_02",
+      "category": "indicator_clear",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "method_1",
+        "method_2",
+        "method_3",
+        "method_4",
+        "method_5",
+        "method_6"
+      ],
+      "expected_indicator_col": "class",
+      "expected_indicator_values": [
+        "A",
+        "B",
+        "C"
+      ],
+      "difficulty": "easy",
+      "description": "Clear 'class' indicator with simple categories",
+      "filename": "indicator_clear/ind_clear_group_02.csv",
+      "n_rows": 100,
+      "n_columns": 7
+    },
+    {
+      "dataset_id": "ind_none_numeric_01",
+      "category": "indicator_none",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "model_A",
+        "model_B",
+        "model_C",
+        "model_D",
+        "model_E",
+        "model_F",
+        "model_G"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Pure numeric matrix - no indicator column",
+      "filename": "indicator_none/ind_none_numeric_01.csv",
+      "n_rows": 85,
+      "n_columns": 7
+    },
+    {
+      "dataset_id": "ind_none_numeric_02",
+      "category": "indicator_none",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "model_A",
+        "model_B",
+        "model_C",
+        "model_D",
+        "model_E",
+        "model_F",
+        "model_G",
+        "model_H"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "easy",
+      "description": "Pure numeric matrix - no indicator column",
+      "filename": "indicator_none/ind_none_numeric_02.csv",
+      "n_rows": 64,
+      "n_columns": 8
+    },
+    {
+      "dataset_id": "ind_none_with_id_01",
+      "category": "indicator_none",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "algorithm_1",
+        "algorithm_2",
+        "algorithm_3",
+        "algorithm_4",
+        "algorithm_5",
+        "algorithm_6"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "Numeric with ID column - ID should NOT be indicator",
+      "filename": "indicator_none/ind_none_with_id_01.csv",
+      "n_rows": 61,
+      "n_columns": 7
+    },
+    {
+      "dataset_id": "ind_none_with_id_02",
+      "category": "indicator_none",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "algorithm_1",
+        "algorithm_2",
+        "algorithm_3",
+        "algorithm_4"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "Numeric with ID column - ID should NOT be indicator",
+      "filename": "indicator_none/ind_none_with_id_02.csv",
+      "n_rows": 65,
+      "n_columns": 5
+    },
+    {
+      "dataset_id": "ind_none_high_card_01",
+      "category": "indicator_none",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "system_A",
+        "system_B",
+        "system_C",
+        "system_D",
+        "system_E"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "High cardinality categorical - not suitable as indicator",
+      "filename": "indicator_none/ind_none_high_card_01.csv",
+      "n_rows": 81,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "ind_none_high_card_02",
+      "category": "indicator_none",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "system_A",
+        "system_B",
+        "system_C",
+        "system_D",
+        "system_E"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "High cardinality categorical - not suitable as indicator",
+      "filename": "indicator_none/ind_none_high_card_02.csv",
+      "n_rows": 122,
+      "n_columns": 6
+    },
+    {
+      "dataset_id": "items_complex_desc_01",
+      "category": "items_complex",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "model_A",
+        "model_B",
+        "model_C",
+        "model_D",
+        "model_E",
+        "model_F",
+        "model_G",
+        "model_H"
+      ],
+      "expected_indicator_col": "task_type",
+      "expected_indicator_values": [
+        "qa",
+        "code",
+        "math"
+      ],
+      "difficulty": "medium",
+      "description": "Ranking items with metadata columns to exclude",
+      "filename": "items_complex/items_complex_desc_01.csv",
+      "n_rows": 78,
+      "n_columns": 11
+    },
+    {
+      "dataset_id": "items_complex_desc_02",
+      "category": "items_complex",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "model_A",
+        "model_B",
+        "model_C",
+        "model_D",
+        "model_E",
+        "model_F",
+        "model_G",
+        "model_H"
+      ],
+      "expected_indicator_col": "task_type",
+      "expected_indicator_values": [
+        "qa",
+        "code",
+        "math"
+      ],
+      "difficulty": "medium",
+      "description": "Ranking items with metadata columns to exclude",
+      "filename": "items_complex/items_complex_desc_02.csv",
+      "n_rows": 58,
+      "n_columns": 11
+    },
+    {
+      "dataset_id": "items_complex_multi_01",
+      "category": "items_complex",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "algorithm_A",
+        "algorithm_B",
+        "algorithm_C",
+        "algorithm_D",
+        "algorithm_E",
+        "algorithm_F"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "Multiple metadata columns (id, timestamp, notes) to exclude",
+      "filename": "items_complex/items_complex_multi_01.csv",
+      "n_rows": 92,
+      "n_columns": 9
+    },
+    {
+      "dataset_id": "items_complex_multi_02",
+      "category": "items_complex",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "bounded_0_1_values",
+      "expected_ranking_items": [
+        "algorithm_A",
+        "algorithm_B",
+        "algorithm_C",
+        "algorithm_D",
+        "algorithm_E"
+      ],
+      "expected_indicator_col": null,
+      "expected_indicator_values": [],
+      "difficulty": "medium",
+      "description": "Multiple metadata columns (id, timestamp, notes) to exclude",
+      "filename": "items_complex/items_complex_multi_02.csv",
+      "n_rows": 76,
+      "n_columns": 8
+    },
+    {
+      "dataset_id": "items_complex_mixed_01",
+      "category": "items_complex",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_score",
+      "expected_ranking_items": [
+        "score_A",
+        "score_B",
+        "score_C",
+        "score_D"
+      ],
+      "expected_indicator_col": "dataset",
+      "expected_indicator_values": [
+        "benchmark_1",
+        "benchmark_2",
+        "benchmark_3"
+      ],
+      "difficulty": "hard",
+      "description": "Complex mix: ranking items + metadata + indicator column",
+      "filename": "items_complex/items_complex_mixed_01.csv",
+      "n_rows": 88,
+      "n_columns": 7
+    },
+    {
+      "dataset_id": "items_complex_mixed_02",
+      "category": "items_complex",
+      "expected_bigbetter": 1,
+      "bigbetter_hint": "column_names_contain_score",
+      "expected_ranking_items": [
+        "score_A",
+        "score_B",
+        "score_C",
+        "score_D"
+      ],
+      "expected_indicator_col": "dataset",
+      "expected_indicator_values": [
+        "benchmark_1",
+        "benchmark_2",
+        "benchmark_3"
+      ],
+      "difficulty": "hard",
+      "description": "Complex mix: ranking items + metadata + indicator column",
+      "filename": "items_complex/items_complex_mixed_02.csv",
+      "n_rows": 60,
+      "n_columns": 7
+    }
+  ]
+}

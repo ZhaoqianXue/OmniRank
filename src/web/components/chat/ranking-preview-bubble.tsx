@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { InferredSchema, AnalysisConfig } from "@/lib/api";
+import type { InferredSchema, AnalysisConfig, ValidationWarning } from "@/lib/api";
 
 interface RankingPreviewBubbleProps {
   schema: InferredSchema;
+  warnings?: ValidationWarning[];
   onStartAnalysis: (config: AnalysisConfig) => void;
   isAnalyzing?: boolean;
   className?: string;
@@ -67,6 +68,7 @@ function Section({
 
 export function RankingPreviewBubble({
   schema,
+  warnings = [],
   onStartAnalysis,
   isAnalyzing = false,
   className,
@@ -203,13 +205,28 @@ export function RankingPreviewBubble({
                 {schema.format}
               </span>
             </DisplayRow>
-            <DisplayRow label="Confidence">
+            <DisplayRow label="Data Quality">
               <span className={cn(
-                schema.confidence >= 0.8 ? "text-green-600" : schema.confidence >= 0.5 ? "text-yellow-600" : "text-red-600"
+                warnings.length === 0 ? "text-green-600" : 
+                warnings.some(w => w.severity === "error") ? "text-red-600" : "text-yellow-600"
               )}>
-                {(schema.confidence * 100).toFixed(0)}%
+                {warnings.length === 0 ? "Good" : 
+                 warnings.some(w => w.severity === "error") ? "Issues Found" : "Warnings"}
               </span>
             </DisplayRow>
+            {warnings.length > 0 && (
+              <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
+                {warnings.map((w, i) => (
+                  <div key={i} className={cn(
+                    "flex items-start gap-1",
+                    w.severity === "error" ? "text-red-600" : "text-yellow-600"
+                  )}>
+                    <span>{w.severity === "error" ? "✕" : "⚠"}</span>
+                    <span>{w.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <DisplayRow label="Direction">
               {bigbetter === 1 ? "Higher is better" : "Lower is better"}
             </DisplayRow>

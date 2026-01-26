@@ -206,11 +206,10 @@ You are a Data Validation Advisor who explains technical validation results in p
                     ranking_items=[],
                     indicator_col=None,
                     indicator_values=[],
-                    confidence=0.0,
                 ),
                 [ValidationWarning(
                     type="format",
-                    message=f"Failed to parse file: {str(e)}",
+                    message="We couldn't read your file. Please make sure it's a valid CSV file with data in it.",
                     severity="error",
                 )],
                 "Unable to parse the uploaded file. Please ensure it is a valid CSV.",
@@ -219,7 +218,7 @@ You are a Data Validation Advisor who explains technical validation results in p
         # Infer schema using LLM or fallback
         if self.enabled:
             schema = self._infer_schema_with_llm(df, filename, session)
-            logger.info(f"LLM inferred schema: format={schema.format}, confidence={schema.confidence}")
+            logger.info(f"LLM inferred schema: format={schema.format}")
         else:
             schema = self._infer_schema_fallback(df, filename)
             logger.info(f"Fallback inferred schema: format={schema.format}")
@@ -359,8 +358,7 @@ Respond in EXACTLY this JSON format:
     "ranking_items": ["item1", "item2", ...],
     "ranking_items_reasoning": "Brief explanation of ranking item identification",
     "indicator_col": "column_name" | null,
-    "indicator_reasoning": "Brief explanation of indicator selection (AT MOST ONE)",
-    "confidence": 0.0-1.0
+    "indicator_reasoning": "Brief explanation of indicator selection (AT MOST ONE)"
 }}"""
 
         try:
@@ -395,7 +393,6 @@ Respond in EXACTLY this JSON format:
                         "method": "llm",
                         "format": result.get("format"),
                         "bigbetter": result.get("bigbetter"),
-                        "confidence": result.get("confidence"),
                         "tokens": response.usage.total_tokens if response.usage else 0,
                     },
                     agent=AgentType.DATA,
@@ -418,7 +415,6 @@ Respond in EXACTLY this JSON format:
                 ranking_items=result.get("ranking_items", []),
                 indicator_col=result.get("indicator_col"),
                 indicator_values=indicator_values,
-                confidence=result.get("confidence", 0.7),
                 # Function 1: Format Recognition & Standardization fields
                 engine_compatible=result.get("engine_compatible", True),
                 standardization_needed=result.get("standardization_needed", False),
@@ -460,7 +456,7 @@ Respond in EXACTLY this JSON format:
         data_format = self._detect_format_heuristic(df)
         
         # Infer bigbetter (DEPRECATED heuristic logic)
-        bigbetter, bb_confidence = self._infer_bigbetter_heuristic(df, data_format)
+        bigbetter = self._infer_bigbetter_heuristic(df, data_format)
         
         # Extract ranking items (DEPRECATED heuristic logic)
         ranking_items = self._extract_ranking_items_heuristic(df, data_format)
@@ -468,16 +464,12 @@ Respond in EXACTLY this JSON format:
         # Detect indicator column (DEPRECATED heuristic logic)
         indicator_col, indicator_values = self._detect_indicator_heuristic(df)
         
-        # Calculate overall confidence (heavily penalized for using fallback)
-        confidence = bb_confidence * 0.5  # Heavily penalize for using deprecated fallback
-        
         return InferredSchema(
             format=data_format,
             bigbetter=bigbetter,
             ranking_items=ranking_items,
             indicator_col=indicator_col,
             indicator_values=indicator_values,
-            confidence=round(confidence, 2),
             # Function 1: Default to engine_compatible=True (conservative assumption)
             engine_compatible=True,
             standardization_needed=False,
@@ -514,7 +506,7 @@ Respond in EXACTLY this JSON format:
         self,
         df: pd.DataFrame,
         data_format: DataFormat
-    ) -> tuple[int, float]:
+    ) -> int:
         """
         DEPRECATED: Heuristic-based bigbetter inference.
         
@@ -522,7 +514,7 @@ Respond in EXACTLY this JSON format:
         performed by the LLM in _infer_schema_with_llm().
         """
         if data_format == DataFormat.PAIRWISE:
-            return 1, 0.95
+            return 1
         
         numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
         lower_cols = [c.lower() for c in numeric_cols]
@@ -534,9 +526,9 @@ Respond in EXACTLY this JSON format:
         higher_count = sum(any(kw in col for kw in higher_better_keywords) for col in lower_cols)
         
         if higher_count > lower_count:
-            return 1, 0.8
+            return 1
         elif lower_count > higher_count:
-            return 0, 0.8
+            return 0
         
         # Micro-level: Check if values are bounded [0, 1] -> likely accuracy/probability
         numeric_df = df[numeric_cols]
@@ -546,9 +538,9 @@ Respond in EXACTLY this JSON format:
         if len(all_vals) > 0:
             min_val, max_val = all_vals.min(), all_vals.max()
             if 0 <= min_val and max_val <= 1:
-                return 1, 0.7  # Bounded [0,1] usually means higher is better
+                return 1  # Bounded [0,1] usually means higher is better
         
-        return 1, 0.6
+        return 1
 
     def _extract_ranking_items_heuristic(
         self,
@@ -691,7 +683,7 @@ Respond in EXACTLY this JSON format:
         if len(ranking_items) < 2:
             warnings.append(ValidationWarning(
                 type="format",
-                message="At least 2 ranking items are required for comparison",
+                message="We need at least 2 items to create a ranking. Please upload data with more items to compare.",
                 severity="error",
             ))
             return warnings
@@ -701,7 +693,7 @@ Respond in EXACTLY this JSON format:
         if missing_cols:
             warnings.append(ValidationWarning(
                 type="format",
-                message=f"Missing columns in data: {missing_cols}",
+                message=f"Some expected columns are missing from your data: {', '.join(missing_cols[:3])}{'...' if len(missing_cols) > 3 else ''}. Please check your file.",
                 severity="error",
             ))
             return warnings
@@ -710,7 +702,7 @@ Respond in EXACTLY this JSON format:
         if len(df) < 10:
             warnings.append(ValidationWarning(
                 type="sparsity",
-                message=f"Only {len(df)} samples. Results may be unreliable with small datasets.",
+                message=f"Your dataset has only {len(df)} rows. For more reliable rankings, we recommend at least 10 data points.",
                 severity="warning",
             ))
         
@@ -748,12 +740,12 @@ Respond in EXACTLY this JSON format:
         n_items = len(ranking_items)
         
         if n_items < 2:
-            return 0, "error", "At least 2 ranking items required"
+            return 0, "error", "We need at least 2 items to create a ranking."
         
         # Count total comparisons (M)
         valid_cols = [col for col in ranking_items if col in df.columns]
         if not valid_cols:
-            return 0, "error", "No valid ranking columns found"
+            return 0, "error", "Could not find the expected data columns in your file."
         
         numeric_df = df[valid_cols]
         
@@ -772,14 +764,13 @@ Respond in EXACTLY this JSON format:
         
         if total_comparisons < threshold:
             return sparsity_ratio, "warning", (
-                f"Data may be too sparse for reliable inference. "
-                f"Comparisons: {int(total_comparisons)}, Threshold (n*log(n)): {threshold:.0f}. "
-                f"Consider collecting more data."
+                f"Your data has relatively few comparisons between items. "
+                f"The ranking results may have wider uncertainty ranges. "
+                f"Adding more comparison data would improve precision."
             )
         else:
             return sparsity_ratio, "info", (
-                f"Data density is adequate. "
-                f"Comparisons: {int(total_comparisons)}, Threshold: {threshold:.0f}."
+                f"Your data has sufficient comparisons for reliable ranking."
             )
 
     def _check_connectivity(
@@ -798,7 +789,7 @@ Respond in EXACTLY this JSON format:
         # Build comparison graph - filter to valid columns first
         valid_cols = [col for col in ranking_items if col in df.columns]
         if not valid_cols:
-            return False, "No valid ranking columns found in data"
+            return False, "Could not find the expected data columns in your file."
         
         numeric_df = df[valid_cols]
         
@@ -812,16 +803,24 @@ Respond in EXACTLY this JSON format:
         is_connected = nx.is_connected(G)
         
         if is_connected:
-            return True, "Comparison graph is connected"
+            return True, "All items can be compared through the data."
         else:
             n_components = nx.number_connected_components(G)
             components = list(nx.connected_components(G))
             isolated = [list(c) for c in components if len(c) == 1]
-            return False, (
-                f"Comparison graph has {n_components} disconnected components. "
-                f"Rankings will be relative within each component. "
-                f"Isolated items: {isolated[:3]}{'...' if len(isolated) > 3 else ''}"
-            )
+            if isolated:
+                isolated_names = [str(item) for item in isolated[:3]]
+                isolated_str = ', '.join(isolated_names) + ('...' if len(isolated) > 3 else '')
+                return False, (
+                    f"Some items ({isolated_str}) have no comparisons with others. "
+                    f"They cannot be ranked relative to the rest. "
+                    f"Consider adding comparison data for these items."
+                )
+            else:
+                return False, (
+                    f"Your items form {n_components} separate groups that were never compared against each other. "
+                    f"We can only rank items within each group, not across groups."
+                )
     
     # =========================================================================
     # LLM-Powered Validation Explanation
@@ -891,7 +890,7 @@ def detect_format(df: pd.DataFrame) -> DataFormat:
     return agent._detect_format_heuristic(df)
 
 
-def infer_bigbetter(df: pd.DataFrame, data_format: DataFormat) -> tuple[int, float]:
+def infer_bigbetter(df: pd.DataFrame, data_format: DataFormat) -> int:
     """
     Legacy function for bigbetter inference.
     For new code, use DataAgent._infer_bigbetter_heuristic() instead.
@@ -959,7 +958,7 @@ def validate_data(content: bytes, schema: InferredSchema) -> list[ValidationWarn
     except Exception as e:
         return [ValidationWarning(
             type="format",
-            message=f"Failed to parse file: {str(e)}",
+            message="We couldn't read your file. Please make sure it's a valid CSV file with data in it.",
             severity="error",
         )]
     

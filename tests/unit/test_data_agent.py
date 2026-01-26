@@ -82,8 +82,7 @@ class TestDataAgentLLM:
             "ranking_items": ["model_A", "model_B", "model_C"],
             "ranking_items_reasoning": "Numeric columns representing models",
             "indicator_col": None,
-            "indicator_reasoning": "No categorical dimension found",
-            "confidence": 0.9
+            "indicator_reasoning": "No categorical dimension found"
         })))]
         mock_response.usage = Mock(total_tokens=100)
         
@@ -95,7 +94,6 @@ class TestDataAgentLLM:
         assert schema.format == DataFormat.POINTWISE
         assert schema.bigbetter == 1
         assert len(schema.ranking_items) == 3
-        assert schema.confidence == 0.9
     
     def test_pairwise_detection_with_llm(self, agent_with_mock, pairwise_df):
         """Test pairwise format detection using LLM."""
@@ -108,8 +106,7 @@ class TestDataAgentLLM:
             "ranking_items": ["Model_A", "Model_B", "Model_C"],
             "ranking_items_reasoning": "Columns with 0/1 winner encoding",
             "indicator_col": "Task",
-            "indicator_reasoning": "Task column provides stratification",
-            "confidence": 0.95
+            "indicator_reasoning": "Task column provides stratification"
         })))]
         mock_response.usage = Mock(total_tokens=100)
         
@@ -135,8 +132,6 @@ class TestDataAgentLLM:
         assert schema is not None
         assert schema.format == DataFormat.POINTWISE
         assert len(schema.ranking_items) > 0
-        # Confidence should be lower for fallback
-        assert schema.confidence < 0.8
     
     def test_llm_json_parsing_with_markdown_blocks(self, agent_with_mock, pointwise_df):
         """Test that LLM response with markdown code blocks is parsed correctly."""
@@ -149,8 +144,7 @@ class TestDataAgentLLM:
             "ranking_items": ["model_A", "model_B"],
             "ranking_items_reasoning": "Models",
             "indicator_col": None,
-            "indicator_reasoning": "None",
-            "confidence": 0.85
+            "indicator_reasoning": "None"
         })
         
         mock_response = Mock()
@@ -244,11 +238,10 @@ class TestBigBetterInference:
             orig_key = os.environ.pop('OPENAI_API_KEY', None)
             try:
                 agent = DataAgent()
-                bigbetter, confidence = agent._infer_bigbetter_heuristic(
+                bigbetter = agent._infer_bigbetter_heuristic(
                     higher_better_df, DataFormat.POINTWISE
                 )
                 assert bigbetter == 1
-                assert confidence >= 0.7
             finally:
                 if orig_key:
                     os.environ['OPENAI_API_KEY'] = orig_key
@@ -260,11 +253,10 @@ class TestBigBetterInference:
             orig_key = os.environ.pop('OPENAI_API_KEY', None)
             try:
                 agent = DataAgent()
-                bigbetter, confidence = agent._infer_bigbetter_heuristic(
+                bigbetter = agent._infer_bigbetter_heuristic(
                     lower_better_df, DataFormat.POINTWISE
                 )
                 assert bigbetter == 0
-                assert confidence >= 0.7
             finally:
                 if orig_key:
                     os.environ['OPENAI_API_KEY'] = orig_key
@@ -276,11 +268,10 @@ class TestBigBetterInference:
             orig_key = os.environ.pop('OPENAI_API_KEY', None)
             try:
                 agent = DataAgent()
-                bigbetter, confidence = agent._infer_bigbetter_heuristic(
+                bigbetter = agent._infer_bigbetter_heuristic(
                     pairwise_df, DataFormat.PAIRWISE
                 )
                 assert bigbetter == 1
-                assert confidence >= 0.9
             finally:
                 if orig_key:
                     os.environ['OPENAI_API_KEY'] = orig_key
@@ -300,7 +291,7 @@ class TestBigBetterInference:
             orig_key = os.environ.pop('OPENAI_API_KEY', None)
             try:
                 agent = DataAgent()
-                bigbetter, confidence = agent._infer_bigbetter_heuristic(
+                bigbetter = agent._infer_bigbetter_heuristic(
                     df, DataFormat.POINTWISE
                 )
                 # Bounded [0,1] values usually mean higher is better
@@ -556,8 +547,6 @@ class TestValidationWarnings:
                 
                 # Should have error about parsing
                 assert any(w.severity == "error" for w in warnings)
-                # If parsing failed completely, confidence should be 0
-                # If it parsed but found issues, there should be errors
             finally:
                 if orig_key:
                     os.environ['OPENAI_API_KEY'] = orig_key
@@ -667,7 +656,7 @@ class TestLegacyFunctionCompatibility:
         """Test legacy infer_bigbetter function."""
         from agents.data_agent import infer_bigbetter
         
-        bigbetter, confidence = infer_bigbetter(higher_better_df, DataFormat.POINTWISE)
+        bigbetter = infer_bigbetter(higher_better_df, DataFormat.POINTWISE)
         assert bigbetter == 1
     
     def test_legacy_extract_ranking_items(self, pointwise_df):
@@ -733,8 +722,7 @@ class TestEngineCompatibility:
             "ranking_items": ["model_1", "model_2", "model_3"],
             "ranking_items_reasoning": "Numeric columns",
             "indicator_col": None,
-            "indicator_reasoning": "None found",
-            "confidence": 0.95
+            "indicator_reasoning": "None found"
         })))]
         mock_response.usage = Mock(total_tokens=100)
         
@@ -786,7 +774,6 @@ class TestConditionalStandardization:
                     format=DataFormat.POINTWISE,
                     bigbetter=1,
                     ranking_items=["model_A", "model_B", "model_C"],
-                    confidence=0.9,
                     engine_compatible=True,
                     standardization_needed=False,
                 )
@@ -813,7 +800,6 @@ class TestConditionalStandardization:
                     format=DataFormat.POINTWISE,
                     bigbetter=1,
                     ranking_items=list(special_chars_df.columns),
-                    confidence=0.8,
                     engine_compatible=False,
                     standardization_needed=True,
                     standardization_reason="Column names contain special characters",
@@ -846,7 +832,6 @@ class TestConditionalStandardization:
                     format=DataFormat.POINTWISE,
                     bigbetter=1,
                     ranking_items=list(special_chars_df.columns),
-                    confidence=0.8,
                     engine_compatible=False,
                     standardization_needed=True,
                     standardization_reason="Column names contain special characters",
@@ -883,8 +868,7 @@ class TestMultiwayFormatDetection:
             "ranking_items": ["Horse_A", "Horse_B", "Horse_C"],
             "ranking_items_reasoning": "Columns with rank position values",
             "indicator_col": None,
-            "indicator_reasoning": "Race column is ID, not indicator",
-            "confidence": 0.9
+            "indicator_reasoning": "Race column is ID, not indicator"
         })))]
         mock_response.usage = Mock(total_tokens=100)
         

@@ -16,7 +16,6 @@ export interface InferredSchema {
   ranking_items: string[];
   indicator_col: string | null;
   indicator_values: string[];
-  confidence: number;
 }
 
 export interface ValidationWarning {
@@ -213,7 +212,7 @@ export interface ExampleDataInfo {
   filename: string;
   title: string;
   description: string;
-  format: "pointwise" | "pairwise";
+  format: "pointwise" | "pairwise" | "multiway";
 }
 
 /**
@@ -234,7 +233,13 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     filename: "example_data_pairwise.csv",
     title: "LLM Pairwise Comparison",
     description:
-      "Arena-style pairwise comparisons of 6 LLMs (ChatGPT, Claude, Gemini, Llama, Qwen, Your Model) across 3 task types (code, math, writing). Contains 3000 comparison records where each row represents a single comparison with 0/1 indicating the losing/winning model.",
+      "Head-to-head comparisons between AI chatbots. " +
+      "Each row records one comparison where two models competed on a task. " +
+      "The winner gets 1, the loser gets 0. " +
+      "• Items to rank: Your Model, ChatGPT, Claude, Gemini, Llama, Qwen (6 AI models) " +
+      "• Task types: code, math, writing (can filter rankings by task) " +
+      "• 3,000 comparison records " +
+      "• Goal: Find which AI performs best overall or per task type",
     format: "pairwise",
   },
   {
@@ -242,8 +247,27 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     filename: "example_data_pointwise.csv",
     title: "Model Performance Scores",
     description:
-      "Pointwise performance scores for 6 models (model_1 to model_6) across 165 samples. Each row contains continuous accuracy scores (0-1 range) for each model on a specific evaluation sample, along with a sample description.",
+      "Performance scores from testing 6 machine learning models. " +
+      "Each row is one test sample, showing how well each model performed (0-1 scale, higher is better). " +
+      "• Items to rank: model_1 through model_6 (6 ML models) " +
+      "• 165 test samples " +
+      "• Values: Accuracy scores from 0 to 1 " +
+      "• Goal: Find which model performs best across all test cases",
     format: "pointwise",
+  },
+  {
+    id: "multiway",
+    filename: "example_data_multiway.csv",
+    title: "Horse Racing Results",
+    description:
+      "Finish positions from horse races. " +
+      "Each row is one race, showing where each horse finished (1st, 2nd, 3rd, etc.). " +
+      "• Items to rank: Horse_A through Horse_F (6 horses) " +
+      "• Track types: grass, dirt (can filter rankings by track) " +
+      "• 150 races " +
+      "• Values: Finish positions (1 = first place, lower is better) " +
+      "• Goal: Find which horse is the best overall or per track type",
+    format: "multiway",
   },
 ];
 

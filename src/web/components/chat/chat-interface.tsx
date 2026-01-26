@@ -80,6 +80,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
         <MessageIcon role="assistant" />
         <RankingPreviewBubble
           schema={message.configData.schema}
+          warnings={message.configData.warnings}
           onStartAnalysis={onStartAnalysis}
           isAnalyzing={isAnalyzing}
         />

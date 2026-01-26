@@ -106,11 +106,33 @@ export function DataPreviewComponent({
       <CardContent className="flex-1 flex flex-col min-h-0 pt-0">
         {/* Example data description */}
         {exampleInfo && (
-          <div className="flex gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 mb-3 shrink-0 min-h-[72px] -mt-4">
-            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-              {exampleInfo.description}
-            </p>
+          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 mb-3 shrink-0 -mt-4">
+            <div className="flex gap-2">
+              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1.5">
+                {/* Parse description: split by • and display as structured list */}
+                {(() => {
+                  const parts = exampleInfo.description.split(" • ");
+                  const intro = parts[0];
+                  const details = parts.slice(1);
+                  return (
+                    <>
+                      <p className="leading-relaxed">{intro}</p>
+                      {details.length > 0 && (
+                        <ul className="space-y-0.5 ml-0">
+                          {details.map((detail, i) => (
+                            <li key={i} className="flex items-start gap-1.5">
+                              <span className="text-blue-500 mt-px">•</span>
+                              <span>{detail}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         )}
 

@@ -1,0 +1,136 @@
+{
+  "experiment_id": "data_agent_f2",
+  "paper_section": "4.2.2 Semantic Schema Inference",
+  "run_timestamp": "20260126_010609",
+  "n_datasets": 44,
+  "n_runs": 1,
+  "agent_enabled": true,
+  "overall_metrics": {
+    "bigbetter_accuracy": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "ranking_items_jaccard": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "indicator_col_accuracy": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "indicator_values_f1": {
+      "mean": 1.0,
+      "std": 0.0
+    }
+  },
+  "category_metrics": {
+    "bigbetter_high": {
+      "bigbetter_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "items_jaccard": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "indicator_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "values_f1": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    },
+    "bigbetter_low": {
+      "bigbetter_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "items_jaccard": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "indicator_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "values_f1": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    },
+    "bigbetter_ambiguous": {
+      "bigbetter_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "items_jaccard": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "indicator_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "values_f1": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    },
+    "indicator_clear": {
+      "bigbetter_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "items_jaccard": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "indicator_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "values_f1": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    },
+    "indicator_none": {
+      "bigbetter_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "items_jaccard": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "indicator_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "values_f1": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    },
+    "items_complex": {
+      "bigbetter_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "items_jaccard": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "indicator_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "values_f1": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    }
+  }
+}

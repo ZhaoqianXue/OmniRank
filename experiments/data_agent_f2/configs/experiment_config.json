@@ -1,0 +1,54 @@
+{
+  "experiment_id": "data_agent_f2",
+  "paper_section": "4.2.2 Semantic Schema Inference",
+  "description": "Evaluate Data Agent's semantic understanding capabilities: BigBetter direction, Ranking Items identification, Indicator Column detection, and Indicator Values extraction.",
+  "random_seed": 42,
+  "n_runs": 1,
+  "evaluation_targets": {
+    "bigbetter": {
+      "description": "Preference direction inference (1=higher is better, 0=lower is better)",
+      "metric": "accuracy"
+    },
+    "ranking_items": {
+      "description": "Identification of numeric columns representing entities to be ranked",
+      "metric": "jaccard_index"
+    },
+    "indicator_col": {
+      "description": "Detection of categorical column for stratified analysis",
+      "metric": "exact_match_accuracy"
+    },
+    "indicator_values": {
+      "description": "Extraction of unique values from indicator column",
+      "metric": "set_f1"
+    }
+  },
+  "dataset_categories": {
+    "bigbetter_high": {
+      "description": "Datasets where higher values indicate better performance",
+      "target": "bigbetter",
+      "expected_bigbetter": 1
+    },
+    "bigbetter_low": {
+      "description": "Datasets where lower values indicate better performance",
+      "target": "bigbetter",
+      "expected_bigbetter": 0
+    },
+    "bigbetter_ambiguous": {
+      "description": "Datasets with ambiguous column names (no clear semantic hint)",
+      "target": "bigbetter",
+      "note": "Tests fallback behavior"
+    },
+    "indicator_clear": {
+      "description": "Datasets with clear indicator column for stratification",
+      "target": "indicator_col"
+    },
+    "indicator_none": {
+      "description": "Datasets without any indicator column",
+      "target": "indicator_col"
+    },
+    "items_complex": {
+      "description": "Datasets with metadata columns that should be excluded from ranking items",
+      "target": "ranking_items"
+    }
+  }
+}
