@@ -91,27 +91,48 @@ class EngineOrchestrator:
         Use LLM to decide whether to run Step 2.
         
         This provides more nuanced reasoning than simple thresholds.
+        Decision logic follows architecture.md:
+        - Gatekeeper: sparsity_ratio >= 1.0 (data sufficiency)
+        - Trigger A: heterogeneity_index > 0.5
+        - Trigger B: mean_ci_width_top_5 > 5.0
         """
         metadata = step1_result.metadata
         
-        prompt = f"""You are an expert in spectral ranking inference. Analyze the following Step 1 results and decide whether Step 2 (refined estimation with optimal weights) should be executed.
+        n_items = metadata.get('k_methods', 1)
+        ci_width = metadata.get('mean_ci_width_top_5', 0)
+        ci_ratio = ci_width / n_items if n_items > 0 else 0
+        
+        prompt = f"""You are an expert in spectral ranking inference. Decide whether Step 2 (refined estimation with optimal weights) should be executed.
 
-Step 1 Metadata:
-- Heterogeneity Index: {metadata.get('heterogeneity_index', 'N/A')}
-- Spectral Gap: {metadata.get('spectral_gap', 'N/A')}
+## Step 1 Metadata
 - Sparsity Ratio: {metadata.get('sparsity_ratio', 'N/A')}
-- Mean CI Width (Top 5): {metadata.get('mean_ci_width_top_5', 'N/A')}
-- Number of Items: {metadata.get('k_methods', 'N/A')}
-- Number of Samples: {metadata.get('n_samples', 'N/A')}
+- Heterogeneity Index: {metadata.get('heterogeneity_index', 'N/A')}
+- Number of Items (n): {n_items}
+- Mean CI Width (Top 5): {ci_width}
+- CI Width Ratio (CI/n): {ci_ratio:.2%}
 
-Criteria for Step 2:
-1. High heterogeneity (>0.3) suggests unbalanced comparison counts
-2. Small spectral gap (<0.1) suggests slow mixing
-3. Wide CI for top items (>3) suggests low inference precision
+## Decision Rules (FOLLOW STRICTLY)
 
-Respond in exactly this format:
+| Condition | Threshold | Role |
+|-----------|-----------|------|
+| Gatekeeper | sparsity_ratio >= 1.0 | MUST pass, otherwise STOP |
+| Trigger A | heterogeneity_index > 0.5 | At least ONE trigger needed |
+| Trigger B | CI_width / n > 0.2 (20%) | At least ONE trigger needed |
+
+## Decision Logic
+```
+IF sparsity_ratio < 1.0:
+    DECISION = NO (Data too sparse, Step 2 unstable)
+ELSE IF heterogeneity_index > 0.5 OR (CI_width / n) > 0.2:
+    DECISION = YES (Refinement beneficial)
+ELSE:
+    DECISION = NO (Step 1 sufficient)
+```
+
+## Your Task
+Apply the rules above to the metadata. Respond in exactly this format:
 DECISION: [YES/NO]
-REASON: [One sentence explanation]
+REASON: [One sentence explanation referencing the specific rule that applies]
 CONFIDENCE: [0.0-1.0]"""
 
         try:
@@ -144,10 +165,10 @@ CONFIDENCE: [0.0-1.0]"""
         except Exception as e:
             logger.error(f"LLM decision failed: {e}, falling back to rule-based")
             # Fallback to rule-based
-            run = should_run_step2(step1_result)
+            run, reason = should_run_step2(step1_result)
             return OrchestratorDecision(
                 run_step2=run,
-                reason="Rule-based decision (LLM failed)",
+                reason=f"Rule-based decision (LLM failed): {reason}",
                 confidence=0.7,
             )
     
@@ -156,29 +177,21 @@ CONFIDENCE: [0.0-1.0]"""
         Decide whether to run Step 2.
         
         Uses either LLM or rule-based decision depending on configuration.
+        
+        Decision Logic:
+        1. GATEKEEPER: sparsity_ratio >= 1.0 (data sufficiency)
+        2. TRIGGERS: heterogeneity > 0.5 OR CI_width/n > 0.2 (20%)
         """
         if self.use_llm_decision:
             return self._make_llm_decision(step1_result)
         
-        # Rule-based decision
-        run = should_run_step2(step1_result)
-        
-        metadata = step1_result.metadata
-        reasons = []
-        
-        if metadata.get("heterogeneity_index", 0) > 0.3:
-            reasons.append("high heterogeneity")
-        if metadata.get("spectral_gap", 1) < 0.1:
-            reasons.append("small spectral gap")
-        if metadata.get("mean_ci_width_top_5", 0) > 3:
-            reasons.append("wide confidence intervals")
-        
-        reason = ", ".join(reasons) if reasons else "metrics within normal range"
+        # Rule-based decision (returns tuple: (bool, str))
+        run, reason = should_run_step2(step1_result)
         
         return OrchestratorDecision(
             run_step2=run,
-            reason=f"Step 2 {'triggered' if run else 'skipped'}: {reason}",
-            confidence=0.85,
+            reason=reason,
+            confidence=0.90,  # High confidence for rule-based deterministic decision
         )
     
     def _preprocess_data(

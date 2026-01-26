@@ -373,13 +373,13 @@ async def _run_analysis_async(session_id: str, config):
         
         # Progress: Starting
         await _send_ws_progress(session_id, 0.1, "Starting analysis...")
-        await _send_ws_agent_message(session_id, AgentType.ORCHESTRATOR, "Preparing spectral ranking computation...")
+        await _send_ws_agent_message(session_id, AgentType.ORCHESTRATOR, "Preparing ranking computation...")
         
         # Run Engine Orchestrator (blocking call in thread pool)
         orchestrator = EngineOrchestrator()
         
-        await _send_ws_progress(session_id, 0.3, "Running Step 1: Vanilla spectral ranking...")
-        await _send_ws_agent_message(session_id, AgentType.ORCHESTRATOR, "Executing R script for initial ranking estimation...")
+        await _send_ws_progress(session_id, 0.3, "Computing rankings...")
+        await _send_ws_agent_message(session_id, AgentType.ORCHESTRATOR, "Running statistical analysis...")
         
         # Execute in thread pool to not block event loop
         loop = asyncio.get_event_loop()

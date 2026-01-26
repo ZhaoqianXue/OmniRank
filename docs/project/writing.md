@@ -90,13 +90,13 @@ The Engine Orchestrator is a **deterministic system component** that manages the
 - **Advanced Options**: Configure statistical parameters such as **Bootstrap Iterations** (default to 2000 for robust CIs) and **Random Seed** (default to 42 for reproducibility).
 This ensures that the final execution aligns precisely with user intent, even if the Data Agent's initial inferences require adjustment.
 
-**Function 2: Robust Engine Execution with Dynamic Orchestration.** It encapsulates the spectral ranking logic, executing it within isolated processes. Crucially, the orchestrator implements the **Two-Step Spectral Method** logic from *Fan et al. (2022)*:
+**Function 2: Robust Engine Execution with Dynamic Orchestration.** It encapsulates the spectral ranking logic, executing it within isolated processes. Crucially, the orchestrator implements the **Two-Step Spectral Method** logic from *Fan et al. (2023)*:
 1. **Initial Estimation**: It first invokes the vanilla spectral engine (`spectral_ranking_step1.R`) using simple weighting ($f(A_l)=|A_l|$) to obtain consistent initial estimates.
-3. **Diagnostic Check & Adaptive Refinement**: It evaluates three statistical criteria autonomously:
-   - **Sparsity Gatekeeper**: Checks if data sufficiency meets the theoretical threshold ($M > n \log n$). If data is too sparse, refinement is skipped to maintain stability.
-   - **Heterogeneity Trigger**: Checks if comparison counts are highly uneven (CV > 0.5).
-   - **Uncertainty Trigger**: Checks if the top-5 items have wide confidence intervals (> 5 ranks).
-   If data is sufficient and either trigger is activated, the orchestrator automatically executes the second estimation step (`spectral_ranking_step2.R`) using optimal weights ($f(A_l) \propto \sum e^{\hat{\theta}_u}$).
+2. **Diagnostic Check & Adaptive Refinement**: It evaluates three statistical criteria autonomously:
+   - **Sparsity Gatekeeper**: Checks if data sufficiency meets the theoretical threshold ($M \geq n \log n$, i.e., sparsity\_ratio $\geq 1.0$). This is the optimal sample complexity requirement (coupon collector bound). If data is too sparse, refinement is skipped to maintain stability.
+   - **Heterogeneity Trigger**: Checks if comparison counts are highly uneven (CV > 0.5). When heterogeneity is high, the vanilla spectral method with uniform weights is suboptimal; optimal weighting provides efficiency gains.
+   - **Uncertainty Trigger**: Checks if the top-5 items have wide confidence intervals relative to the number of items (CI\_width / n > 20%). Wide CIs indicate high variance in Step 1 estimates. Since CI width $\propto \sqrt{\text{Var}}$, Step 2's optimal weighting can reduce variance and narrow confidence intervals (Theorem 2, Remark 6 in Fan et al., 2023).
+   If data is sufficient and either trigger is activated, the orchestrator automatically executes the second estimation step (`spectral_ranking_step2.R`) using optimal weights ($f(A_l) \propto \sum e^{\hat{\theta}_u}$), which achieves the same asymptotic efficiency as MLE (Cramér-Rao lower bound).
 This dynamic workflow ensures that users receive the most statistically efficient estimates without needing to understand the underlying complexity of weighting schemes.
 
 ### 3.4 Analyst Agent
@@ -231,9 +231,9 @@ This section evaluates the intelligent capabilities of OmniRank's agent componen
 **What to include**:
 - **Test Scenarios**: Datasets with varying levels of heterogeneity and sparsity
 - **Trigger Conditions Evaluated**:
-  - **Sparsity Gatekeeper**: Does the orchestrator correctly skip refinement when $M < n \log n$?
+  - **Sparsity Gatekeeper**: Does the orchestrator correctly skip refinement when sparsity\_ratio < 1.0 (i.e., $M < n \log n$)?
   - **Heterogeneity Trigger**: Does it correctly activate when CV > 0.5?
-  - **Uncertainty Trigger**: Does it correctly activate when top-5 CI width > 5 ranks?
+  - **Uncertainty Trigger**: Does it correctly activate when CI\_width / n > 20%?
 - **Metrics**: 
   - Trigger decision accuracy (true positive/negative rates)
   - Ranking improvement when Step 2 is correctly triggered vs. incorrectly skipped

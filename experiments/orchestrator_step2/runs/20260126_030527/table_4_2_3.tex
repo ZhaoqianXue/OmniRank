@@ -1,0 +1,41 @@
+% Table: Two-Step Method Triggering Accuracy (Section 4.2.3)
+% Results over 1 runs
+\begin{table}[htbp]
+\centering
+\caption{Two-Step Method Triggering Decision Accuracy}
+\label{tab:step2_triggering}
+\begin{tabular}{lc}
+\toprule
+Metric & Value \\
+\midrule
+Overall Accuracy & 1.000$\pm$0.000 \\
+Precision (Step 2 Triggered) & 1.000$\pm$0.000 \\
+Recall (Step 2 Triggered) & 1.000$\pm$0.000 \\
+F1 Score & 1.000$\pm$0.000 \\
+Gatekeeper Accuracy & 1.000$\pm$0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Table: Accuracy by Scenario
+\begin{table}[htbp]
+\centering
+\caption{Triggering Accuracy by Test Scenario}
+\label{tab:step2_by_scenario}
+\begin{tabular}{lcc}
+\toprule
+Scenario & Expected & Accuracy \\
+\midrule
+boundary\_sparsity\_above & Yes & 1.000$\pm$0.000 \\
+boundary\_sparsity\_below & No & 1.000$\pm$0.000 \\
+large\_items\_sparse & No & 1.000$\pm$0.000 \\
+large\_items\_sufficient & Yes & 1.000$\pm$0.000 \\
+sparse\_heterogeneous & No & 1.000$\pm$0.000 \\
+sparse\_homogeneous & No & 1.000$\pm$0.000 \\
+sufficient\_both & Yes & 1.000$\pm$0.000 \\
+sufficient\_heterogeneity & Yes & 1.000$\pm$0.000 \\
+sufficient\_no\_trigger & No & 1.000$\pm$0.000 \\
+sufficient\_uncertainty & Yes & 1.000$\pm$0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -365,38 +365,51 @@ class RScriptExecutor:
         self.traces.clear()
 
 
-def should_run_step2(step1_result: Step1Result) -> bool:
+def should_run_step2(step1_result: Step1Result) -> tuple[bool, str]:
     """
     Determine whether Step 2 refinement should be triggered based on Step 1 metadata.
     
-    Criteria for triggering Step 2:
-    1. High heterogeneity index (> 0.3) - comparison counts are unbalanced
-    2. Small spectral gap (< 0.1) - slow mixing, may benefit from refined weights
-    3. Wide CI width for top items - inference precision is low
+    Decision Logic:
+    1. GATEKEEPER: sparsity_ratio >= 1.0 (data sufficiency)
+    2. TRIGGERS: heterogeneity > 0.5 OR CI_width/n > 0.2 (20%)
     
     Args:
         step1_result: Results from Step 1 execution
         
     Returns:
-        True if Step 2 should be executed
+        Tuple of (should_run: bool, reason: str)
     """
     metadata = step1_result.metadata
     
+    sparsity_ratio = metadata.get("sparsity_ratio", 0.0)
     heterogeneity = metadata.get("heterogeneity_index", 0.0)
-    spectral_gap = metadata.get("spectral_gap", 1.0)
     ci_width_top5 = metadata.get("mean_ci_width_top_5", 0.0)
+    n_items = metadata.get("k_methods", 1)  # Number of items being ranked
     
-    # Trigger conditions
-    if heterogeneity > 0.3:
-        logger.info(f"Triggering Step 2: high heterogeneity ({heterogeneity:.3f})")
-        return True
+    # 1. GATEKEEPER: Check data sufficiency
+    if sparsity_ratio < 1.0:
+        reason = f"Data too sparse (sparsity_ratio={sparsity_ratio:.2f} < 1.0). Step 2 would be unstable."
+        logger.info(f"Step 2 blocked by gatekeeper: {reason}")
+        return False, reason
     
-    if spectral_gap < 0.1:
-        logger.info(f"Triggering Step 2: small spectral gap ({spectral_gap:.3f})")
-        return True
+    # 2. CHECK TRIGGERS
+    triggers_activated = []
     
-    if ci_width_top5 > 3.0:
-        logger.info(f"Triggering Step 2: wide CI for top 5 ({ci_width_top5:.1f})")
-        return True
+    # Trigger A: Heterogeneity (CV > 0.5)
+    if heterogeneity > 0.5:
+        triggers_activated.append(f"high heterogeneity ({heterogeneity:.3f} > 0.5)")
     
-    return False
+    # Trigger B: Uncertainty (CI width > 20% of total items)
+    ci_width_ratio = ci_width_top5 / n_items if n_items > 0 else 0.0
+    if ci_width_ratio > 0.2:
+        triggers_activated.append(f"wide CI for top-5 ({ci_width_top5:.1f}/{n_items} = {ci_width_ratio:.1%} > 20%)")
+    
+    # 3. FINAL DECISION
+    if triggers_activated:
+        reason = f"Data sufficient (sparsity_ratio={sparsity_ratio:.2f}). Triggers: {', '.join(triggers_activated)}"
+        logger.info(f"Triggering Step 2: {reason}")
+        return True, reason
+    
+    reason = f"Step 1 sufficient. No triggers activated (heterogeneity={heterogeneity:.3f}, CI_ratio={ci_width_ratio:.1%})"
+    logger.info(f"Step 2 skipped: {reason}")
+    return False, reason

@@ -33,42 +33,42 @@ class AnalystAgent:
     3. Diagnose errors and provide actionable suggestions
     """
     
-    # Knowledge Layer: Domain expertise for spectral ranking inference
+    # Knowledge Layer: Domain expertise for ranking inference
+    # NOTE: This is internal knowledge for the LLM. When generating user-facing content,
+    # avoid technical jargon like "Step 1", "Step 2", "spectral", "vanilla" etc.
     SPECTRAL_KNOWLEDGE = """
-## Spectral Ranking Theory Knowledge Base
+## Ranking Analysis Knowledge Base
 
 ### Core Concept
-Spectral ranking inference uses the stationary distribution of a Markov chain 
-constructed from comparison data to estimate preference scores. The key formula:
-
-θ̂_i = log π̂_i - (1/n) Σ log π̂_k
-
-where π̂ is the stationary distribution of the transition matrix P.
+The ranking method estimates preference scores from comparison data using 
+statistically rigorous inference. Each item receives a score (theta) representing
+its overall preference level.
 
 ### Confidence Intervals
 - CI bounds indicate rank uncertainty; wider CIs suggest less reliable rankings
 - Overlapping CIs between items mean they may be statistically indistinguishable
 - 95% CI: We are 95% confident the true rank falls within this range
 
-### Two-Step Method
-- Step 1: Initial estimation with uniform weights f(A_l) = |A_l|
-- Step 2: Refined estimation with optimal weights f(A_l) ∝ Σ exp(θ̂_u)
-- Step 2 is triggered when heterogeneity is high (uneven comparison counts)
+### Refined Analysis
+- When data is imbalanced (some items compared more than others), the system
+  automatically applies a refined analysis to improve accuracy
+- High heterogeneity (uneven comparison counts) triggers this refinement
+- The refinement uses optimal weighting to account for data imbalance
 
-### Heterogeneity Index
-- Measures variation in comparison frequency across items
-- High heterogeneity (>0.5) suggests Step 2 refinement is beneficial
-- Low heterogeneity means uniform weighting is sufficient
-
-### Sparsity Considerations
-- Minimum comparisons needed: M > n log(n) where n = number of items
-- Sparse data leads to wider confidence intervals
-- Disconnected comparison graphs make cross-component rankings meaningless
+### Data Quality Considerations
+- More comparisons lead to narrower confidence intervals
+- Sparse data leads to wider confidence intervals (less certainty)
+- Items with no comparisons to others cannot be ranked relative to them
 
 ### Comparing Items
 - Use confidence intervals to determine if rank differences are significant
 - If CI_A and CI_B overlap, A and B are statistically tied
-- Score difference (theta_hat) indicates magnitude of preference
+- Score difference indicates magnitude of preference
+
+### IMPORTANT FOR RESPONSES
+When answering user questions, use accessible language. Avoid internal terms like:
+- "Step 1", "Step 2", "vanilla", "spectral method"
+- Instead say: "initial analysis", "refined analysis", "ranking method"
 """
     
     def __init__(self):
@@ -125,8 +125,7 @@ where π̂ is the stationary distribution of the transition matrix P.
 **Analysis Summary:**
 - Number of items ranked: {metadata.n_items}
 - Total comparisons: {metadata.n_comparisons}
-- Heterogeneity index: {metadata.heterogeneity_index:.3f}
-- Step 2 refinement: {'Applied' if metadata.step2_triggered else 'Not needed'}
+- Data balance: {'Heterogeneous (refined analysis applied)' if metadata.step2_triggered else 'Well-balanced'}
 - Runtime: {metadata.runtime_sec:.2f}s
 
 **Ranking Results (sorted by rank):**
@@ -138,7 +137,7 @@ Generate a report that:
 3. Comments on data quality if relevant
 4. Uses professional but accessible language
 
-Keep the report concise (3-5 paragraphs). Do not use overly technical jargon."""
+Keep the report concise (3-5 paragraphs). Do not use overly technical jargon. Do NOT mention internal technical terms like "Step 1", "Step 2", or "spectral method"."""
 
         try:
             response = self.client.chat.completions.create(
@@ -188,7 +187,7 @@ Keep the report concise (3-5 paragraphs). Do not use overly technical jargon."""
             report += f"- **#{item.rank} {item.name}** (score: {item.theta_hat:.3f}, CI: [{item.ci_two_sided[0]}, {item.ci_two_sided[1]}])\n"
         
         if metadata.step2_triggered:
-            report += "\n*Note: Step 2 refinement was applied for improved precision.*"
+            report += "\n*Note: Advanced refinement was applied for improved precision due to data heterogeneity.*"
         
         return report
     
@@ -216,7 +215,7 @@ Keep the report concise (3-5 paragraphs). Do not use overly technical jargon."""
         context = session.to_context_dict()
         ranking_table = self._format_ranking_table(results.items)
         
-        prompt = f"""You are an expert statistical analyst specializing in spectral ranking inference.
+        prompt = f"""You are an expert statistical analyst specializing in ranking inference.
 
 {self.SPECTRAL_KNOWLEDGE}
 
@@ -224,8 +223,8 @@ Keep the report concise (3-5 paragraphs). Do not use overly technical jargon."""
 - File: {context.get('filename', 'Unknown')}
 - Format: {context.get('schema', {}).get('format', 'Unknown')}
 - Items ranked: {results.metadata.n_items}
-- Heterogeneity index: {results.metadata.heterogeneity_index:.3f}
-- Step 2 applied: {'Yes' if results.metadata.step2_triggered else 'No'}
+- Data heterogeneity: {results.metadata.heterogeneity_index:.3f}
+- Refined analysis: {'Yes (due to data imbalance)' if results.metadata.step2_triggered else 'No (data well-balanced)'}
 
 **Current Results:**
 {ranking_table}
@@ -233,10 +232,11 @@ Keep the report concise (3-5 paragraphs). Do not use overly technical jargon."""
 **User Question:**
 {question}
 
-Use your knowledge of spectral ranking theory to provide a clear, accurate answer. 
+Provide a clear, accurate answer using your ranking analysis expertise.
 - Reference confidence intervals when comparing items
 - Explain statistical significance when relevant
-- If the question cannot be answered from the data, explain why"""
+- If the question cannot be answered from the data, explain why
+- IMPORTANT: Do NOT mention internal technical terms like "Step 1", "Step 2", "vanilla spectral", or similar implementation details. Use user-friendly language."""
 
         try:
             response = self.client.chat.completions.create(

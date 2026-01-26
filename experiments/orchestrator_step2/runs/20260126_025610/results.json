@@ -1,0 +1,990 @@
+{
+  "experiment_id": "orchestrator_step2",
+  "paper_section": "4.2.3 Two-Step Method Triggering Accuracy",
+  "run_timestamp": "20260126_025610",
+  "n_datasets": 50,
+  "n_runs": 1,
+  "decision_rules": {
+    "gatekeeper": {
+      "condition": "sparsity_ratio >= 1.0",
+      "threshold": 1.0,
+      "description": "Data sufficiency check based on coupon collector bound (M >= n*log(n))"
+    },
+    "trigger_heterogeneity": {
+      "condition": "heterogeneity_index > 0.5",
+      "threshold": 0.5,
+      "description": "CV of comparison counts indicates unbalanced data"
+    },
+    "trigger_uncertainty": {
+      "condition": "ci_width_ratio > 0.2",
+      "threshold": 0.2,
+      "description": "CI width / n > 20% indicates high variance"
+    }
+  },
+  "metrics": {
+    "overall_accuracy": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "precision": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "recall": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "f1": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "gatekeeper_accuracy": {
+      "mean": 1.0,
+      "std": 0.0
+    }
+  },
+  "scenario_metrics": {
+    "sparse_homogeneous": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "sparse_heterogeneous": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "sufficient_no_trigger": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "sufficient_heterogeneity": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "sufficient_uncertainty": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "sufficient_both": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "boundary_sparsity_below": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "boundary_sparsity_above": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "large_items_sparse": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "large_items_sufficient": {
+      "mean": 0.0,
+      "std": 0.0
+    }
+  },
+  "detailed_results": [
+    {
+      "dataset_id": "sparse_homogeneous_01",
+      "scenario": "sparse_homogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.04 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0434,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sparse_homogeneous_02",
+      "scenario": "sparse_homogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.04 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0434,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 4,
+        "n_items": 10,
+        "ci_width_ratio": 0.4,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sparse_homogeneous_03",
+      "scenario": "sparse_homogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.04 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0434,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 4,
+        "n_items": 10,
+        "ci_width_ratio": 0.4,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sparse_homogeneous_04",
+      "scenario": "sparse_homogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.04 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0434,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sparse_homogeneous_05",
+      "scenario": "sparse_homogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.04 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0434,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sparse_heterogeneous_01",
+      "scenario": "sparse_heterogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.093,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 3.3333,
+        "n_items": 6,
+        "ci_width_ratio": 0.55555,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sparse_heterogeneous_02",
+      "scenario": "sparse_heterogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.30 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.3034,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0.6667,
+        "n_items": 3,
+        "ci_width_ratio": 0.2222333333333333,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sparse_heterogeneous_03",
+      "scenario": "sparse_heterogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.06 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0601,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 5.25,
+        "n_items": 8,
+        "ci_width_ratio": 0.65625,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sparse_heterogeneous_04",
+      "scenario": "sparse_heterogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.093,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 3.3333,
+        "n_items": 6,
+        "ci_width_ratio": 0.55555,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sparse_heterogeneous_05",
+      "scenario": "sparse_heterogeneous",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.07 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0734,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 4.2857,
+        "n_items": 7,
+        "ci_width_ratio": 0.6122428571428572,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_no_trigger_01",
+      "scenario": "sufficient_no_trigger",
+      "expected": false,
+      "expected_reason": "no_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0869,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_no_trigger_02",
+      "scenario": "sufficient_no_trigger",
+      "expected": false,
+      "expected_reason": "no_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0869,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_no_trigger_03",
+      "scenario": "sufficient_no_trigger",
+      "expected": false,
+      "expected_reason": "no_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0869,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_no_trigger_04",
+      "scenario": "sufficient_no_trigger",
+      "expected": false,
+      "expected_reason": "no_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0869,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 9,
+        "n_items": 10,
+        "ci_width_ratio": 0.9,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_no_trigger_05",
+      "scenario": "sufficient_no_trigger",
+      "expected": false,
+      "expected_reason": "no_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0869,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 8.3333,
+        "n_items": 10,
+        "ci_width_ratio": 0.8333299999999999,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_heterogeneity_01",
+      "scenario": "sufficient_heterogeneity",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.10 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.1011,
+        "heterogeneity_index": 0.2943,
+        "ci_width_top5": 6.2222,
+        "n_items": 9,
+        "ci_width_ratio": 0.6913555555555555,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_heterogeneity_02",
+      "scenario": "sufficient_heterogeneity",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0869,
+        "heterogeneity_index": 0.3462,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_heterogeneity_03",
+      "scenario": "sufficient_heterogeneity",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.10 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.1011,
+        "heterogeneity_index": 0.3536,
+        "ci_width_top5": 6.4444,
+        "n_items": 9,
+        "ci_width_ratio": 0.7160444444444445,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_heterogeneity_04",
+      "scenario": "sufficient_heterogeneity",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.15 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.1468,
+        "heterogeneity_index": 0.3276,
+        "ci_width_top5": 4.2857,
+        "n_items": 7,
+        "ci_width_ratio": 0.6122428571428572,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_heterogeneity_05",
+      "scenario": "sufficient_heterogeneity",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0869,
+        "heterogeneity_index": 0.3692,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_uncertainty_01",
+      "scenario": "sufficient_uncertainty",
+      "expected": true,
+      "expected_reason": "uncertainty_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.06 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0601,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 5.25,
+        "n_items": 8,
+        "ci_width_ratio": 0.65625,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_uncertainty_02",
+      "scenario": "sufficient_uncertainty",
+      "expected": true,
+      "expected_reason": "uncertainty_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.06 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0601,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 5.25,
+        "n_items": 8,
+        "ci_width_ratio": 0.65625,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_uncertainty_03",
+      "scenario": "sufficient_uncertainty",
+      "expected": true,
+      "expected_reason": "uncertainty_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.06 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0601,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 4,
+        "n_items": 8,
+        "ci_width_ratio": 0.5,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_uncertainty_04",
+      "scenario": "sufficient_uncertainty",
+      "expected": true,
+      "expected_reason": "uncertainty_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.06 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0601,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 4,
+        "n_items": 8,
+        "ci_width_ratio": 0.5,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_uncertainty_05",
+      "scenario": "sufficient_uncertainty",
+      "expected": true,
+      "expected_reason": "uncertainty_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.06 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0601,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 5.25,
+        "n_items": 8,
+        "ci_width_ratio": 0.65625,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_both_01",
+      "scenario": "sufficient_both",
+      "expected": true,
+      "expected_reason": "both_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.72 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.7213,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 2,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_both_02",
+      "scenario": "sufficient_both",
+      "expected": true,
+      "expected_reason": "both_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.30 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.3034,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0.6667,
+        "n_items": 3,
+        "ci_width_ratio": 0.2222333333333333,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_both_03",
+      "scenario": "sufficient_both",
+      "expected": true,
+      "expected_reason": "both_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.093,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 3.3333,
+        "n_items": 6,
+        "ci_width_ratio": 0.55555,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_both_04",
+      "scenario": "sufficient_both",
+      "expected": true,
+      "expected_reason": "both_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.12 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.1243,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 2.4,
+        "n_items": 5,
+        "ci_width_ratio": 0.48,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "sufficient_both_05",
+      "scenario": "sufficient_both",
+      "expected": true,
+      "expected_reason": "both_triggers",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.30 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.3034,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0.6667,
+        "n_items": 3,
+        "ci_width_ratio": 0.2222333333333333,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_below_01",
+      "scenario": "boundary_sparsity_below",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.18 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.1803,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 1.5,
+        "n_items": 4,
+        "ci_width_ratio": 0.375,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_below_02",
+      "scenario": "boundary_sparsity_below",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.07 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0734,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 4.2857,
+        "n_items": 7,
+        "ci_width_ratio": 0.6122428571428572,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_below_03",
+      "scenario": "boundary_sparsity_below",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.06 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0601,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 4.5,
+        "n_items": 8,
+        "ci_width_ratio": 0.5625,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_below_04",
+      "scenario": "boundary_sparsity_below",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.093,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 3.3333,
+        "n_items": 6,
+        "ci_width_ratio": 0.55555,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_below_05",
+      "scenario": "boundary_sparsity_below",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.12 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.1243,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 2.4,
+        "n_items": 5,
+        "ci_width_ratio": 0.48,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_above_01",
+      "scenario": "boundary_sparsity_above",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.093,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 3.3333,
+        "n_items": 6,
+        "ci_width_ratio": 0.55555,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_above_02",
+      "scenario": "boundary_sparsity_above",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.07 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0734,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 4.2857,
+        "n_items": 7,
+        "ci_width_ratio": 0.6122428571428572,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_above_03",
+      "scenario": "boundary_sparsity_above",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.06 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0601,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 5.25,
+        "n_items": 8,
+        "ci_width_ratio": 0.65625,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_above_04",
+      "scenario": "boundary_sparsity_above",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.09 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.093,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 3.3333,
+        "n_items": 6,
+        "ci_width_ratio": 0.55555,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "boundary_sparsity_above_05",
+      "scenario": "boundary_sparsity_above",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.30 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.3034,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0.6667,
+        "n_items": 3,
+        "ci_width_ratio": 0.2222333333333333,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sparse_01",
+      "scenario": "large_items_sparse",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.02 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0167,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 8.4,
+        "n_items": 20,
+        "ci_width_ratio": 0.42000000000000004,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sparse_02",
+      "scenario": "large_items_sparse",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.02 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0167,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 20,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sparse_03",
+      "scenario": "large_items_sparse",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.02 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0167,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 20,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sparse_04",
+      "scenario": "large_items_sparse",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.02 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0167,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 20,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sparse_05",
+      "scenario": "large_items_sparse",
+      "expected": false,
+      "expected_reason": "gatekeeper_blocked",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.02 < 1.0)",
+      "correct": true,
+      "details": {
+        "sparsity_ratio": 0.0167,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 20,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sufficient_01",
+      "scenario": "large_items_sufficient",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.04 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0434,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sufficient_02",
+      "scenario": "large_items_sufficient",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.04 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0434,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 10,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sufficient_03",
+      "scenario": "large_items_sufficient",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.03 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0335,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 12,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sufficient_04",
+      "scenario": "large_items_sufficient",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.03 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.03,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 0,
+        "n_items": 13,
+        "ci_width_ratio": 0.0,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    },
+    {
+      "dataset_id": "large_items_sufficient_05",
+      "scenario": "large_items_sufficient",
+      "expected": true,
+      "expected_reason": "heterogeneity_trigger",
+      "predicted": false,
+      "predicted_reason": "Gatekeeper blocked (sparsity=0.02 < 1.0)",
+      "correct": false,
+      "details": {
+        "sparsity_ratio": 0.0225,
+        "heterogeneity_index": 0,
+        "ci_width_top5": 7,
+        "n_items": 16,
+        "ci_width_ratio": 0.4375,
+        "gatekeeper_passed": false,
+        "triggers": []
+      }
+    }
+  ]
+}

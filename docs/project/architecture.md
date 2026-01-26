@@ -669,16 +669,25 @@ class EngineOrchestratorAgent:
     
     CRITICAL DECISION HEURISTICS (Follow strictly):
     
+    Theoretical Background (Fan et al., 2023 - Spectral Ranking Inferences):
+    - Two-step method uses optimal weighting f(A_l) ∝ Σexp(θ_u) to minimize variance
+    - This achieves MLE efficiency (Cramér-Rao lower bound) per Remark 6
+    - CI width ∝ √Var, so reducing variance narrows confidence intervals
+    
     1. CHECK DATA SUFFICIENCY (Gatekeeper):
        - Observe 'sparsity_ratio' (M / n*log(n)).
        - If sparsity_ratio < 1.0: The data is too sparse. Step 2 (weight estimation) will be unstable.
          -> DECISION: STOP. (Step 2 is unsafe).
+       - Theoretical basis: Optimal sample complexity requires M ≥ n*log(n) (coupon collector bound).
          
     2. CHECK REFINEMENT NEED (Triggers):
        - Trigger A (Heterogeneity): Observe 'heterogeneity_index'.
-         If > 0.5, comparison counts are highly uneven, causing bias in Step 1. Refinement is needed.
-       - Trigger B (Uncertainty): Observe 'mean_ci_width_top_5'.
-         If > 5.0 (ranks), the top items have very wide confidence intervals. Refinement is needed to reduce variance.
+         If > 0.5, comparison counts are highly uneven. Vanilla spectral method with uniform 
+         weights f(A_l) = |A_l| is suboptimal; optimal weighting provides efficiency gain.
+       - Trigger B (Uncertainty): Observe 'mean_ci_width_top_5' and 'k_methods' (number of items).
+         If (mean_ci_width_top_5 / k_methods) > 0.2, the top items have wide confidence intervals 
+         (> 20% of total items). Wide CIs indicate high variance; Step 2 can reduce variance
+         and narrow CIs (Theorem 2, Eq. 6 in Fan et al., 2023).
          
     FINAL LOGIC:
     IF (Data Sufficient) AND (Heterogeneous OR Uncertain):
