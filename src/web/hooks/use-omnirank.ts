@@ -8,6 +8,7 @@ import {
   getResults,
   createWebSocket,
   askQuestion,
+  askGeneralQuestion,
   loadExampleData as apiLoadExampleData,
   getDataPreview,
   EXAMPLE_DATASETS,
@@ -34,7 +35,7 @@ export interface ChatMessage {
   timestamp: number;
   agent?: "data" | "orchestrator" | "analyst";
   // Special message types for interactive components
-  type?: "text" | "data-agent-working" | "ranking-config";
+  type?: "text" | "data-agent-working" | "ranking-config" | "analysis-complete";
   // Data for ranking-config type
   configData?: {
     schema: InferredSchema;
@@ -43,6 +44,10 @@ export interface ChatMessage {
   // Data for data-agent-working type
   workingData?: {
     isComplete: boolean;
+  };
+  // Data for analysis-complete type
+  analysisCompleteData?: {
+    suggestedQuestions: string[];
   };
 }
 
@@ -134,13 +139,14 @@ export function useOmniRank() {
 
   // Add a chat message
   const addMessage = useCallback((
-    role: ChatMessage["role"], 
-    content: string, 
+    role: ChatMessage["role"],
+    content: string,
     agent?: ChatMessage["agent"],
-    options?: { 
-      type?: ChatMessage["type"]; 
+    options?: {
+      type?: ChatMessage["type"];
       configData?: ChatMessage["configData"];
       workingData?: ChatMessage["workingData"];
+      analysisCompleteData?: ChatMessage["analysisCompleteData"];
     }
   ) => {
     const message: ChatMessage = {
@@ -152,6 +158,7 @@ export function useOmniRank() {
       type: options?.type,
       configData: options?.configData,
       workingData: options?.workingData,
+      analysisCompleteData: options?.analysisCompleteData,
     };
     setState((prev) => ({
       ...prev,
@@ -250,9 +257,9 @@ export function useOmniRank() {
               "assistant",
               "",
               "data",
-              { 
-                type: "ranking-config", 
-                configData: { schema: payload.inferred_schema, warnings: payload.warnings } 
+              {
+                type: "ranking-config",
+                configData: { schema: payload.inferred_schema, warnings: payload.warnings }
               }
             );
 
@@ -270,11 +277,8 @@ export function useOmniRank() {
               progress: payload.progress,
               progressMessage: payload.message,
             }));
-          } else if (msg.type === "agent_message") {
-            const payload = msg.payload as { agent: string; message: string };
-            addMessage("assistant", payload.message, payload.agent as ChatMessage["agent"]);
           } else if (msg.type === "result") {
-            const payload = msg.payload as { results: RankingResults };
+            const payload = msg.payload as { results: RankingResults; suggested_questions?: string[] };
             setState((prev) => ({
               ...prev,
               results: payload.results,
@@ -283,6 +287,18 @@ export function useOmniRank() {
               progressMessage: "Complete!",
               isReportVisible: true,  // Auto-show report when ranking completes
             }));
+            // Add analysis complete message with suggested questions
+            addMessage(
+              "assistant",
+              "",
+              "analyst",
+              {
+                type: "analysis-complete",
+                analysisCompleteData: {
+                  suggestedQuestions: payload.suggested_questions || [],
+                },
+              }
+            );
           } else if (msg.type === "error") {
             const payload = msg.payload as { error: string };
             setState((prev) => ({
@@ -402,23 +418,25 @@ export function useOmniRank() {
     }
   }, [state.sessionId, addMessage]);
 
-  // Send a follow-up question to the Analyst Agent
+  // Send a question to the Analyst Agent
+  // Supports three stages:
+  // 1. Pre-upload: General questions about system and methodology
+  // 2. Post-schema: Questions about data format and configuration
+  // 3. Post-analysis: Questions about ranking results
   const sendMessage = useCallback(async (message: string) => {
-    if (!state.sessionId) {
-      addMessage("assistant", "Please upload a dataset first so I can help you analyze it.", "analyst");
-      return;
-    }
-
-    if (!state.results) {
-      addMessage("assistant", "I'm still analyzing your data. Please wait a moment for the results.", "analyst");
-      return;
-    }
-
     // Add user message
     addMessage("user", message);
 
     try {
-      const response = await askQuestion(state.sessionId, message);
+      let response;
+
+      if (!state.sessionId) {
+        // Pre-upload stage: Ask general questions
+        response = await askGeneralQuestion(message);
+      } else {
+        // Post-schema or Post-analysis: Ask with session context
+        response = await askQuestion(state.sessionId, message);
+      }
 
       // Add assistant response
       addMessage("assistant", response.answer, "analyst");
@@ -427,7 +445,7 @@ export function useOmniRank() {
       addMessage("system", `Error: ${errorMessage}`);
       throw error;
     }
-  }, [state.sessionId, state.results, addMessage]);
+  }, [state.sessionId, addMessage]);
 
   // Load example data - Two phase process (same as file upload)
   const loadExampleData = useCallback(async (exampleId: string) => {
@@ -509,9 +527,9 @@ export function useOmniRank() {
               "assistant",
               "",
               "data",
-              { 
-                type: "ranking-config", 
-                configData: { schema: payload.inferred_schema, warnings: payload.warnings } 
+              {
+                type: "ranking-config",
+                configData: { schema: payload.inferred_schema, warnings: payload.warnings }
               }
             );
 
@@ -529,11 +547,8 @@ export function useOmniRank() {
               progress: payload.progress,
               progressMessage: payload.message,
             }));
-          } else if (msg.type === "agent_message") {
-            const payload = msg.payload as { agent: string; message: string };
-            addMessage("assistant", payload.message, payload.agent as ChatMessage["agent"]);
           } else if (msg.type === "result") {
-            const payload = msg.payload as { results: RankingResults };
+            const payload = msg.payload as { results: RankingResults; suggested_questions?: string[] };
             setState((prev) => ({
               ...prev,
               results: payload.results,
@@ -542,6 +557,18 @@ export function useOmniRank() {
               progressMessage: "Complete!",
               isReportVisible: true,  // Auto-show report when ranking completes
             }));
+            // Add analysis complete message with suggested questions
+            addMessage(
+              "assistant",
+              "",
+              "analyst",
+              {
+                type: "analysis-complete",
+                analysisCompleteData: {
+                  suggestedQuestions: payload.suggested_questions || [],
+                },
+              }
+            );
           } else if (msg.type === "error") {
             const payload = msg.payload as { error: string };
             setState((prev) => ({

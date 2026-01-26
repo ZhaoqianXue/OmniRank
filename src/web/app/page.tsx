@@ -89,10 +89,13 @@ export default function Home() {
                 <ReportOverlay
                   isVisible={state.isReportVisible}
                   results={state.results}
+                  schema={state.schema}
+                  config={state.config}
                   onClose={hideReport}
+                  onSendMessage={sendMessage}
                 />
               )}
-              
+
               <CardContent className="flex-1 flex flex-col min-h-0">
                 {/* Initial State: Upload zone + Example selector - only show when truly idle */}
                 {isIdle && !hasData && (
@@ -179,20 +182,24 @@ export default function Home() {
                 <ChatInterface
                   messages={state.messages}
                   onStartAnalysis={startAnalysis}
+                  onSendMessage={sendMessage}
                   isAnalyzing={isAnalyzing}
-                  isCompleted={showResults}
+                  isCompleted={!!showResults}
                   isReportVisible={state.isReportVisible}
                   onToggleReport={toggleReportVisibility}
                   className="h-full"
                 />
               </CardContent>
 
-              {/* Simple Chat Input */}
+              {/* Smart Chat Input with Quick Start */}
               <div className="p-2 border-t border-border/40">
                 <ChatInput
                   onSend={sendMessage}
                   disabled={false}
-                  placeholder="Type a message..."
+                  placeholder="Type your message..."
+                  status={state.status}
+                  schema={state.schema}
+                  results={state.results}
                 />
               </div>
             </Card>

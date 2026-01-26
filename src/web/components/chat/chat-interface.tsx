@@ -7,12 +7,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { RankingPreviewBubble } from "./ranking-preview-bubble";
 import { DataAgentWorkingBubble } from "./data-agent-working-bubble";
+import { AnalysisCompleteBubble } from "./analysis-complete-bubble";
 import type { ChatMessage } from "@/hooks/use-omnirank";
 import type { AnalysisConfig } from "@/lib/api";
 
 interface ChatInterfaceProps {
   messages: ChatMessage[];
   onStartAnalysis?: (config: AnalysisConfig) => void;
+  onSendMessage?: (message: string) => void;
   isAnalyzing?: boolean;
   isCompleted?: boolean;
   isReportVisible?: boolean;
@@ -39,6 +41,7 @@ const MessageIcon = memo(function MessageIcon({ role }: { role: ChatMessage["rol
 interface ChatMessageItemProps {
   message: ChatMessage;
   onStartAnalysis?: (config: AnalysisConfig) => void;
+  onSendMessage?: (message: string) => void;
   isAnalyzing?: boolean;
   isCompleted?: boolean;
   isReportVisible?: boolean;
@@ -48,6 +51,7 @@ interface ChatMessageItemProps {
 const ChatMessageItem = memo(function ChatMessageItem({ 
   message, 
   onStartAnalysis,
+  onSendMessage,
   isAnalyzing = false,
   isCompleted = false,
   isReportVisible = true,
@@ -57,6 +61,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
   const isSystem = message.role === "system";
   const isConfigMessage = message.type === "ranking-config" && message.configData;
   const isWorkingMessage = message.type === "data-agent-working";
+  const isAnalysisCompleteMessage = message.type === "analysis-complete" && message.analysisCompleteData;
 
   // Render Data Agent working bubble
   if (isWorkingMessage) {
@@ -71,6 +76,25 @@ const ChatMessageItem = memo(function ChatMessageItem({
         <MessageIcon role="assistant" />
         <DataAgentWorkingBubble
           isComplete={message.workingData?.isComplete}
+        />
+      </motion.div>
+    );
+  }
+
+  // Render analysis complete bubble with suggested questions
+  if (isAnalysisCompleteMessage && message.analysisCompleteData) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        layout
+        className="flex w-full gap-2 mb-4 items-end flex-row"
+      >
+        <MessageIcon role="assistant" />
+        <AnalysisCompleteBubble
+          suggestedQuestions={message.analysisCompleteData.suggestedQuestions}
+          onAskQuestion={onSendMessage}
         />
       </motion.div>
     );
@@ -151,6 +175,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
 export function ChatInterface({ 
   messages, 
   onStartAnalysis,
+  onSendMessage,
   isAnalyzing = false,
   isCompleted = false,
   isReportVisible = true,
@@ -175,6 +200,7 @@ export function ChatInterface({
               key={message.id} 
               message={message}
               onStartAnalysis={onStartAnalysis}
+              onSendMessage={onSendMessage}
               isAnalyzing={isAnalyzing}
               isCompleted={isCompleted}
               isReportVisible={isReportVisible}

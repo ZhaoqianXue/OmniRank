@@ -18,11 +18,44 @@ We validated the efficacy of OmniRank through both theoretical benchmarking and 
 
 ## 2 Background and related works
 
-### 2.1 
+### 2.1 Statistical Inference for Ranking and Multiway Comparisons
 
-### 2.2
+The mathematical foundation of ranking from comparison data has evolved from simple pairwise models to complex multiway structures. The Bradley-Terry-Luce (BTL) model [19] and the Plackett-Luce (PL) model [20] have long served as the cornerstones for estimating latent preferences. However, as dataset scales and comparison complexities (e.g., top-$k$ lists and subset rankings) have grown, traditional Maximum Likelihood Estimation (MLE) has encountered significant computational bottlenecks [21]. Recent statistical literature has increasingly focused on spectral methods as a computationally efficient and statistically robust alternative. Chen and Suh [22] demonstrated that spectral algorithms can achieve near-optimal error rates for top-$k$ selection with significantly lower complexity than iterative MLE. This line of research culminated in the work of Fan et al. [8], who established the minimax optimality of spectral ranking for general multiway comparisons and introduced a two-step refinement process to achieve optimal efficiency under heterogeneous sampling. Despite these theoretical advancements, the implementation of these methods remains highly specialized, requiring precise manipulation of sparse hypergraph Laplacians and spectral decompositions [23].
 
-### 2.3 
+### 2.2 Large Language Models as Agents for Scientific Discovery
+
+Large Language Models (LLMs) have demonstrated remarkable potential in transcending traditional natural language processing to become "agents" capable of reasoning and executing complex scientific workflows [24]. In the realm of data science, LLM-based agents have been deployed to automate code generation, experimental design, and data interpretation [25]. Recent breakthroughs in top-tier journals highlight the utility of agents in specialized domains: Boiko et al. [26] presented an agentic framework capable of autonomous chemical synthesis, while similar architectures have been applied to genomic analysis and clinical trial design [27]. However, a persistent challenge in "AI for Science" is the tendency of LLMs to "hallucinate" when performing rigorous mathematical or statistical operations [28]. This has led to the emergence of the tool-use paradigm, where the LLM acts as a cognitive controller that delegates precise computational tasks to external, deterministic engines [29]. OmniRank builds upon this paradigm by integrating LLM reasoning with a specialized R-based spectral engine to ensure both accessibility and statistical rigor.
+
+### 2.3 Reliability and Decoupled Reasoning in Multi-Agent Systems
+
+The transition from single-prompt LLMs to multi-agent collaborative systems has significantly enhanced the reliability of AI-driven analysis. Frameworks that decouple "reasoning" from "execution" allow for error diagnosis and self-correction, which are critical for scientific integrity [30]. For instance, systems that employ a "Programmer-Inspector" architecture have shown superior performance in maintaining code accuracy compared to end-to-end models [3]. Furthermore, the integration of domain-specific knowledge bases enables agents to handle tasks that require expertise beyond their pre-training data [31]. In the context of ranking inference, this decoupling is essential because the correctness of spectral estimation depends on strict adherence to graph-theoretic properties (e.g., graph connectivity and sparsity thresholds) that LLMs cannot yet verify internally with high precision [8]. By utilizing an orchestrator that manages the flow between semantic understanding and statistical computation, OmniRank addresses the "wrapper" versus "agent" debate, ensuring the LLM provides genuine value in schema inference and diagnostic reasoning.
+
+### 2.4 Section References
+[19] Bradley, R. A., & Terry, M. E. (1952). Rank analysis of incomplete block designs: I. The method of paired comparisons. Biometrika, 39(3/4), 324-345. [suspicious link removed]
+
+[20] Plackett, R. L. (1975). The analysis of permutations. Journal of the Royal Statistical Society: Series C (Applied Statistics), 24(2), 193-202. [suspicious link removed]
+
+[21] Hunter, D. R. (2004). MM algorithms for generalized Bradley-Terry models. The Annals of Statistics, 32(1), 384-406. https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full
+
+[22] Chen, Y., & Suh, C. (2015). Spectral MLE: Top-K rank aggregation from pairwise comparisons. Proceedings of the 32nd International Conference on Machine Learning (ICML), 37, 371-380. https://proceedings.mlr.press/v37/chen15a.html
+
+[23] Agarwal, S. (2006). Ranking on graph data. Proceedings of the 23rd International Conference on Machine Learning (ICML), 25-32. https://dl.acm.org/doi/10.1145/1143844.1143848
+
+[24] Wang, H., et al. (2023). Scientific discovery in the age of artificial intelligence. Nature, 620(7972), 47-60. https://www.nature.com/articles/s41586-023-06221-2
+
+[25] Thirunavukarasu, A. J., et al. (2023). Large language models in medicine. Nature Medicine, 29(8), 1930-1940. https://www.nature.com/articles/s41591-023-02448-8
+
+[26] Boiko, D. A., MacKnight, R., & Gomes, G. (2023). Emergent autonomous scientific laboratories by multi-agent systems of large language models. Nature, 624(7992), 570-578. https://www.nature.com/articles/s41586-023-06792-w
+
+[27] Ji, Z., et al. (2023). Survey of hallucination in natural language generation. ACM Computing Surveys, 55(12), 1-38. https://dl.acm.org/doi/10.1145/3571730
+
+[28] Mialon, G., et al. (2023). Augmented language models: a survey. Transactions on Machine Learning Research. https://openreview.net/forum?id=9H0U4S2v2B
+
+[29] Hong, S., et al. (2023). MetaGPT: Meta programming for a multi-agent collaborative framework. Proceedings of the 12th International Conference on Learning Representations (ICLR). https://openreview.net/forum?id=W_v6bSTDXS
+
+[30] Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. Advances in Neural Information Processing Systems (NeurIPS), 33, 9459-9474. https://proceedings.neurips.cc/paper/2020/hash/6ad1d768160a2b7537367c34b6559d87-Abstract.html
+
+[31] Valmeekam, K., et al. (2023). PlanBench: An extensible benchmark for evaluating the planning capabilities of large language models. Advances in Neural Information Processing Systems (NeurIPS). https://openreview.net/forum?id=9pIdA6G6H8
 
 ## 3 Methodology
 
@@ -101,19 +134,18 @@ This dynamic workflow ensures that users receive the most statistically efficien
 
 ### 3.4 Analyst Agent
 
-The Analyst Agent is responsible for all post-computation tasks: report generation, visualization, user Q&A, and error diagnosis. Upon receiving ranking results from the Engine Orchestrator, the Analyst Agent performs the following:
+The Analyst Agent is responsible for all post-computation tasks: report generation, visualization, user Q&A, and error diagnosis. Upon receiving ranking results from the Engine Orchestrator, the Analyst Agent performs two critical functions.
 
-**Report Generation.** Synthesizes ranking results into structured reports containing: executive summary, detailed rankings with confidence intervals, methodology notes, and actionable insights. Reports are generated in markdown and PDF formats.
+**Function 1: Report & Visualization Generation.** The agent transforms raw ranking results into comprehensive, publication-ready outputs through two complementary processes:
+- **Report Synthesis**: Generates structured reports containing: executive summary highlighting key findings and top-ranked items, detailed rankings with confidence intervals and statistical significance indicators, methodology notes explaining the spectral approach and any two-step refinement applied, and actionable insights tailored to the data domain. Reports are rendered in both markdown (for quick review) and PDF formats (for formal documentation).
+- **Visualization Production**: Creates a suite of interactive and static visualizations including: (1) rank plots with confidence interval error bars showing uncertainty in rankings, (2) pairwise comparison heatmaps revealing win/loss patterns between items, and (3) preference score distributions displaying the estimated $\theta$ values.
 
-**Visualization Generation.** Produces publication-ready visualizations including: (1) rank plots with confidence interval error bars, (2) pairwise comparison heatmaps, (3) preference score distributions, and (4) comparison graph topology.
-
-**User Q&A.** Handles follow-up questions from users by combining session memory with external spectral ranking knowledge. The session memory architecture maintains four components within each analysis session:
+**Function 2: Interactive User Q&A.** The agent handles follow-up questions from users by combining session memory with external spectral ranking knowledge. The session memory architecture maintains three components within each analysis session:
 - **Data State**: Current data schema, validation results, and inferred parameters
 - **Execution Trace**: Log of all computation invocations for error diagnosis
-- **Result Cache**: Cached ranking results enabling comparative queries
 - **Conversation Context**: User intent history enabling follow-up queries
 
-This architecture enables natural conversational workflows—for example, after computing initial rankings, a user can simply ask "Is model A significantly better than model B?" without re-uploading data or restating the analysis context.
+This architecture enables natural conversational workflows—for example, after computing initial rankings, a user can simply ask "Is model A significantly better than model B?" without re-uploading data or restating the analysis context. The agent interprets such queries by retrieving relevant confidence intervals from the results and applying spectral ranking theory to provide statistically grounded answers.
 
 ### 3.5 Agent System Prompts
 

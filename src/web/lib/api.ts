@@ -69,6 +69,13 @@ export interface RankingMetadata {
   runtime_sec: number;
 }
 
+export interface SectionQuestions {
+  rankings: string[];
+  insights: string[];
+  score_distribution: string[];
+  confidence_intervals: string[];
+}
+
 export interface RankingResults {
   items: RankingItem[];
   metadata: RankingMetadata;
@@ -78,6 +85,8 @@ export interface RankingResults {
     win_rate_a: number;
     n_comparisons: number;
   }>;
+  report?: string;  // LLM-generated analysis report (markdown)
+  section_questions?: SectionQuestions;  // LLM-generated questions for each section
 }
 
 export interface AnalyzeResponse {
@@ -287,6 +296,29 @@ export async function askQuestion(
       session_id: sessionId,
       question,
     }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to get answer");
+  }
+
+  return response.json();
+}
+
+/**
+ * Send a general question without session context.
+ * Used in pre-upload stage for questions about system and methodology.
+ */
+export async function askGeneralQuestion(
+  question: string
+): Promise<ChatResponse> {
+  const response = await fetch(`${API_URL}/api/chat/general`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ question }),
   });
 
   if (!response.ok) {

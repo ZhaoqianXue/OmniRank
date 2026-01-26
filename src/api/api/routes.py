@@ -58,6 +58,17 @@ class ChatResponse(BaseModel):
     """Response body for chat endpoint."""
     answer: str
     agent: str = "analyst"
+
+
+class GeneralChatRequest(BaseModel):
+    """Request body for general chat endpoint (no session required)."""
+    question: str
+
+
+class GeneralChatResponse(BaseModel):
+    """Response body for general chat endpoint."""
+    answer: str
+    agent: str = "analyst"
 from core.session_memory import get_session_store
 from agents.data_agent import DataAgent
 from agents.orchestrator import EngineOrchestrator
@@ -307,6 +318,22 @@ async def _send_ws_result(session_id: str, results):
         logger.debug(f"WebSocket send failed: {e}")
 
 
+async def _send_ws_result_with_questions(session_id: str, results, suggested_questions: list[str]):
+    """Send final results with suggested questions via WebSocket."""
+    try:
+        manager = get_connection_manager()
+        ws_message = WSMessage(
+            type=WSMessageType.RESULT,
+            payload={
+                "results": results.model_dump() if results else None,
+                "suggested_questions": suggested_questions or [],
+            },
+        )
+        await manager.send_message(session_id, ws_message)
+    except Exception as e:
+        logger.debug(f"WebSocket send failed: {e}")
+
+
 async def _send_ws_error(session_id: str, error: str):
     """Send error via WebSocket."""
     try:
@@ -373,36 +400,38 @@ async def _run_analysis_async(session_id: str, config):
         
         # Progress: Starting
         await _send_ws_progress(session_id, 0.1, "Starting analysis...")
-        await _send_ws_agent_message(session_id, AgentType.ORCHESTRATOR, "Preparing ranking computation...")
         
         # Run Engine Orchestrator (blocking call in thread pool)
         orchestrator = EngineOrchestrator()
         
         await _send_ws_progress(session_id, 0.3, "Computing rankings...")
-        await _send_ws_agent_message(session_id, AgentType.ORCHESTRATOR, "Running statistical analysis...")
         
         # Execute in thread pool to not block event loop
         loop = asyncio.get_event_loop()
         results = await loop.run_in_executor(None, orchestrator.execute, session, config)
         
-        await _send_ws_progress(session_id, 0.7, "Analysis complete. Generating report...")
-        await _send_ws_agent_message(session_id, AgentType.ANALYST, "Creating summary report...")
+        await _send_ws_progress(session_id, 0.7, "Generating report...")
         
-        # Generate report
+        # Generate report, suggested questions, and section questions
         analyst = AnalystAgent()
         report = await loop.run_in_executor(None, analyst.generate_report, results, session)
+        suggested_questions = await loop.run_in_executor(None, analyst.generate_suggested_questions, results)
+        section_questions = await loop.run_in_executor(None, analyst.generate_section_questions, results)
+        
+        # Attach report and section questions to results
+        results.report = report
+        results.section_questions = section_questions
         
         await _send_ws_progress(session_id, 0.9, "Finalizing results...")
         
         # Update session
         session.results = results
         session.status = SessionStatus.COMPLETED
-        session.add_message("assistant", report, agent=None)
         store.update_session(session)
         
-        # Send final results
+        # Send final results (now includes report and suggested questions)
         await _send_ws_progress(session_id, 1.0, "Complete!")
-        await _send_ws_result(session_id, results)
+        await _send_ws_result_with_questions(session_id, results, suggested_questions)
         
     except Exception as e:
         logger.error(f"Analysis failed: {e}")
@@ -510,10 +539,30 @@ async def get_messages(session_id: str):
     }
 
 
+@router.post("/chat/general", response_model=GeneralChatResponse)
+async def chat_general(request: GeneralChatRequest):
+    """
+    Ask a general question about OmniRank without needing a session.
+    
+    Used in the pre-upload stage for questions about:
+    - System capabilities and methodology
+    - Data format requirements
+    - Getting started guidance
+    """
+    analyst = AnalystAgent()
+    answer = analyst.answer_general_question(request.question)
+    
+    return GeneralChatResponse(answer=answer, agent="analyst")
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
-    Ask a follow-up question about the analysis results.
+    Ask a question about the analysis.
+    
+    Supports two stages:
+    1. Post-schema (no results): Questions about data format, configuration, methodology
+    2. Post-analysis (with results): Questions about specific ranking results
     
     The Analyst Agent will answer using:
     - Session context (data schema, execution trace)
@@ -526,18 +575,18 @@ async def chat(request: ChatRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    if not session.results:
-        raise HTTPException(
-            status_code=400,
-            detail="No analysis results available. Please complete the analysis first.",
-        )
-    
     # Add user question to session messages
     session.add_message("user", request.question, agent=None)
     
-    # Get answer from Analyst Agent
+    # Get answer from Analyst Agent based on analysis stage
     analyst = AnalystAgent()
-    answer = analyst.answer_question(request.question, session.results, session)
+    
+    if session.results:
+        # Post-analysis: Full context with results
+        answer = analyst.answer_question(request.question, session.results, session)
+    else:
+        # Post-schema: Schema context without results
+        answer = analyst.answer_schema_question(request.question, session)
     
     # Add answer to session messages
     session.add_message("assistant", answer, agent=AgentType.ANALYST)

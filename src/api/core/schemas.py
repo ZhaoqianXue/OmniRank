@@ -150,11 +150,21 @@ class PairwiseComparison(BaseModel):
     n_comparisons: int
 
 
+class SectionQuestions(BaseModel):
+    """LLM-generated questions for each report section."""
+    rankings: list[str] = []
+    insights: list[str] = []
+    score_distribution: list[str] = []
+    confidence_intervals: list[str] = []
+
+
 class RankingResults(BaseModel):
     """Complete ranking analysis results."""
     items: list[RankingItem]
     metadata: RankingMetadata
     pairwise_matrix: list[PairwiseComparison] = []
+    report: Optional[str] = None  # LLM-generated analysis report (markdown)
+    section_questions: Optional[SectionQuestions] = None  # LLM-generated questions for each section
 
 
 # ============================================================================

@@ -89,18 +89,21 @@
   --card-foreground: oklch(0.95 0.01 270);
   --popover: oklch(0.12 0.015 270);
   --popover-foreground: oklch(0.95 0.01 270);
-  --primary: oklch(0.75 0.15 195); /* Cyan accent */
+  --primary: oklch(0.75 0.15 195);
+  /* Cyan accent */
   --primary-foreground: oklch(0.1 0.01 195);
   --secondary: oklch(0.18 0.02 270);
   --secondary-foreground: oklch(0.95 0.01 270);
   --muted: oklch(0.18 0.02 270);
   --muted-foreground: oklch(0.65 0.02 270);
-  --accent: oklch(0.65 0.18 295); /* Purple accent */
+  --accent: oklch(0.65 0.18 295);
+  /* Purple accent */
   --accent-foreground: oklch(0.95 0.01 295);
   --destructive: oklch(0.65 0.2 25);
   --border: oklch(0.25 0.03 270);
   --input: oklch(0.15 0.02 270);
-  --ring: oklch(0.75 0.15 195); /* Cyan ring */
+  --ring: oklch(0.75 0.15 195);
+  /* Cyan ring */
   /* Chart colors: Cyan to Purple gradient */
   --chart-1: oklch(0.75 0.15 195);
   --chart-2: oklch(0.7 0.16 220);
@@ -121,41 +124,54 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-geist-sans), system-ui, sans-serif;
   }
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif;
   }
-  code, pre, .mono {
+
+  code,
+  pre,
+  .mono {
     font-family: var(--font-jetbrains), var(--font-geist-mono), monospace;
   }
 }
 
 /* Tech aesthetic enhancements */
 @layer utilities {
+
   /* Glow effects */
   .glow-cyan {
     box-shadow: 0 0 20px oklch(0.75 0.15 195 / 30%),
-                0 0 40px oklch(0.75 0.15 195 / 15%);
+      0 0 40px oklch(0.75 0.15 195 / 15%);
   }
+
   .glow-purple {
     box-shadow: 0 0 20px oklch(0.65 0.18 295 / 30%),
-                0 0 40px oklch(0.65 0.18 295 / 15%);
+      0 0 40px oklch(0.65 0.18 295 / 15%);
   }
+
   .glow-border {
     border: 1px solid oklch(0.75 0.15 195 / 40%);
   }
-  
+
   /* Grid background pattern */
   .grid-pattern {
-    background-image: 
+    background-image:
       linear-gradient(oklch(0.25 0.03 270 / 30%) 1px, transparent 1px),
       linear-gradient(90deg, oklch(0.25 0.03 270 / 30%) 1px, transparent 1px);
     background-size: 40px 40px;
   }
-  
+
   /* Gradient text */
   .gradient-text {
     background: linear-gradient(135deg, oklch(0.75 0.15 195), oklch(0.65 0.18 295));
@@ -163,7 +179,7 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  
+
   /* Noise texture overlay */
   .noise-overlay::before {
     content: "";
@@ -173,12 +189,18 @@
     opacity: 0.03;
     pointer-events: none;
   }
-  
+
   /* Scanning line animation */
   @keyframes scan {
-    0% { transform: translateY(-100%); }
-    100% { transform: translateY(100vh); }
+    0% {
+      transform: translateY(-100%);
+    }
+
+    100% {
+      transform: translateY(100vh);
+    }
   }
+
   .scan-line::after {
     content: "";
     position: absolute;
@@ -187,5 +209,78 @@
     height: 2px;
     background: linear-gradient(90deg, transparent, oklch(0.75 0.15 195 / 50%), transparent);
     animation: scan 3s linear infinite;
+  }
+}
+
+/* Print styles for PDF export */
+@media print {
+
+  /* Hide everything by default */
+  body>* {
+    display: none !important;
+  }
+
+  /* Only show the print container */
+  .print-content-parent {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Reset backgrounds and colors for print */
+  .print-content-parent {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide scrollbars, buttons, overlays */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Improve typography for print */
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+    color: black !important;
+  }
+
+  p,
+  table,
+  li {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Ensure charts are visible */
+  svg,
+  canvas {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* Remove dark mode effects */
+  .dark .print-content-parent {
+    color: black !important;
+    background: white !important;
+  }
+
+  /* Table borders */
+  table,
+  th,
+  td {
+    border: 1px solid #ddd !important;
   }
 }

@@ -107,6 +107,7 @@ export interface RankingResults {
   items: RankingItem[];
   metadata: RankingMetadata;
   pairwise_matrix: PairwiseComparison[];
+  report?: string;  // LLM-generated analysis report (markdown)
 }
 
 // ============================================================================
