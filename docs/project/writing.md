@@ -6,193 +6,290 @@ Spectral ranking inferences provide a minimax optimal solution for analyzing mul
 
 ## 1 Introduction
 
-Ranking inferences from comparison data are ubiquitous in scientific inquiry and modern applications, ranging from identifying optimal treatments in clinical trials and ranking biological stimuli to evaluating the relative strength of competitors in sports and gaming1,2. While classical frameworks like the Bradley-Terry-Luce model have successfully handled pairwise comparisons, real-world data increasingly manifest as multiway comparisons, where multiple items are compared simultaneously—such as in horse races, multi-player online games, or top-k choice data in econometrics3,4. Unlike pairwise data, multiway comparisons involve hyperedges of heterogeneous sizes, creating complex dependency structures that defy simple aggregation. Although the Plackett-Luce model offers a probabilistic foundation for such data, its reliance on Maximum Likelihood Estimation (MLE) faces significant challenges: the likelihood function can be non-convex, and the computational burden becomes prohibitive as the number of items (n) grows, often requiring O(N^3) complexity for precise inference5,6.
+Ranking inferences from comparison data are ubiquitous in scientific inquiry and modern applications, ranging from identifying optimal treatments in clinical trials and ranking biological stimuli to evaluating the relative strength of competitors in sports and gaming [1, 2]. While classical frameworks like the Bradley-Terry-Luce model have successfully handled pairwise comparisons, real-world data increasingly manifest as multiway comparisons, where multiple items are compared simultaneously—such as in horse races, multi-player online games, or top-k choice data in econometrics [3, 4]. Unlike pairwise data, multiway comparisons involve hyperedges of heterogeneous sizes, creating complex dependency structures that defy simple aggregation. Although the Plackett-Luce model offers a probabilistic foundation for such data, its reliance on Maximum Likelihood Estimation (MLE) faces significant challenges: the likelihood function can be non-convex, and the computational burden becomes prohibitive as the number of items (n) grows, often requiring O(N^3) complexity for precise inference [5, 6].
 
-To overcome these computational and statistical barriers, recent theoretical breakthroughs have established spectral ranking inferences based on general multiway comparisons as a superior alternative. By constructing a comparison graph where items are nodes and multiway comparisons form hyperedges, these methods utilize the stationary distribution of a random walk on the hypergraph (or the eigenvectors of the hypergraph Laplacian) to recover latent preference scores7. Fan et al. demonstrated that this spectral approach achieves minimax optimal statistical rates comparable to MLE but with significantly greater computational efficiency, even under heterogeneous sampling conditions where hyperedge sizes vary dramatically8. Despite this theoretical elegance, the practical application of spectral ranking remains confined to a small circle of statisticians. The implementation requires rigorous handling of sparse hypergraph adjacency matrices and complex linear algebra operations, creating a steep technical barrier for domain experts—such as sociologists or biologists—who possess rich multiway data but lack the coding expertise to implement these specialized spectral algorithms9.
+To overcome these computational and statistical barriers, recent theoretical breakthroughs have established spectral ranking inferences based on general multiway comparisons as a superior alternative. By constructing a comparison graph where items are nodes and multiway comparisons form hyperedges, these methods utilize the stationary distribution of a random walk on the hypergraph (or the eigenvectors of the hypergraph Laplacian) to recover latent preference scores [7]. Fan et al. demonstrated that this spectral approach achieves minimax optimal statistical rates comparable to MLE but with significantly greater computational efficiency, even under heterogeneous sampling conditions where hyperedge sizes vary dramatically [8]. Despite this theoretical elegance, the practical application of spectral ranking remains confined to a small circle of statisticians. The implementation requires rigorous handling of sparse hypergraph adjacency matrices and complex linear algebra operations, creating a steep technical barrier for domain experts—such as sociologists or biologists—who possess rich multiway data but lack the coding expertise to implement these specialized spectral algorithms [9].
 
-Large Language Models (LLMs) have emerged as potential intermediaries to democratize such advanced analytical tools. Models like GPT-4 have shown impressive capabilities in code generation and logical reasoning10, 11. However, standard LLMs inherently struggle with rigorous mathematical execution; they are prone to "hallucinations" when performing arithmetic or executing specific algorithms mentally, and they lack the native ability to process large-scale structured data (e.g., adjacency matrices) directly within their context window12. Consequently, the current wave of "AI Agents" has shifted towards a tool-use paradigm, where the LLM acts as a controller that delegates specific tasks to external computational tools13, 14. While agents have been developed for chemical synthesis15 and gene analysis16, there is currently no dedicated framework that bridges the gap between the sophisticated mathematics of spectral ranking and the intuitive needs of non-technical users.
+Large Language Models (LLMs) have emerged as potential intermediaries to democratize such advanced analytical tools. Models like GPT-4 have shown impressive capabilities in code generation and logical reasoning [10, 11]. However, standard LLMs inherently struggle with rigorous mathematical execution; they are prone to "hallucinations" when performing arithmetic or executing specific algorithms mentally, and they lack the native ability to process large-scale structured data (e.g., adjacency matrices) directly within their context window [12]. Consequently, the current wave of "AI Agents" has shifted towards a tool-use paradigm, where the LLM acts as a controller that delegates specific tasks to external computational tools [13, 14]. While agents have been developed for chemical synthesis [15] and gene analysis [16], there is currently no dedicated framework that bridges the gap between the sophisticated mathematics of spectral ranking and the intuitive needs of non-technical users.
 
 Here, we introduce OmniRank, a novel web-based agentic framework that democratizes access to spectral ranking inferences. The architecture consists of two synergistic components: an LLM Agent that interprets user’s natural language requests and raw data uploads (e.g., “Rank these polygenic risk scores for breast cancer using their comparative AUC performance across the uploaded validation cohorts.”), and a Spectral Calculation Engine that executes the hypergraph construction and eigenvector computations. The results are then rendered through an interactive visualization dashboard, allowing users to explore ranking confidence intervals and topology without writing a single line of code. By decoupling the complex spectral inference (Backend) from the user interaction (Frontend), we ensure that the mathematical precision of the underlying theory is preserved while maximizing accessibility.
 
 We validated the efficacy of OmniRank through both theoretical benchmarking and real-world application scenarios. To assess the fidelity of our agent-driven pipeline, we compared its output against standard R implementations of spectral ranking on synthetic datasets with varying heterogeneity in comparison sizes (k). Furthermore, we demonstrate the tool’s practical utility by applying it to a real-world LLMs dataset, where the agent successfully parsed unstructured match results and produced rankings consistent with ground-truth outcomes. Our results show that by combining the reasoning power of LLMs with the mathematical rigor of spectral graph theory, we can effectively lower the barrier to entry for advanced statistical ranking, enabling broader application across diverse scientific fields.
 
-## 2 Background and related works
+## 2 Background and Related Works
 
-### 2.1 Statistical Inference for Ranking and Multiway Comparisons
+The development of OmniRank draws upon two distinct research traditions: statistical methods for ranking inference from comparison data, and the emerging paradigm of LLM-based agents for scientific computing. This section reviews the relevant literature in both areas and positions OmniRank within the broader context of efforts to democratize advanced statistical methods.
 
-The mathematical foundation of ranking from comparison data has evolved from simple pairwise models to complex multiway structures. The Bradley-Terry-Luce (BTL) model [19] and the Plackett-Luce (PL) model [20] have long served as the cornerstones for estimating latent preferences. However, as dataset scales and comparison complexities (e.g., top-$k$ lists and subset rankings) have grown, traditional Maximum Likelihood Estimation (MLE) has encountered significant computational bottlenecks [21]. Recent statistical literature has increasingly focused on spectral methods as a computationally efficient and statistically robust alternative. Chen and Suh [22] demonstrated that spectral algorithms can achieve near-optimal error rates for top-$k$ selection with significantly lower complexity than iterative MLE. This line of research culminated in the work of Fan et al. [8], who established the minimax optimality of spectral ranking for general multiway comparisons and introduced a two-step refinement process to achieve optimal efficiency under heterogeneous sampling. Despite these theoretical advancements, the implementation of these methods remains highly specialized, requiring precise manipulation of sparse hypergraph Laplacians and spectral decompositions [23].
+### 2.1 Statistical Methods for Ranking from Comparison Data
 
-### 2.2 Large Language Models as Agents for Scientific Discovery
+The problem of inferring rankings from comparison data has a rich history spanning statistics, economics, and machine learning. The Bradley-Terry model [48] and its multiway extension, the Plackett-Luce model [46], have served as foundational frameworks for estimating latent preference scores from pairwise and multiway comparisons, respectively. These parametric models assume that comparison outcomes follow a logistic or multinomial logit distribution governed by item-specific quality parameters.
 
-Large Language Models (LLMs) have demonstrated remarkable potential in transcending traditional natural language processing to become "agents" capable of reasoning and executing complex scientific workflows [24]. In the realm of data science, LLM-based agents have been deployed to automate code generation, experimental design, and data interpretation [25]. Recent breakthroughs in top-tier journals highlight the utility of agents in specialized domains: Boiko et al. [26] presented an agentic framework capable of autonomous chemical synthesis, while similar architectures have been applied to genomic analysis and clinical trial design [27]. However, a persistent challenge in "AI for Science" is the tendency of LLMs to "hallucinate" when performing rigorous mathematical or statistical operations [28]. This has led to the emergence of the tool-use paradigm, where the LLM acts as a cognitive controller that delegates precise computational tasks to external, deterministic engines [29]. OmniRank builds upon this paradigm by integrating LLM reasoning with a specialized R-based spectral engine to ensure both accessibility and statistical rigor.
+Classical inference for these models relies on Maximum Likelihood Estimation (MLE), which Hunter [4] showed can be efficiently computed via MM algorithms for the Bradley-Terry case. However, MLE approaches face significant computational challenges as the number of items grows: the likelihood function may be non-convex, and iterative optimization can require substantial computation time [5, 6]. These limitations have motivated the development of computationally efficient alternatives.
 
-### 2.3 Reliability and Decoupled Reasoning in Multi-Agent Systems
+Spectral methods have emerged as a compelling solution to these computational bottlenecks. Rather than optimizing a likelihood function, spectral approaches construct a comparison graph where items correspond to nodes and comparisons induce edges, then extract rankings from the eigenvectors of an associated matrix [49]. Negahban et al. [7] demonstrated that spectral methods achieve statistically consistent estimates under the Bradley-Terry model with computational complexity dominated by a single eigenvalue computation. Shah and Wainwright [19] established that even simple counting-based algorithms like Borda count can achieve minimax optimal rates for pairwise ranking under certain conditions.
 
-The transition from single-prompt LLMs to multi-agent collaborative systems has significantly enhanced the reliability of AI-driven analysis. Frameworks that decouple "reasoning" from "execution" allow for error diagnosis and self-correction, which are critical for scientific integrity [30]. For instance, systems that employ a "Programmer-Inspector" architecture have shown superior performance in maintaining code accuracy compared to end-to-end models [3]. Furthermore, the integration of domain-specific knowledge bases enables agents to handle tasks that require expertise beyond their pre-training data [31]. In the context of ranking inference, this decoupling is essential because the correctness of spectral estimation depends on strict adherence to graph-theoretic properties (e.g., graph connectivity and sparsity thresholds) that LLMs cannot yet verify internally with high precision [8]. By utilizing an orchestrator that manages the flow between semantic understanding and statistical computation, OmniRank addresses the "wrapper" versus "agent" debate, ensuring the LLM provides genuine value in schema inference and diagnostic reasoning.
+The theoretical understanding of spectral ranking has advanced considerably in recent years. Chen et al. [38] proved that spectral methods achieve the same optimal rates as regularized MLE for top-$K$ ranking problems while offering superior computational efficiency. Fan et al. [8] extended these results to the general multiway comparison setting, establishing minimax optimality of spectral methods for heterogeneous hypergraph structures and introducing a two-step refinement procedure that attains the Cram\'er-Rao efficiency bound. Despite these theoretical advances, the practical implementation of spectral ranking methods remains technically demanding, requiring careful handling of hypergraph Laplacians, eigenvector perturbation bounds, and bootstrap-based uncertainty quantification [41, 52].
 
-### 2.4 Section References
-[19] Bradley, R. A., & Terry, M. E. (1952). Rank analysis of incomplete block designs: I. The method of paired comparisons. Biometrika, 39(3/4), 324-345. [suspicious link removed]
+### 2.2 Large Language Models as Scientific Agents
 
-[20] Plackett, R. L. (1975). The analysis of permutations. Journal of the Royal Statistical Society: Series C (Applied Statistics), 24(2), 193-202. [suspicious link removed]
+The rapid progress of large language models has opened new possibilities for automating scientific workflows [20]. Contemporary LLMs demonstrate impressive capabilities in code generation, logical reasoning, and natural language understanding, prompting researchers to explore their potential as "agents" capable of executing complex analytical tasks [21, 44]. In the data science domain, LLM-based systems have been deployed to automate data preprocessing, model selection, and result interpretation [22].
 
-[21] Hunter, D. R. (2004). MM algorithms for generalized Bradley-Terry models. The Annals of Statistics, 32(1), 384-406. https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full
+Several recent works have demonstrated the utility of LLM agents in specialized scientific domains. Boiko et al. [15] presented Coscientist, an agentic framework capable of autonomous chemical synthesis by integrating LLM reasoning with laboratory automation. Similarly, GeneAgent [16] employs self-verification mechanisms for gene-set analysis, while other systems have addressed clinical prediction [23] and materials discovery [24]. These applications share a common architectural pattern: the LLM serves as a cognitive controller that interprets user intent and orchestrates domain-specific computational tools.
 
-[22] Chen, Y., & Suh, C. (2015). Spectral MLE: Top-K rank aggregation from pairwise comparisons. Proceedings of the 32nd International Conference on Machine Learning (ICML), 37, 371-380. https://proceedings.mlr.press/v37/chen15a.html
+A persistent challenge in deploying LLMs for quantitative analysis is their tendency to produce "hallucinations"---outputs that appear plausible but are factually incorrect or computationally erroneous [32]. This limitation is particularly acute for mathematical operations: LLMs can generate syntactically correct formulas that yield numerically wrong results, a failure mode that undermines their reliability for statistical inference [12]. The hallucination problem has motivated the tool-use paradigm [13], where LLMs delegate precise computations to external engines rather than attempting to execute algorithms internally.
 
-[23] Agarwal, S. (2006). Ranking on graph data. Proceedings of the 23rd International Conference on Machine Learning (ICML), 25-32. https://dl.acm.org/doi/10.1145/1143844.1143848
+The tool-use paradigm represents a fundamental shift in how LLMs are deployed for scientific computing. Systems like Toolformer [13] and TaskMatrix [14] demonstrate that LLMs can learn to invoke appropriate tools based on task requirements. However, most existing frameworks target general-purpose computation; specialized statistical methods like spectral ranking inference have received limited attention. OmniRank addresses this gap by integrating LLM-based data interpretation with a purpose-built spectral computation engine.
 
-[24] Wang, H., et al. (2023). Scientific discovery in the age of artificial intelligence. Nature, 620(7972), 47-60. https://www.nature.com/articles/s41586-023-06221-2
+### 2.3 Multi-Agent Architectures and Reliability
 
-[25] Thirunavukarasu, A. J., et al. (2023). Large language models in medicine. Nature Medicine, 29(8), 1930-1940. https://www.nature.com/articles/s41591-023-02448-8
+The transition from single-prompt LLMs to multi-agent collaborative systems has significantly enhanced the reliability of AI-driven analysis. Multi-agent architectures partition complex tasks among specialized agents, each with defined responsibilities and interaction protocols [17, 25]. This modular design facilitates error diagnosis, enables iterative refinement, and supports human intervention when automated processes fail.
 
-[26] Boiko, D. A., MacKnight, R., & Gomes, G. (2023). Emergent autonomous scientific laboratories by multi-agent systems of large language models. Nature, 624(7992), 570-578. https://www.nature.com/articles/s41586-023-06792-w
+MetaGPT [35] exemplifies the multi-agent approach, organizing LLM agents into roles analogous to a software development team (product manager, architect, engineer, QA). While effective for code generation tasks, such heavyweight frameworks incur substantial token costs and may be overly complex for statistical analysis workflows [26]. LAMBDA [26] demonstrated that a simpler two-agent architecture---a "programmer" for code generation and an "inspector" for error diagnosis---can achieve reliable performance with reduced overhead. This programmer-inspector paradigm has proven effective for maintaining code accuracy compared to end-to-end approaches [37].
 
-[27] Ji, Z., et al. (2023). Survey of hallucination in natural language generation. ACM Computing Surveys, 55(12), 1-38. https://dl.acm.org/doi/10.1145/3571730
+A critical insight from recent work is that decoupling "reasoning" from "execution" improves reliability for knowledge-intensive tasks [42]. When LLMs attempt to execute statistical algorithms directly, they may produce plausible-looking but incorrect results; delegating computation to verified engines eliminates this failure mode. For spectral ranking inference specifically, this decoupling is essential because correctness depends on strict adherence to graph-theoretic properties---connectivity requirements, sparsity thresholds, and eigenvector convergence---that LLMs cannot verify internally with sufficient precision [8, 38].
 
-[28] Mialon, G., et al. (2023). Augmented language models: a survey. Transactions on Machine Learning Research. https://openreview.net/forum?id=9H0U4S2v2B
-
-[29] Hong, S., et al. (2023). MetaGPT: Meta programming for a multi-agent collaborative framework. Proceedings of the 12th International Conference on Learning Representations (ICLR). https://openreview.net/forum?id=W_v6bSTDXS
-
-[30] Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. Advances in Neural Information Processing Systems (NeurIPS), 33, 9459-9474. https://proceedings.neurips.cc/paper/2020/hash/6ad1d768160a2b7537367c34b6559d87-Abstract.html
-
-[31] Valmeekam, K., et al. (2023). PlanBench: An extensible benchmark for evaluating the planning capabilities of large language models. Advances in Neural Information Processing Systems (NeurIPS). https://openreview.net/forum?id=9pIdA6G6H8
+OmniRank instantiates these architectural principles in the context of ranking inference. By combining LLM-based semantic understanding (data format recognition, schema inference, result interpretation) with deterministic spectral computation (hypergraph construction, eigenvector extraction, bootstrap confidence intervals), OmniRank achieves both accessibility and statistical rigor. The system's human-in-the-loop design [27] allows domain experts to verify inferred parameters and intervene when automated processes misalign with their analytical goals, addressing a known limitation of fully automated agent systems.
 
 ## 3 Methodology
 
-OmniRank employs a streamlined multi-agent architecture to perform spectral ranking inference. The system uses a fixed pipeline triggered by user data upload, with two specialized agents handling data processing and analysis, respectively.
+This section presents the methodological framework of OmniRank, an agentic system that bridges large language model reasoning with rigorous spectral ranking inference. We first provide an architectural overview (Section 3.1), then detail the three core components: the Data Agent for intelligent data preprocessing (Section 3.2), the Engine Orchestrator for adaptive statistical computation (Section 3.3), and the Analyst Agent for result interpretation and user interaction (Section 3.4). We subsequently describe the prompt engineering strategies (Section 3.5), user interface design (Section 3.6), and conclude with the mathematical foundations of the spectral ranking engine (Section 3.7).
 
 ### 3.1 Overview
 
-OmniRank is structured around three core components: the **Data Agent**, **Engine Orchestrator**, and **Analyst Agent**. The Data Agent handles data preprocessing and parameter inference. The Engine Orchestrator invokes the spectral ranking computation. The Analyst Agent generates reports, visualizations, and handles user Q&A by combining ranking results with spectral ranking knowledge. Error diagnosis is also performed by the Analyst Agent.
+OmniRank adopts a modular multi-agent architecture designed to separate semantic understanding from mathematical computation, addressing a fundamental limitation of current LLMs: their propensity for hallucination in arithmetic and algorithmic tasks [32]. This architectural principle, termed "decoupled reasoning," has proven effective in recent scientific agent systems [33, 34] and forms the theoretical basis for our design.
 
-When users upload comparison data, the workflow proceeds as follows: The Data Agent preprocesses the data and infers the semantic schema (including `bigbetter`, items, and indicators). **Users then verify and refine these settings via the system's interactive configuration panel.** Upon confirmation, the Engine Orchestrator invokes `spectral_ranking_step1.R` to compute rankings. If errors occur, the Analyst Agent diagnoses the issue and requests corrections. Upon successful computation, the Analyst Agent generates reports, visualizations, and supports ongoing Q&A with users. The workflow is formalized in Algorithm 1.
+The system comprises three functionally distinct components operating in a coordinated pipeline:
 
-**Algorithm 1** OmniRank Workflow.
+1. **Data Agent**: An LLM-powered component responsible for data format recognition, validation, and semantic schema inference. The agent interprets user-uploaded datasets and extracts structural metadata necessary for spectral computation.
 
-**Require:** $Da$: Data Agent, $Eo$: Engine Orchestrator, $An$: Analyst Agent, $M$: Session Memory
-**Require:** $d$: Dataset provided by user, $T$: Maximum number of attempts
+2. **Engine Orchestrator**: A deterministic controller that manages the interface between semantic understanding and statistical computation. It implements the two-step spectral method [8] with adaptive triggering logic based on data characteristics.
 
-// Phase 1: Data Processing & Configuration
-1: $schema \leftarrow Da$.infer\_schema($d$)  $\quad \triangleright$ Infer BigBetter, Items, Indicator
-2: $params \leftarrow Eo$.configure($schema$, $User\_Input$)  $\quad \triangleright$ Interactive user verification (Select indicator values)
-3: $M$.update_data_state($schema$, $params$)
+3. **Analyst Agent**: An LLM-powered component that synthesizes computational results into interpretable outputs, generates visualizations, and supports interactive question-answering through domain knowledge integration.
 
-// Phase 2: Computation (Dynamic Workflow)
-4: $n \leftarrow 0$
-5: $step1\_result \leftarrow Eo$.execute\_step1($params$)  $\quad \triangleright$ Execute spectral_ranking_step1.R
-6: **if** $Eo$.should\_refine($step1\_result$.metadata) **then**  $\quad \triangleright$ Check heterogeneity index
-7:     $result \leftarrow Eo$.execute\_step2($params$, $step1\_result$)  $\quad \triangleright$ Execute spectral_ranking_step2.R
-8: **else**
-9:     $result \leftarrow step1\_result$
-10: **end if**
+Figure 1 illustrates the system architecture and information flow between components. The workflow proceeds through four phases: data ingestion and schema inference, interactive parameter configuration, spectral computation with adaptive refinement, and result synthesis with user interaction. Algorithm 1 formalizes this process.
 
-// Phase 3: Error Handling (Analyst diagnoses)
-11: **while** $result = ERROR$ **and** $n < T$ **do**
-12:    $n \leftarrow n + 1$
-13:    $error\_type, suggestions \leftarrow An$.diagnose($result$.error, $M$.trace)
-14:    // ... [Error handling logic same as before] ...
-15:    $result \leftarrow Eo$.re\_execute($params$)
-16: **end while**
+**Figure 1: OmniRank System Architecture.** The system comprises three core components: the Data Agent (LLM-powered) for semantic understanding, the Engine Orchestrator (deterministic) for statistical computation, and the Analyst Agent (LLM-powered) for result interpretation. Solid arrows indicate data flow; dashed arrows indicate feedback loops for error handling.
 
-// Phase 4: Output Generation
-// ... [Same as before] ...
+**Algorithm 1** OmniRank Workflow
+
+**Input:** Dataset $\mathcal{D}$ uploaded by user; maximum retry attempts $T$
+**Output:** Ranking results $\mathcal{R}$ with confidence intervals; analysis report
+
+*Phase 1: Data Processing and Schema Inference*
+1: $\mathcal{S} \leftarrow \texttt{DataAgent.InferSchema}(\mathcal{D})$ $\triangleright$ Infer format, items, indicators, preference direction
+2: $\mathcal{V} \leftarrow \texttt{DataAgent.Validate}(\mathcal{D}, \mathcal{S})$ $\triangleright$ Check connectivity, sparsity, data integrity
+3: **if** $\mathcal{V}$.status $=$ INVALID **then**
+4:     **return** $\texttt{DataAgent.GenerateFeedback}(\mathcal{V})$
+5: **end if**
+
+*Phase 2: Interactive Configuration*
+6: $\mathcal{P} \leftarrow \texttt{Orchestrator.Configure}(\mathcal{S}, \texttt{UserInput})$ $\triangleright$ User verifies/adjusts parameters
+7: $\texttt{Memory.UpdateState}(\mathcal{S}, \mathcal{P})$
+
+*Phase 3: Spectral Computation with Adaptive Refinement*
+8: $\mathcal{R}_1 \leftarrow \texttt{Orchestrator.ExecuteStep1}(\mathcal{D}, \mathcal{P})$ $\triangleright$ Vanilla spectral estimation
+9: **if** $\texttt{Orchestrator.ShouldRefine}(\mathcal{R}_1.\text{metadata})$ **then**
+10:     $\mathcal{R} \leftarrow \texttt{Orchestrator.ExecuteStep2}(\mathcal{D}, \mathcal{P}, \mathcal{R}_1)$ $\triangleright$ Optimal weighting refinement
+11: **else**
+12:     $\mathcal{R} \leftarrow \mathcal{R}_1$
+13: **end if**
+
+*Phase 4: Error Handling and Output Generation*
+14: $n \leftarrow 0$
+15: **while** $\mathcal{R}.\text{status} = \text{ERROR}$ **and** $n < T$ **do**
+16:     $n \leftarrow n + 1$
+17:     $(\text{diagnosis}, \text{suggestions}) \leftarrow \texttt{AnalystAgent.Diagnose}(\mathcal{R}.\text{error})$
+18:     $\mathcal{P} \leftarrow \texttt{Orchestrator.AdjustParams}(\mathcal{P}, \text{suggestions})$
+19:     $\mathcal{R} \leftarrow \texttt{Orchestrator.ReExecute}(\mathcal{D}, \mathcal{P})$
+20: **end while**
+21: **return** $\texttt{AnalystAgent.GenerateReport}(\mathcal{R})$
+
+This architecture instantiates the "programmer-inspector" paradigm that has demonstrated superior reliability compared to end-to-end LLM approaches [35]. By delegating precise numerical computation to a verified statistical engine while leveraging LLM capabilities for natural language understanding and explanation, OmniRank achieves both accessibility and mathematical rigor.
 
 ### 3.2 Data Agent
-    
-The Data Agent acts as the intelligent interface between user data and the spectral engine, performing two critical functions to ensure data readiness and semantic understanding.
 
-**Function 1: Format Recognition & Standardization & Validation.** The agent automatically identifies the structure of uploaded data (e.g., Pointwise, Pairwise, Multiway) and validates its suitability for spectral ranking. The recognition component adapts to diverse input structures, preserving original data fidelity while ensuring compatibility with the spectral engine (`spectral_ranking_step1.R`). The validation component performs targeted sanity checks:
-- **Sparsity Warnings**: Issued when comparison counts fall below the theoretical threshold $M < n \log n$, where $M$ denotes total pairwise comparisons and $n$ the number of items. This threshold, established by Fan et al. (2023), represents the minimum sample complexity required for consistent spectral estimation, analogous to the coupon collector bound.
-- **Connectivity Warnings**: Issued when the comparison graph is disjoint (verified using `networkx`), indicating that global rankings cannot be computed and results will only be meaningful within connected components.
-- **Critical Errors**: Issued when required ranking columns are missing or fewer than two items are present, blocking execution entirely.
-Data classified as `invalid` (e.g., insufficient numeric columns, all-text data) is rejected with explanatory feedback generated by the LLM in plain language. This tiered approach ensures users understand data limitations without blocking valid exploratory analysis.
+The Data Agent serves as the intelligent interface between raw user data and the spectral computation engine. Unlike generic data analysis agents that rely solely on LLM code generation [36], our Data Agent employs a hybrid approach: LLM-based semantic reasoning for schema inference combined with deterministic validation rules grounded in spectral ranking theory. This design reflects recent findings that specialized domain knowledge significantly improves agent performance on knowledge-intensive tasks [37].
 
-**Function 2: Semantic Schema Inference.** Beyond format recognition, the agent infers the semantic role of data components to facilitate flexible downstream analysis. This includes:
-- **Preference Direction (`bigbetter`)**: Inferring whether higher values indicate better performance (e.g., accuracy) or worse performance (e.g., latency) using both macro-level column naming patterns and micro-level value distributions.
-- **Ranking Items Identification**: Identifying the entities to be ranked (e.g., "ChatGPT", "Claude").
-- **Ranking Indicators Identification**: Identifying categorical dimensions (e.g., "Task"). CRITICAL: The agent extracts at most ONE indicator column to maintain analysis focus.
-- **Indicator Values Extraction**: Extracting unique semantic groups (e.g., "code", "math") within the selected indicator.
-This metadata enables the Engine Orchestrator to expose precise control parameters to the user, allowing for customized rankings based on specific items or indicator segments.
+#### 3.2.1 Format Recognition and Validation
+
+The agent automatically identifies the structural format of uploaded comparison data and validates its suitability for spectral ranking analysis. We support three canonical formats that encompass the majority of real-world comparison data:
+
+- **Pointwise Format**: Performance metrics for each item across evaluation contexts (e.g., model accuracy on different benchmark tasks).
+- **Pairwise Format**: Direct head-to-head comparison outcomes between item pairs (e.g., tournament match results).
+- **Multiway Format**: Ranking or selection outcomes from choice sets of arbitrary size (e.g., top-$k$ selections from candidate pools).
+
+Format recognition employs a rule-based classifier augmented with LLM-based disambiguation for edge cases. The agent examines column structure, data types, and semantic patterns to determine the appropriate format, then applies format-specific transformation rules to construct the comparison graph required by the spectral engine.
+
+Following format recognition, the agent performs validation against theoretical requirements established in the spectral ranking literature [8, 38]. Three categories of validation feedback are provided:
+
+**Sparsity Assessment.** The agent evaluates whether the comparison count $M$ satisfies the sample complexity bound $M \geq cn\log n$ for some constant $c > 0$, where $n$ denotes the number of items. This threshold, analogous to the coupon collector bound, represents the minimum sample size required for consistent spectral estimation [38]. When $M < n\log n$, the agent issues a warning indicating that ranking estimates may exhibit elevated variance.
+
+**Connectivity Verification.** Global ranking requires the comparison graph to form a connected component. The agent employs standard graph algorithms to detect disconnected subgraphs. When the graph is disjoint, the agent notifies users that rankings can only be computed within connected components and identifies the largest connected subgraph for analysis.
+
+**Data Integrity Checks.** The agent verifies the presence of required columns, ensures a minimum of two rankable items, and confirms that comparison outcomes are properly encoded. Data failing these checks is rejected with explanatory feedback generated through LLM-based natural language synthesis.
+
+This tiered validation approach, illustrated in Figure 2, ensures that users receive actionable feedback about data limitations while permitting valid exploratory analyses on imperfect datasets.
+
+**Figure 2: Data Agent Validation Workflow.** The flowchart depicts the hierarchical validation process: critical errors block execution, warnings inform users of theoretical limitations, and valid data proceeds to schema inference.
+
+#### 3.2.2 Semantic Schema Inference
+
+Beyond structural validation, the Data Agent infers the semantic meaning of data components to enable flexible downstream analysis. This capability distinguishes OmniRank from traditional statistical software that requires explicit parameter specification.
+
+**Preference Direction Inference.** The agent determines whether higher metric values indicate superior performance (e.g., accuracy, win rate) or inferior performance (e.g., latency, error rate). This inference combines lexical analysis of column names with distributional properties of the data. For instance, columns containing terms such as "accuracy" or "score" suggest a higher-is-better interpretation, while "time" or "error" suggest the opposite.
+
+**Entity and Indicator Extraction.** The agent identifies:
+- *Ranking Items*: The entities to be ranked (e.g., model names, player identifiers).
+- *Ranking Indicators*: Categorical dimensions that partition comparisons into semantically meaningful subgroups (e.g., task categories, evaluation conditions).
+
+When multiple potential indicator columns exist, the agent selects at most one to maintain analytical focus, prioritizing columns with moderate cardinality and clear semantic interpretation.
+
+This metadata extraction enables the Engine Orchestrator to present users with intuitive configuration options, allowing customized analysis without requiring statistical expertise.
 
 ### 3.3 Engine Orchestrator
 
-The Engine Orchestrator is a **deterministic system component** that manages the transition from data schema to statistical computation. It ensures execution reliability through interactive configuration and robust resource management.
+The Engine Orchestrator is a deterministic system component that manages the transition from semantic schema to statistical computation. Unlike the LLM-powered agents, the orchestrator implements fixed algorithmic logic to ensure reproducibility and numerical accuracy. Its design reflects the "tool-use" paradigm in agentic AI, where LLMs serve as cognitive controllers while delegating precise computations to specialized tools [39, 40].
 
-**Function 1: Interactive Configuration Management.** The orchestrator empowers users to fine-tune the analysis by exposing the metadata inferred by the Data Agent. Through an interactive control panel, users can:
-- **Parameter Adjustment**: Verify and modify the **Preference Direction** (`bigbetter`), select specific **Ranking Items** subsets, or choose distinct **Ranking Indicators** for analysis.
-- **Advanced Options**: Configure statistical parameters such as **Bootstrap Iterations** (default to 2000 for robust CIs) and **Random Seed** (default to 42 for reproducibility).
-This ensures that the final execution aligns precisely with user intent, even if the Data Agent's initial inferences require adjustment.
+#### 3.3.1 Interactive Configuration Management
 
-**Function 2: Robust Engine Execution with Dynamic Orchestration.** It encapsulates the spectral ranking logic, executing it within isolated processes. Crucially, the orchestrator implements the **Two-Step Spectral Method** logic from *Fan et al. (2023)*:
-1. **Initial Estimation**: It first invokes the vanilla spectral engine (`spectral_ranking_step1.R`) using simple weighting ($f(A_l)=|A_l|$) to obtain consistent initial estimates.
-2. **Diagnostic Check & Adaptive Refinement**: It evaluates three statistical criteria autonomously:
-   - **Sparsity Gatekeeper**: Checks if data sufficiency meets the theoretical threshold ($M \geq n \log n$, i.e., sparsity\_ratio $\geq 1.0$). This is the optimal sample complexity requirement (coupon collector bound). If data is too sparse, refinement is skipped to maintain stability.
-   - **Heterogeneity Trigger**: Checks if comparison counts are highly uneven (CV > 0.5). When heterogeneity is high, the vanilla spectral method with uniform weights is suboptimal; optimal weighting provides efficiency gains.
-   - **Uncertainty Trigger**: Checks if the top-5 items have wide confidence intervals relative to the number of items (CI\_width / n > 20%). Wide CIs indicate high variance in Step 1 estimates. Since CI width $\propto \sqrt{\text{Var}}$, Step 2's optimal weighting can reduce variance and narrow confidence intervals (Theorem 2, Remark 6 in Fan et al., 2023).
-   If data is sufficient and either trigger is activated, the orchestrator automatically executes the second estimation step (`spectral_ranking_step2.R`) using optimal weights ($f(A_l) \propto \sum e^{\hat{\theta}_u}$), which achieves the same asymptotic efficiency as MLE (Cramér-Rao lower bound).
-This dynamic workflow ensures that users receive the most statistically efficient estimates without needing to understand the underlying complexity of weighting schemes.
+The orchestrator exposes inferred parameters through an interactive configuration interface, enabling users to verify and adjust settings before computation. Configurable parameters include:
+
+- **Preference Direction**: Users confirm or override the inferred interpretation of metric values.
+- **Item Selection**: Users may restrict analysis to a subset of items.
+- **Indicator Selection**: Users select which indicator values to include in the analysis.
+- **Statistical Parameters**: Advanced users may configure bootstrap iterations (default: 2000) and random seed (default: 42) for reproducibility.
+
+This human-in-the-loop design addresses a known limitation of fully automated agent systems: misalignment between inferred parameters and user intent [35]. By requiring explicit confirmation, OmniRank ensures that final analyses reflect user requirements.
+
+#### 3.3.2 Adaptive Two-Step Spectral Estimation
+
+The orchestrator implements the two-step spectral method [8], which achieves optimal statistical efficiency through adaptive weighting. Rather than applying the two-step procedure unconditionally, the orchestrator evaluates data characteristics to determine when refinement provides meaningful improvement.
+
+**Step 1: Initial Estimation.** The orchestrator invokes the spectral engine with uniform weighting $f(A_l) = |A_l|$ to obtain consistent initial estimates $\hat{\boldsymbol{\theta}}^{(1)}$. This vanilla spectral estimator, while not statistically optimal, provides stable estimates across diverse data conditions.
+
+**Step 2: Adaptive Refinement.** The orchestrator evaluates three criteria to determine whether optimal-weight refinement is warranted:
+
+1. *Sparsity Gatekeeper*: Refinement is skipped if the sparsity ratio $M/(n\log n) < 1.0$, as optimal weighting may amplify noise in sparse settings.
+
+2. *Heterogeneity Trigger*: Refinement is activated if the coefficient of variation (CV) of comparison counts exceeds 0.5, indicating substantial heterogeneity in hyperedge sizes. Under heterogeneous sampling, optimal weighting provides efficiency gains over uniform weighting [8].
+
+3. *Uncertainty Trigger*: Refinement is activated if confidence interval widths for top-ranked items exceed 20\% of the item count, suggesting high estimation variance that optimal weighting may reduce.
+
+When refinement is triggered, the orchestrator executes the second step with optimal weights $f(A_l) \propto \sum_{u \in A_l} e^{\hat{\theta}_u^{(1)}}$, which achieves the Cram\'er-Rao lower bound asymptotically [8]. This adaptive approach ensures users receive statistically efficient estimates without requiring understanding of weighting theory.
+
+Figure 3 depicts the decision logic for adaptive refinement.
+
+**Figure 3: Engine Orchestrator Decision Tree for Two-Step Refinement.** The flowchart illustrates the conditional logic that determines whether optimal-weight refinement (Step 2) is applied based on sparsity, heterogeneity, and uncertainty metrics.
 
 ### 3.4 Analyst Agent
 
-The Analyst Agent is responsible for all post-computation tasks: report generation, visualization, user Q&A, and error diagnosis. Upon receiving ranking results from the Engine Orchestrator, the Analyst Agent performs two critical functions.
+The Analyst Agent is responsible for transforming computational outputs into interpretable results and supporting ongoing user interaction. This component addresses a critical gap in statistical software: the translation of numerical outputs into actionable insights accessible to domain experts without statistical training.
 
-**Function 1: Report & Visualization Generation.** The agent transforms raw ranking results into comprehensive, publication-ready outputs through two complementary processes:
-- **Report Synthesis**: Generates structured reports containing: executive summary highlighting key findings and top-ranked items, detailed rankings with confidence intervals and statistical significance indicators, methodology notes explaining the spectral approach and any two-step refinement applied, and actionable insights tailored to the data domain. Reports are rendered in both markdown (for quick review) and PDF formats (for formal documentation).
-- **Visualization Production**: Creates a suite of interactive and static visualizations including: (1) rank plots with confidence interval error bars showing uncertainty in rankings, (2) pairwise comparison heatmaps revealing win/loss patterns between items, and (3) preference score distributions displaying the estimated $\theta$ values.
+#### 3.4.1 Report and Visualization Generation
 
-**Function 2: Interactive User Q&A.** The agent handles follow-up questions from users by combining session memory with external spectral ranking knowledge. The session memory architecture maintains three components within each analysis session:
-- **Data State**: Current data schema, validation results, and inferred parameters
-- **Execution Trace**: Log of all computation invocations for error diagnosis
-- **Conversation Context**: User intent history enabling follow-up queries
+Upon receiving ranking results from the Engine Orchestrator, the Analyst Agent synthesizes comprehensive analysis reports through LLM-based natural language generation. Reports include:
 
-This architecture enables natural conversational workflows—for example, after computing initial rankings, a user can simply ask "Is model A significantly better than model B?" without re-uploading data or restating the analysis context. The agent interprets such queries by retrieving relevant confidence intervals from the results and applying spectral ranking theory to provide statistically grounded answers.
+- **Executive Summary**: Key findings highlighting top-ranked items and notable patterns.
+- **Detailed Rankings**: Tabular presentation of ranks, preference scores, and confidence intervals with statistical significance indicators.
+- **Methodology Notes**: Explanation of the spectral approach, validation outcomes, and whether two-step refinement was applied.
+- **Domain-Specific Insights**: Contextual interpretation tailored to the data domain, leveraging the semantic schema inferred by the Data Agent.
 
-### 3.5 Agent System Prompts
+The agent generates a complementary suite of visualizations:
 
-We present the system prompts design for the two reasoning agents: the **Data Agent** and the **Analyst Agent**. The Engine Orchestrator, being a deterministic component, does not utilize LLM prompts.
+1. *Rank Plots*: Forest plots displaying point estimates with confidence interval error bars, enabling visual assessment of ranking uncertainty [41].
+2. *Comparison Heatmaps*: Matrix visualizations of pairwise win rates revealing competitive structure among items.
+3. *Score Distributions*: Density plots of estimated preference parameters $\hat{\theta}_i$ illustrating the separation between items.
 
-Each agent incorporates a **Knowledge Layer** that embeds domain expertise directly into its system prompt, following OpenAI's recommended Structured System Instructions pattern. This enables expert-level theoretical grounding without requiring users to provide specialized knowledge. For example, the Analyst Agent's knowledge layer includes spectral ranking theory concepts such as confidence interval interpretation, the two-step estimation method, and heterogeneity thresholds.
+These outputs are rendered in both interactive web formats and exportable static formats (PDF, PNG) suitable for publication.
 
-**Figure 2: Data Agent Prompt Strategy.**
-![Data Agent Prompt](https://placehold.co/600x400?text=Data+Agent+Prompt+Placeholder)
+#### 3.4.2 Interactive Question-Answering
 
-**Figure 3: Engine Orchestrator Prompt Strategy.**
-![Engine Orchestrator Prompt](https://placehold.co/600x400?text=Engine+Orchestrator+Prompt+Placeholder)
+The Analyst Agent supports follow-up queries through a conversational interface, enabling users to explore results without restarting the analysis. This capability is implemented through a session memory architecture comprising three components:
 
-**Figure 4: Analyst Agent Prompt Strategy.**
-![Analyst Agent Prompt](https://placehold.co/600x400?text=Analyst+Prompt+Placeholder)
+- **Data State**: Current schema, validation results, and configuration parameters.
+- **Execution Trace**: Log of computation invocations and intermediate results for error diagnosis.
+- **Conversation Context**: History of user queries and agent responses enabling contextual follow-up.
 
-### 3.6 User interface
+The agent interprets queries by combining session context with domain knowledge embedded in its system prompt. For example, when a user asks "Is model A significantly better than model B?", the agent retrieves the relevant confidence intervals and applies the non-overlapping confidence interval heuristic to provide a statistically grounded response.
 
-OmniRank provides an accessible, chat-based interface that guides users through a three-stage analysis workflow:
+This retrieval-augmented generation approach [42] ensures responses are grounded in computed results rather than hallucinated, addressing a known failure mode of vanilla LLM applications to quantitative domains [32].
 
-1.  **Data Analysis**: Users upload raw datasets, and the Data Agent automatically infers the structure and semantic schema.
-2.  **Interactive Configuration**: The interface presents the inferred settings (e.g., preference direction, ranking items) in a visual control panel. Users confirm or adjust these settings, which are then validated and passed to the Engine Orchestrator for deterministic execution.
-3.  **Results & Exploration**: The Analyst Agent presents the final rankings, visualizations, and a natural language summary. Users can then ask follow-up questions (e.g., "Is the top model significantly better than the second?") to explore the results deeply without restarting the session.
+### 3.5 Prompt Engineering
 
-This design enables experts and non-experts alike to leverage spectral ranking methods with confidence and precision.
+We adopt structured system prompts following established practices in LLM agent design [43, 44]. Each agent's prompt comprises three layers: role specification, operational constraints, and domain knowledge.
 
-To summarize, the Data Agent, Engine Orchestrator, and Analyst Agent collectively ensure the reliability and accessibility of OmniRank through a streamlined fixed pipeline. The modular architecture makes OmniRank flexible for diverse ranking applications across social and natural sciences.
+**Role Specification.** Defines the agent's identity and primary responsibilities. For example, the Data Agent is instructed to act as a "statistical data analyst specializing in comparison data formats and ranking analysis."
 
-### 3.7 Spectral ranking inference engine
+**Operational Constraints.** Specifies output formats, error handling procedures, and interaction protocols. These constraints ensure consistent behavior across diverse inputs and enable reliable parsing of agent outputs.
 
-In general, the spectral ranking approach transforms comparison data into a Markov chain over the $n$ items and leverages its stationary distribution to infer item scores. We assume there are $n$ items to be ranked, and the preference scores of a given group of $n$ items can be parameterized as $\boldsymbol{\theta}^* = (\theta_1^*, \ldots, \theta_n^*)^T$ such that for any choice set $A$ and item $i \in A$ we have:
+**Knowledge Layer.** Embeds domain expertise directly into the prompt, enabling expert-level reasoning without requiring fine-tuning. The Data Agent's knowledge layer includes format recognition rules and validation thresholds; the Analyst Agent's knowledge layer includes spectral ranking theory concepts such as confidence interval interpretation, the theoretical basis for the two-step method, and heterogeneity diagnostics.
+
+This knowledge integration approach, illustrated in Figures 4 and 5, follows the in-context learning paradigm [45] that has proven effective for knowledge-intensive tasks without model modification.
+
+**Figure 4: Data Agent System Prompt Structure.** The prompt comprises role specification, format recognition rules, validation thresholds derived from spectral ranking theory, and output format constraints.
+
+**Figure 5: Analyst Agent System Prompt Structure.** The prompt includes role specification, spectral ranking domain knowledge (confidence intervals, two-step method, heterogeneity thresholds), and report generation guidelines.
+
+### 3.6 User Interface
+
+OmniRank provides a web-based conversational interface designed for accessibility across user expertise levels. The interface guides users through a three-stage workflow:
+
+**Stage 1: Data Upload and Analysis.** Users upload comparison data in standard formats (CSV, Excel). The Data Agent processes the upload, displaying format recognition results, validation outcomes, and inferred schema parameters in an organized panel.
+
+**Stage 2: Interactive Configuration.** The interface presents inferred settings in a visual control panel where users can confirm or modify preference direction, select items and indicator values, and configure advanced statistical parameters. This stage ensures alignment between system inference and user intent before computation proceeds.
+
+**Stage 3: Results and Exploration.** Upon computation completion, the interface displays ranking results with interactive visualizations and a natural language summary. A chat panel enables follow-up queries such as "Which items have statistically indistinguishable rankings?" or "What would change if we excluded item X?"
+
+Figure 6 presents interface screenshots illustrating each stage.
+
+**Figure 6: OmniRank User Interface.** Panel (a) shows the data upload and schema inference display; panel (b) shows the interactive configuration panel; panel (c) shows the results dashboard with visualizations and chat interface.
+
+### 3.7 Spectral Ranking Inference Engine
+
+The mathematical foundation of OmniRank rests on spectral methods for ranking inference from comparison data. This section provides the theoretical basis for the computation implemented in the Engine Orchestrator.
+
+#### 3.7.1 Problem Formulation
+
+Consider $n$ items to be ranked based on comparison outcomes. We model preferences through the Plackett-Luce framework [46, 47], parameterizing item quality by $\boldsymbol{\theta}^* = (\theta_1^*, \ldots, \theta_n^*)^\top$ such that for any choice set $A \subseteq [n]$ and item $i \in A$:
 
 $$P(i \text{ wins among } A) = \frac{e^{\theta_i^*}}{\sum_{k \in A} e^{\theta_k^*}}$$
 
-For a general comparison model of the $n$ items, we are given a collection of comparisons and outcomes $\{(c_l, A_l)\}_{l \in D}$ where $c_l$ denotes the selected item over the choice set $A_l$. We construct a directed comparison graph where each item corresponds to a state, and define a transition matrix $P$ with entries:
+This model encompasses the Bradley-Terry-Luce model for pairwise comparisons as a special case when $|A| = 2$ [48].
 
-$$P_{ij} = \frac{1}{d} \sum_{l \in W_j \cap L_i} \frac{1}{f(A_l)}$$
+The observed data consist of $L$ comparisons $\{(c_l, A_l)\}_{l=1}^L$, where $A_l$ is the choice set for comparison $l$ and $c_l \in A_l$ denotes the winner. This formulation accommodates heterogeneous comparison structures where choice sets may vary in size, a common characteristic of real-world ranking data [8].
 
-where $W_j = \{l \in D | j \in A_l, c_l = j\}$ and $L_i = \{l \in D | i \in A_l, c_l \neq i\}$ are index sets for comparisons where $j$ wins and $i$ loses, respectively. This matrix characterizes a Markov chain whose long-term visiting frequency reflects the underlying preference structure.
+#### 3.7.2 Spectral Estimation via Random Walks
 
-The stationary distribution $\hat{\pi}$ of this chain—obtained as the leading eigenvector of $P^T$ associated with eigenvalue 1—serves as the spectral score for each item. Compared to likelihood-based models such as Bradley-Terry-Luce (BTL) or Plackett-Luce (PL), which require iterative optimization, spectral methods are computationally simpler: only a single eigen-decomposition is needed, with $O(n^3)$ complexity.
+The spectral approach constructs a Markov chain over items whose stationary distribution reflects latent preferences [49, 50]. Define the transition matrix $\mathbf{P}$ with entries:
 
-The spectral scores are transformed into estimated preference parameters via:
+$$P_{ij} = \frac{1}{d_i} \sum_{l \in W_j \cap L_i} \frac{1}{f(A_l)}$$
+
+where $W_j = \{l : j \in A_l, c_l = j\}$ indexes comparisons won by $j$, $L_i = \{l : i \in A_l, c_l \neq i\}$ indexes comparisons lost by $i$, $d_i = \sum_{j \neq i} P_{ij}$ is a normalizing constant, and $f(A_l)$ is a weighting function.
+
+The stationary distribution $\hat{\boldsymbol{\pi}}$ of this chain, obtained as the leading eigenvector of $\mathbf{P}^\top$, serves as the spectral score vector. Preference parameters are recovered via the log-transformation:
 
 $$\tilde{\theta}_i = \log \hat{\pi}_i - \frac{1}{n} \sum_{k=1}^{n} \log \hat{\pi}_k$$
 
-Finally, the inferred ranking is produced by sorting $\tilde{\theta}_i$ in descending order. For uncertainty quantification, we employ the Gaussian multiplier bootstrap method to construct confidence intervals for ranks, as detailed in Fan et al. (2023).
+yielding centered estimates comparable across different analyses.
+
+#### 3.7.3 Optimal Weighting and Two-Step Estimation
+
+The choice of weighting function $f(A_l)$ affects statistical efficiency. Fan et al. [8] established that uniform weighting $f(A_l) = |A_l|$ yields consistent estimates but may be suboptimal under heterogeneous comparison structures. They proposed a two-step procedure:
+
+1. Obtain initial estimates $\hat{\boldsymbol{\theta}}^{(1)}$ using uniform weighting.
+2. Compute refined estimates using optimal weights $f(A_l) \propto \sum_{u \in A_l} e^{\hat{\theta}_u^{(1)}}$.
+
+The resulting estimator achieves the Cram\'er-Rao lower bound asymptotically, matching the efficiency of maximum likelihood estimation while retaining computational simplicity [8, 51].
+
+#### 3.7.4 Uncertainty Quantification
+
+Confidence intervals for ranking parameters are constructed using the Gaussian multiplier bootstrap [52, 53]. Let $\{e_l\}_{l=1}^L$ be i.i.d. standard normal random variables independent of the data. The bootstrap distribution:
+
+$$\hat{\boldsymbol{\theta}}^* - \hat{\boldsymbol{\theta}} \mid \text{data}$$
+
+approximates the sampling distribution of $\hat{\boldsymbol{\theta}} - \boldsymbol{\theta}^*$, enabling construction of confidence intervals without parametric assumptions on the comparison process [8].
+
+For rank inference, we employ the bootstrap to assess whether observed rank differences are statistically significant, providing users with rigorous uncertainty quantification for ranking conclusions.
 
 ## 4 Experiments
 
@@ -210,7 +307,7 @@ The primary objective of this section is to verify that OmniRank's spectral rank
 - **Experimental Setup**: 
   - Synthetic datasets generated from Plackett-Luce model
   - Parameter ranges: $n \in \{50, 100, 200\}$ items, varying comparison counts $M$
-  - Baseline: Standard R implementation of spectral ranking (Yu et al., 2023)
+  - Baseline: Standard R implementation of spectral ranking (Yu et al. [8])
 - **Metrics**: 
   - Spearman correlation coefficient ($\rho$) between true and estimated preference scores
   - Ranking Mean Squared Error (RMSE)
@@ -300,7 +397,7 @@ This section demonstrates OmniRank's advantage over generic data analysis agents
   - **0.0**: Code error and execution error, or exceeded runtime limit
 - **Comparison Baselines**:
   - GPT-4 Advanced Data Analysis (OpenAI)
-  - Data Interpreter (Hong et al., 2024)
+  - Data Interpreter [22]
   - Other relevant general-purpose data agents if applicable
 - **Results Table** (similar to LAMBDA Table 8):
   - Score comparison across agents for each task
@@ -320,22 +417,58 @@ This section demonstrates OmniRank's advantage over generic data analysis agents
 
 ## 6 Conclusion
 
-## References:
-1. Cattelan, M. Models for paired comparison data: A review with applications to sports. Statistical Modelling 12, 319–343 (2012). https://arxiv.org/abs/1210.1016 
-2. Luce, R. D. Individual Choice Behavior: A Theoretical Analysis. (Wiley, 1959). https://psycnet.apa.org/record/1960-03588-000 
-3. Guiver, J. & Snelson, E. Bayesian inference for Plackett-Luce ranking models. in Proceedings of the 26th International Conference on Machine Learning (ICML) 377–384 (2009). https://icml.cc/Conferences/2009/papers/347.pdf 
-4. Hunter, D. R. MM algorithms for generalized Bradley-Terry models. The Annals of Statistics 32, 384–406 (2004). https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full 
-5. Maystre, L. & Grossglauser, M. Fast and accurate inference of Plackett-Luce models. in Advances in Neural Information Processing Systems (NeurIPS) 28 (2015). https://proceedings.neurips.cc/paper_files/paper/2015/hash/2a38a4a9316c49e5a833517c45d31070-Abstract.html 
-6. Hajek, B., Oh, S. & Xu, J. Minimax-optimal inference from partial rankings. in Advances in Neural Information Processing Systems (NeurIPS) 27 (2014). https://proceedings.neurips.cc/paper_files/paper/2014/hash/daadbd06d5082478b7677bea9812b575-Abstract.html 
-7. Negahban, S., Oh, S. & Shah, D. Iterative ranking from pair-wise comparisons. in Advances in Neural Information Processing Systems (NeurIPS) 25 (2012). https://papers.nips.cc/paper/4701-iterative-ranking-from-pair-wise-comparisons 
-8. Fan, J. et al. Spectral Ranking Inferences based on General Multiway Comparisons. arXiv preprint arXiv:2308.02918 (2023). https://arxiv.org/abs/2308.02918 
-9. Davenport, T. & Kalakota, R. The potential for artificial intelligence in healthcare. Future Healthcare Journal 6, 94–98 (2019). https://pmc.ncbi.nlm.nih.gov/articles/PMC6616181/ 
-10. Xu, Z. et al. Toward large reasoning models: A survey of reinforced reasoning in large language models. Patterns 6, 100983 (2025). https://www.sciencedirect.com/science/article/pii/S2666389925002181 
-11. Binz, M. & Schulz, E. Large language models could change the future of behavioral science. Nat. Rev. Psychol. 3, 284–296 (2024). https://www.nature.com/articles/s44159-024-00307-x 
-12. Dziri, N. et al. Faith and Fate: Limits of Transformers on Compositionality. in Advances in Neural Information Processing Systems (NeurIPS) 36 (2023). https://arxiv.org/abs/2305.18654 
-13. Schick, T. et al. Toolformer: Language Models Can Teach Themselves to Use Tools. in Advances in Neural Information Processing Systems (NeurIPS) 36 (2023). https://arxiv.org/abs/2302.04761 
-14. Liang, Y. et al. TaskMatrix.AI: Completing Tasks by Connecting Foundation Models with Millions of APIs. Intelligent Computing 3, 0063 (2024). https://spj.science.org/doi/10.34133/icomputing.0063 
-15. Bran, A. M. et al. ChemCrow: Augmenting large-language models with chemistry tools. Nature Machine Intelligence 6, 525–537 (2024). https://www.nature.com/articles/s42256-024-00832-8 
-16. Hu, Z. et al. GeneAgent: self-verification language agent for gene-set analysis using domain databases. Nat. Methods 22, 1677–1685 (2025). https://www.nature.com/articles/s41592-025-02748-6 
-17. Gao, C. et al. Large language models empowered agent-based modeling and simulation: a survey and perspectives. Humanit. Soc. Sci. Commun. 11, 1259 (2024). https://www.nature.com/articles/s41599-024-03359-6 
-18. Yao, S. et al. ReAct: Synergizing Reasoning and Acting in Language Models. in International Conference on Learning Representations (ICLR) (2023). https://arxiv.org/abs/2210.03629
+## References
+
+1. Cattelan, M. Models for paired comparison data: A review with applications to sports. Statistical Modelling 12, 319–343 (2012). https://journals.sagepub.com/doi/10.1177/1471082X1101200306
+2. Luce, R. D. Individual Choice Behavior: A Theoretical Analysis. (Wiley, 1959). https://psycnet.apa.org/record/1960-03588-000
+3. Guiver, J. & Snelson, E. Bayesian inference for Plackett-Luce ranking models. in Proceedings of the 26th International Conference on Machine Learning (ICML) 377–384 (2009). https://icml.cc/Conferences/2009/papers/347.pdf
+4. Hunter, D. R. MM algorithms for generalized Bradley-Terry models. The Annals of Statistics 32, 384–406 (2004). https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full
+5. Maystre, L. & Grossglauser, M. Fast and accurate inference of Plackett-Luce models. in Advances in Neural Information Processing Systems (NeurIPS) 28 (2015). https://proceedings.neurips.cc/paper_files/paper/2015/hash/2a38a4a9316c49e5a833517c45d31070-Abstract.html
+6. Hajek, B., Oh, S. & Xu, J. Minimax-optimal inference from partial rankings. in Advances in Neural Information Processing Systems (NeurIPS) 27 (2014). https://proceedings.neurips.cc/paper_files/paper/2014/hash/daadbd06d5082478b7677bea9812b575-Abstract.html
+7. Negahban, S., Oh, S. & Shah, D. Iterative ranking from pair-wise comparisons. in Advances in Neural Information Processing Systems (NeurIPS) 25 (2012). https://papers.nips.cc/paper/4701-iterative-ranking-from-pair-wise-comparisons
+8. Fan, J., Lou, Z., Wang, W. & Yu, M. Spectral ranking inferences based on general multiway comparisons. Operations Research 74, 524–540 (2026). https://pubsonline.informs.org/doi/abs/10.1287/opre.2023.0439
+9. Davenport, T. & Kalakota, R. The potential for artificial intelligence in healthcare. Future Healthcare Journal 6, 94–98 (2019). https://pmc.ncbi.nlm.nih.gov/articles/PMC6616181/
+10. Xu, Z. et al. Toward large reasoning models: A survey of reinforced reasoning in large language models. Patterns 6, 100983 (2025). https://www.sciencedirect.com/science/article/pii/S2666389925002181
+11. Binz, M. & Schulz, E. Large language models could change the future of behavioral science. Nature Reviews Psychology 3, 284–296 (2024). https://www.nature.com/articles/s44159-024-00307-x
+12. Dziri, N. et al. Faith and fate: Limits of transformers on compositionality. in Advances in Neural Information Processing Systems (NeurIPS) 36 (2023). https://proceedings.neurips.cc/paper_files/paper/2023/hash/a8f91b30c84f18ad1f1668be09e4e620-Abstract-Conference.html
+13. Schick, T. et al. Toolformer: Language models can teach themselves to use tools. in Advances in Neural Information Processing Systems (NeurIPS) 36 (2023). https://proceedings.neurips.cc/paper_files/paper/2023/hash/d842425e4bf79ba039352da0f658a906-Abstract-Conference.html
+14. Liang, Y. et al. TaskMatrix.AI: Completing tasks by connecting foundation models with millions of APIs. Intelligent Computing 3, 0063 (2024). https://spj.science.org/doi/10.34133/icomputing.0063
+15. Boiko, D. A., MacKnight, R., Kline, B. & Gomes, G. Autonomous chemical research with large language models. Nature 624, 570–578 (2023). https://www.nature.com/articles/s41586-023-06792-w
+16. Hu, Z. et al. GeneAgent: Self-verification language agent for gene-set analysis using domain databases. Nature Methods 22, 1677–1685 (2025). https://www.nature.com/articles/s41592-025-02748-6
+17. Gao, C. et al. Large language models empowered agent-based modeling and simulation: A survey and perspectives. Humanities and Social Sciences Communications 11, 1259 (2024). https://www.nature.com/articles/s41599-024-03359-6
+18. Yao, S. et al. ReAct: Synergizing reasoning and acting in language models. in International Conference on Learning Representations (ICLR) (2023). https://openreview.net/forum?id=WE_vluYUL-X
+19. Shah, N. B. & Wainwright, M. J. Simple, robust and optimal ranking from pairwise comparisons. Journal of Machine Learning Research 18, 1–38 (2018). https://www.jmlr.org/papers/v18/16-206.html
+20. Wang, H. et al. Scientific discovery in the age of artificial intelligence. Nature 620, 47–60 (2023). https://www.nature.com/articles/s41586-023-06221-2
+21. Thirunavukarasu, A. J. et al. Large language models in medicine. Nature Medicine 29, 1930–1940 (2023). https://www.nature.com/articles/s41591-023-02448-8
+22. Hong, S. et al. Data Interpreter: An LLM agent for data science. in Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (ACL) 12258–12279 (2024). https://aclanthology.org/2024.acl-long.655/
+23. Rajkumar, A. & Agarwal, S. A statistical convergence perspective of algorithms for rank aggregation from pairwise data. in Proceedings of the 31st International Conference on Machine Learning (ICML) 32, 118–126 (2014). https://proceedings.mlr.press/v32/rajkumar14.html
+24. Stein, H. S. & Gregoire, J. M. Progress and prospects for accelerating materials science with automated and autonomous workflows. Chemical Science 10, 9640–9649 (2019). https://pubs.rsc.org/en/content/articlelanding/2019/sc/c9sc03766g
+25. He, J., Treude, C. & Lo, D. LLM-based multi-agent systems for software engineering: Literature review, vision, and the road ahead. ACM Transactions on Software Engineering and Methodology 34, 1–70 (2025). https://dl.acm.org/doi/abs/10.1145/3712003
+26. Sun, M. et al. LAMBDA: A large model based data agent. Journal of the American Statistical Association (2025). https://www.tandfonline.com/doi/full/10.1080/01621459.2024.2439765
+27. Retzlaff, C. O. et al. Human-in-the-loop reinforcement learning: A survey and position on requirements, challenges, and opportunities. Journal of Artificial Intelligence Research 79, 359–415 (2024). https://www.jair.org/index.php/jair/article/view/15348
+28. Daniel, F., Kucherbaev, P., Cappiello, C., Benatallah, B. & Allahbakhsh, M. Quality control in crowdsourcing: A survey of quality attributes, assessment techniques, and assurance actions. ACM Computing Surveys 51, 1–40 (2018). https://dl.acm.org/doi/abs/10.1145/3148148
+29. Fürnkranz, J. & Hüllermeier, E. Preference learning and ranking by pairwise comparison. in Preference Learning 65–82 (Springer, 2010). https://link.springer.com/chapter/10.1007/978-3-642-14125-6_4
+30. Hüllermeier, E., Fürnkranz, J., Cheng, W. & Brinker, K. Label ranking by learning pairwise preferences. Artificial Intelligence 172, 1897–1916 (2008). https://www.sciencedirect.com/science/article/pii/S000437020800101X
+31. Kitano, H. Nobel Turing Challenge: Creating the engine for scientific discovery. NPJ Systems Biology and Applications 7, 29 (2021). https://www.nature.com/articles/s41540-021-00189-3
+32. Huang, L. et al. A survey on hallucination in large language models: Principles, taxonomy, challenges, and open questions. ACM Transactions on Information Systems 43, 1–55 (2025). https://dl.acm.org/doi/abs/10.1145/3703155
+33. Ding, K. et al. SciToolAgent: A knowledge-graph-driven scientific agent for multitool integration. Nature Computational Science 5, 412–424 (2025). https://www.nature.com/articles/s43588-025-00849-y
+34. Jansen, P. et al. DiscoveryWorld: A virtual environment for developing and evaluating automated scientific discovery agents. in Advances in Neural Information Processing Systems (NeurIPS) 37 (2024). https://proceedings.neurips.cc/paper_files/paper/2024/hash/13836f251823945316ae067350a5c366-Abstract-Datasets_and_Benchmarks_Track.html
+35. Hong, S. et al. MetaGPT: Meta programming for a multi-agent collaborative framework. in International Conference on Learning Representations (ICLR) (2024). https://openreview.net/forum?id=VtmBAGCN7o
+36. Xia, C. S., Deng, Y., Dunn, S. & Zhang, L. Demystifying LLM-based software engineering agents. Proceedings of the ACM on Software Engineering 2, 1–32 (2025). https://dl.acm.org/doi/abs/10.1145/3715754
+37. Dong, Y. et al. Self-collaboration code generation via ChatGPT. ACM Transactions on Software Engineering and Methodology 33, Article 74 (2024). https://dl.acm.org/doi/abs/10.1145/3672459
+38. Chen, Y., Fan, J., Ma, C. & Wang, K. Spectral method and regularized MLE are both optimal for top-K ranking. The Annals of Statistics 47, 2204–2235 (2019). https://projecteuclid.org/journals/annals-of-statistics/volume-47/issue-4/Spectral-method-and-regularized-MLE-are-both-optimal-for-top/10.1214/18-AOS1745.short
+39. Shinn, N. et al. Reflexion: Language agents with verbal reinforcement learning. in Advances in Neural Information Processing Systems (NeurIPS) 36 (2023). https://proceedings.neurips.cc/paper_files/paper/2023/hash/1b44b878bb782e6954cd888628510e90-Abstract-Conference.html
+40. Wei, J. et al. Chain-of-thought prompting elicits reasoning in large language models. in Advances in Neural Information Processing Systems (NeurIPS) 35 (2022). https://proceedings.neurips.cc/paper/2022/hash/9d5609613524ecf4f15af0f7b31abca4-Abstract-Conference.html
+41. Chen, Y., Chi, Y., Fan, J. & Ma, C. Spectral methods for data science: A statistical perspective. Foundations and Trends in Machine Learning 14, 566–806 (2021). https://www.nowpublishers.com/article/Details/MAL-079
+42. Lewis, P. et al. Retrieval-augmented generation for knowledge-intensive NLP tasks. in Advances in Neural Information Processing Systems (NeurIPS) 33, 9459–9474 (2020). https://proceedings.neurips.cc/paper/2020/hash/6ad1d768160a2b7537367c34b6559d87-Abstract.html
+43. Diao, S. et al. Active prompting with chain-of-thought for large language models. in Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (ACL) 1115–1131 (2024). https://aclanthology.org/2024.acl-long.62/
+44. Huang, J. & Chang, K. C. Towards reasoning in large language models: A survey. in Findings of the Association for Computational Linguistics: ACL 2023, 1049–1065 (2023). https://aclanthology.org/2023.findings-acl.67/
+45. Brown, T. B. et al. Language models are few-shot learners. in Advances in Neural Information Processing Systems (NeurIPS) 33, 1877–1901 (2020). https://proceedings.neurips.cc/paper/2020/hash/1457c0d6bfcb4967418bfb8ac142f64a-Abstract.html
+46. Plackett, R. L. The analysis of permutations. Journal of the Royal Statistical Society: Series C (Applied Statistics) 24, 193–202 (1975). https://www.jstor.org/stable/2346567
+47. Turner, H. L., van Etten, J., Firth, D. & Kosmidis, I. Modelling rankings in R: The PlackettLuce package. Computational Statistics 35, 1027–1057 (2020). https://link.springer.com/article/10.1007/s00180-020-00959-3
+48. Bradley, R. A. & Terry, M. E. Rank analysis of incomplete block designs: I. The method of paired comparisons. Biometrika 39, 324–345 (1952). https://www.jstor.org/stable/2334029
+49. Vigna, S. Spectral ranking. Network Science 4, 433–445 (2016). https://www.cambridge.org/core/journals/network-science/article/spectral-ranking/99ACDCD0CC1B774AB0041FB16AB43D1B
+50. Carletti, T., Battiston, F., Cencetti, G. & Fanelli, D. Random walks on hypergraphs. Physical Review E 101, 022308 (2020). https://journals.aps.org/pre/abstract/10.1103/PhysRevE.101.022308
+51. Han, R. & Xu, Y. A unified analysis of likelihood-based estimators in the Plackett-Luce model. The Annals of Statistics 53, 2099–2128 (2025). https://projecteuclid.org/journals/annals-of-statistics/volume-53/issue-5/A-unified-analysis-of-likelihood-based-estimators-in-the-PlackettLuce/10.1214/25-AOS2530.short
+52. Chernozhukov, V., Chetverikov, D. & Kato, K. Gaussian approximations and multiplier bootstrap for maxima of sums of high-dimensional random vectors. The Annals of Statistics 41, 2786–2819 (2013). https://projecteuclid.org/journals/annals-of-statistics/volume-41/issue-6/Gaussian-approximations-and-multiplier-bootstrap-for-maxima-of-sums-of/10.1214/13-AOS1161.full
+53. Chitra, U. & Raphael, B. Random walks on hypergraphs with edge-dependent vertex weights. in Proceedings of the 36th International Conference on Machine Learning (ICML) 97, 1172–1181 (2019). https://proceedings.mlr.press/v97/chitra19a.html
