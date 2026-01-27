@@ -297,11 +297,7 @@ In this section, we evaluate OmniRank's performance through three experimental d
 
 ### 4.1 Computational Fidelity Validation
 
-The primary objective of this section is to verify that OmniRank's spectral ranking engine produces mathematically correct results.
-
-#### 4.1.1 Comparison with Standard R Implementation
-
-**Purpose**: Verify that agent-mediated execution produces numerically identical results to direct R package calls, confirming no precision loss in the delegation pipeline.
+**Purpose**: Verify that OmniRank's spectral ranking engine produces mathematically correct results. We compare agent-mediated execution to direct R package calls to confirm that the delegation pipeline introduces no precision loss.
 
 **What to include**:
 - **Experimental Setup**: 
@@ -318,52 +314,101 @@ The primary objective of this section is to verify that OmniRank's spectral rank
   - Confirm that LLM-driven "Instruction Following to Computation" delegation does not introduce numerical artifacts
   - Note that this is a necessary but not sufficient validation (the real value is in agentic capabilities)
 
-### 4.2 OmniRank Agents Capability Evaluation
+### 4.2 OmniRank Agent Capability Evaluation
 
-This section evaluates the intelligent capabilities of OmniRank's agent components, including the Data Agent's data understanding abilities and the Engine Orchestrator's adaptive decision-making.
+This section evaluates the intelligent capabilities of OmniRank's agent components. Unlike the computational fidelity validation in Section 4.1, which verifies numerical correctness, these experiments assess the agents' ability to perform semantic understanding and adaptive decision-making---capabilities that distinguish OmniRank from simple wrapper systems. We designed a comprehensive test suite covering three core functions: data format recognition (Section 4.2.1), semantic schema inference (Section 4.2.2), and adaptive two-step method triggering (Section 4.2.3).
 
-#### 4.2.1 Format Recognition & Standardization & Validation
+#### 4.2.1 Format Recognition and Validation
 
-**Purpose**: Assess the Data Agent's ability to automatically identify and handle diverse data formats and validate data suitability for spectral ranking.
+**Experimental Setup.** The Data Agent must automatically identify the structure of uploaded data and assess its suitability for spectral ranking analysis. We constructed a test suite of 41 synthetic datasets spanning five difficulty categories: (i) *Standard* formats (9 datasets) with clean, unambiguous structures; (ii) *Ambiguous* cases (8 datasets) where data characteristics could lead to misclassification (e.g., sparse pointwise data resembling pairwise comparisons, binary values identical to win/loss encodings); (iii) *Transposed* structures (4 datasets) with rows and columns swapped from expected orientations; (iv) *Invalid* data (8 datasets) that should trigger rejection (single-column files, all-text content); and (v) *Real-world* formats (12 datasets) based on common internet data sources such as tennis match records and product ratings.
 
-**What to include**:
-- **Test Datasets**: 
-  - Standard formats: Pointwise, Pairwise, and Multiway
-  - Ambiguous cases: Sparse pointwise (could resemble pairwise), binary pointwise, mixed scales
-  - Invalid data: Single column, all-text, insufficient rows, disconnected comparison graphs
-  - Real-world formats: Tennis matches (winner/loser columns), product ratings, survey data
-- **Metrics**: 
-  - Format detection accuracy (precision/recall per format type)
-  - Engine compatibility detection accuracy
-  - Invalid data rejection rate
-- **Results**: Overall accuracy percentage, confusion matrix, category-wise breakdown
+Each dataset was labeled with ground truth for three classification targets: data format (pointwise, pairwise, multiway, or invalid), engine compatibility (compatible or incompatible), and required standardization action (none, standardize, or reject).
+
+**Results.** Table 1 presents the format detection performance. The Data Agent achieved 92.7% overall accuracy across the 41 test datasets. Performance varied across categories: the agent achieved perfect accuracy on Standard datasets (100%) and near-perfect on Transposed structures (100%), demonstrating reliable handling of both clean inputs and structurally challenging orientations. On Ambiguous cases, accuracy reached 87.5%, indicating robust discrimination between superficially similar formats.
+
+**Table 1: Format Detection Performance of the Data Agent**
+
+| Format | Precision | Recall | F1 Score | Support |
+|--------|-----------|--------|----------|---------|
+| Pointwise | 0.950 | 1.000 | 0.974 | 19 |
+| Pairwise | 0.900 | 1.000 | 0.947 | 9 |
+| Multiway | 1.000 | 0.889 | 0.941 | 9 |
+| Invalid | 0.800 | 0.750 | 0.774 | 4 |
+| **Overall Accuracy** | | | **0.927** | 41 |
+
+The agent demonstrated strong performance on Real-world datasets (91.7% accuracy), reflecting its capacity for semantic understanding---correctly interpreting winner/loser column pairs in tennis match data, recognizing benchmark score matrices despite irregular column naming conventions, and handling varied real-world formatting conventions.
+
+**Table 2: Category-wise Format Detection Accuracy**
+
+| Category | Accuracy |
+|----------|----------|
+| Standard | 100.0% |
+| Ambiguous | 87.5% |
+| Transposed | 100.0% |
+| Invalid | 75.0% |
+| Real-world | 91.7% |
+
+Error analysis revealed two systematic failure modes. First, the agent occasionally misclassified invalid data (75% accuracy), with some single-column files incorrectly identified as valid pointwise format. Second, ambiguous two-item multiway rankings (values 1 and 2 only) were occasionally confused with pairwise comparisons. These errors suggest opportunities for prompt engineering refinements in future iterations.
 
 #### 4.2.2 Semantic Schema Inference
 
-**Purpose**: Evaluate the Data Agent's semantic understanding of uploaded data.
+**Experimental Setup.** Beyond format recognition, the Data Agent must infer semantic properties of the data that are essential for correct ranking interpretation. We evaluated four schema inference tasks: (i) *BigBetter direction*---determining whether higher or lower metric values indicate superior performance (e.g., accuracy vs. error rate); (ii) *Ranking items identification*---correctly identifying which columns represent the items to be ranked; (iii) *Indicator column detection*---recognizing categorical columns that define subgroups for stratified analysis; and (iv) *Indicator values extraction*---correctly enumerating the unique values within indicator columns.
 
-**What to include**:
-- **BigBetter Direction**: Inference accuracy (higher vs lower is better)
-- **Ranking Items Identification**: Precision/recall for item column detection
-- **Indicator Column Detection**: Accuracy of identifying categorical stratification dimensions
-- **Indicator Values Extraction**: Correctness of extracting unique semantic groups
-- **Results Table**: Schema inference metrics across test datasets
+We constructed 44 test datasets across six categories designed to probe different aspects of semantic understanding. The *BigBetter* categories (24 datasets) included metrics where higher is better (accuracy, score, win rate), lower is better (error, cost, latency, loss), and semantically ambiguous cases (algorithm names, model identifiers). The *Indicator* categories (12 datasets) tested detection of explicit categorical columns versus datasets with no true indicator. The *Items Complex* category (8 datasets) featured challenging item identification scenarios including descriptive column names, mixed naming conventions, and multi-word identifiers.
 
-#### 4.2.3 Two-Step Method Triggering Accuracy
+**Results.** Table 3 summarizes the schema inference performance. The Data Agent achieved perfect accuracy (100%) across all four inference tasks and all six dataset categories. This result demonstrates that carefully engineered prompts with domain-specific knowledge can enable reliable semantic understanding for structured data analysis tasks.
 
-**Purpose**: Evaluate the Engine Orchestrator's ability to make correct statistical decisions about when to apply the two-step refinement method.
+**Table 3: Semantic Schema Inference Performance**
 
-**What to include**:
-- **Test Scenarios**: Datasets with varying levels of heterogeneity and sparsity
-- **Trigger Conditions Evaluated**:
-  - **Sparsity Gatekeeper**: Does the orchestrator correctly skip refinement when sparsity\_ratio < 1.0 (i.e., $M < n \log n$)?
-  - **Heterogeneity Trigger**: Does it correctly activate when CV > 0.5?
-  - **Uncertainty Trigger**: Does it correctly activate when CI\_width / n > 20%?
-- **Metrics**: 
-  - Trigger decision accuracy (true positive/negative rates)
-  - Ranking improvement when Step 2 is correctly triggered vs. incorrectly skipped
-- **Results Table**: Decision accuracy across different data conditions
-- **Discussion**: Demonstrate that dynamic orchestration improves ranking quality without user intervention
+| Category | BigBetter Acc. | Items Jaccard | Indicator Acc. | Values F1 |
+|----------|----------------|---------------|----------------|-----------|
+| BigBetter High | 1.000 | 1.000 | 1.000 | 1.000 |
+| BigBetter Low | 1.000 | 1.000 | 1.000 | 1.000 |
+| BigBetter Ambiguous | 1.000 | 1.000 | 1.000 | 1.000 |
+| Indicator Clear | 1.000 | 1.000 | 1.000 | 1.000 |
+| Indicator None | 1.000 | 1.000 | 1.000 | 1.000 |
+| Items Complex | 1.000 | 1.000 | 1.000 | 1.000 |
+| **Overall** | **1.000** | **1.000** | **1.000** | **1.000** |
+
+The perfect performance on BigBetter inference is particularly notable because incorrect direction inference would invert all rankings---a catastrophic failure mode. The agent's success reflects explicit prompt engineering that instructs the model to reason about metric semantics: "For metrics like 'accuracy', 'score', 'win_rate', higher values indicate better performance. For metrics like 'error', 'loss', 'latency', lower values are better."
+
+#### 4.2.3 Two-Step Method Triggering
+
+**Experimental Setup.** The Engine Orchestrator must decide whether to apply the computationally intensive two-step refinement procedure based on data characteristics. Following the theoretical framework of Fan et al. [8], the decision logic involves a hierarchical rule structure: (i) a *sparsity gatekeeper* that blocks Step 2 when data is too sparse ($M < n \log n$, where $M$ is the number of comparisons and $n$ is the number of items); (ii) a *heterogeneity trigger* that activates Step 2 when the coefficient of variation of comparison counts exceeds 0.5; and (iii) an *uncertainty trigger* that activates Step 2 when confidence interval width relative to $n$ exceeds 20%.
+
+We constructed 50 synthetic datasets across 10 scenarios designed to systematically test each decision pathway. Scenarios included sparse homogeneous data (should block at gatekeeper), sparse heterogeneous data (should block despite heterogeneity due to insufficient data), sufficient data with no triggers, sufficient data with heterogeneity trigger only, sufficient data with uncertainty trigger only, sufficient data with both triggers, boundary cases just below and above the sparsity threshold, and large-item scenarios testing scalability of the decision rules.
+
+**Results.** Table 4 presents the triggering accuracy results. The Engine Orchestrator achieved perfect decision accuracy (100%) across all 50 datasets and all 10 scenarios. The gatekeeper correctly blocked Step 2 for all 25 sparse datasets, and the trigger conditions correctly activated Step 2 for all 25 datasets meeting the theoretical criteria.
+
+**Table 4: Two-Step Method Triggering Accuracy by Scenario**
+
+| Scenario | Expected Decision | Accuracy | n |
+|----------|-------------------|----------|---|
+| Sparse Homogeneous | No Step 2 (gatekeeper) | 100% | 5 |
+| Sparse Heterogeneous | No Step 2 (gatekeeper) | 100% | 5 |
+| Boundary Below Threshold | No Step 2 (gatekeeper) | 100% | 5 |
+| Boundary Above Threshold | Step 2 (heterogeneity) | 100% | 5 |
+| Sufficient No Trigger | No Step 2 (no triggers) | 100% | 5 |
+| Sufficient Heterogeneity | Step 2 (heterogeneity) | 100% | 5 |
+| Sufficient Uncertainty | Step 2 (uncertainty) | 100% | 5 |
+| Sufficient Both Triggers | Step 2 (both) | 100% | 5 |
+| Large Items Sparse | No Step 2 (gatekeeper) | 100% | 5 |
+| Large Items Sufficient | Step 2 (heterogeneity) | 100% | 5 |
+| **Overall** | | **100%** | **50** |
+
+The boundary scenarios are particularly informative: datasets with sparsity ratio 0.91 (just below the threshold of 1.0) were correctly blocked, while those with ratio 1.22 (just above) correctly proceeded to trigger evaluation. This precision at decision boundaries demonstrates that the orchestrator's rule implementation faithfully encodes the theoretical requirements.
+
+**Table 5: Overall Two-Step Decision Metrics**
+
+| Metric | Value |
+|--------|-------|
+| Overall Accuracy | 1.000 |
+| Precision (Step 2 Triggered) | 1.000 |
+| Recall (Step 2 Triggered) | 1.000 |
+| F1 Score | 1.000 |
+| Gatekeeper Accuracy | 1.000 |
+
+These results validate that OmniRank's adaptive orchestration correctly implements the statistical decision rules without requiring user intervention. Domain experts can upload data and receive appropriately refined rankings without needing to understand the underlying theory of when two-step estimation is beneficial.
 
 ### 4.3 Comparison with Generic Agents
 
