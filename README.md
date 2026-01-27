@@ -80,7 +80,7 @@ Copy `.env.example` to `.env` and configure:
 
 ```
 OPENAI_API_KEY=your_api_key
-OPENAI_MODEL=gpt-5-nano
+OPENAI_MODEL=gpt-5-mini
 ```
 
 ## Usage

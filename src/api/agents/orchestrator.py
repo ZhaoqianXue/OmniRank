@@ -81,7 +81,7 @@ class EngineOrchestrator:
             api_key = os.getenv("OPENAI_API_KEY")
             if api_key:
                 self.client = OpenAI(api_key=api_key)
-                self.model = os.getenv("OPENAI_MODEL", "gpt-5-nano")
+                self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
             else:
                 logger.warning("OPENAI_API_KEY not set, falling back to rule-based decision")
                 self.use_llm_decision = False
@@ -139,7 +139,7 @@ CONFIDENCE: [0.0-1.0]"""
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                max_completion_tokens=500,  # gpt-5-nano requires >= 500
+                max_completion_tokens=500,  # gpt-5-mini requires >= 500
             )
             
             text = response.choices[0].message.content.strip()
