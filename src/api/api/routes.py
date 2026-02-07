@@ -452,9 +452,9 @@ async def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     Trigger ranking analysis with user-confirmed configuration.
     
     The Engine Orchestrator will:
-    1. Execute spectral_ranking_step1.R
-    2. Check diagnostics (heterogeneity, sparsity)
-    3. Conditionally execute spectral_ranking_step2.R
+    1. Preprocess data based on user configuration
+    2. Execute spectral_ranking_step1.R with bootstrap confidence intervals
+    3. Return ranking results with uncertainty quantification
     """
     store = get_session_store()
     session = store.get_session(request.session_id)

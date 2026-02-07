@@ -28,7 +28,7 @@ The diagram is organized vertically in 5 horizontal bands:
 
 **BAND 1 (Top): User Input & Data Upload**
 **BAND 2: Data Agent - LLM-Powered Data Understanding**
-**BAND 3: Engine Orchestrator - Adaptive Two-Step Execution**
+**BAND 3: Engine Orchestrator - Spectral Ranking Execution**
 **BAND 4: Analyst Agent - Result Interpretation & Interaction**
 **BAND 5 (Bottom): User Output & Interactive Chat**
 
@@ -73,42 +73,27 @@ The diagram is organized vertically in 5 horizontal bands:
 
 **Panel c - Engine Orchestrator (third band, full width, GREEN accent):**
 - Large rectangular container with green border, labeled "Engine Orchestrator" at top
-- CRITICAL: Show a clear LEFT-TO-RIGHT flowchart with the following layout:
+- CRITICAL: Show a simple LEFT-TO-RIGHT flowchart with the following layout:
 
   ```
-  [Input] → [Step 1] → [Decision Diamond] → [Step 2] → [Output]
-                              ↓ No
-                         [Output] (bypass)
+  [Input] → [Spectral Ranking Engine] → [Output]
   ```
 
-  BLOCK 1 (leftmost): Step 1 Execution
+  BLOCK 1 (left): Input Processing
+  - Rectangle showing data preprocessing
+  - Label above: "Data Preprocessing"
+  - Features: "Item Selection", "Indicator Filtering"
+  
+  BLOCK 2 (center): Spectral Ranking Engine
   - Rectangle with R logo icon inside
-  - Label above: "Step 1: Vanilla Spectral"
+  - Label above: "Spectral Ranking"
   - Formula below: "f(Aₗ) = |Aₗ|"
   - Small text: "Bootstrap: 2000 iter"
-  - Solid arrow pointing RIGHT to Decision Diamond, labeled "θ̂⁽¹⁾ + Metadata"
   
-  BLOCK 2 (center): Decision Diamond
-  - Standard flowchart diamond shape
-  - Text inside: "Refine?"
-  - Decision rules shown BELOW the diamond (not inside) as small text box:
-    "Triggers: sparsity ≥ 1.0 AND (heterogeneity > 0.5 OR CI_width/n > 20%)"
-  - TWO output arrows from the diamond:
-    - RIGHT arrow labeled "Yes" → goes to Step 2
-    - DOWN arrow labeled "No" → curves around and joins the final output arrow (bypassing Step 2)
-  
-  BLOCK 3 (right): Step 2 Execution
-  - Rectangle with R logo icon inside
-  - Label above: "Step 2: Optimal Weighting"
-  - Formula below: "f(Aₗ) ∝ Σ exp(θ̂ᵤ)"
-  - Solid arrow pointing RIGHT to merge point
-  
-  MERGE POINT (far right): Both paths converge
-  - The "Yes" path (through Step 2) and "No" path (bypass) merge into a single output arrow
+  BLOCK 3 (right): Output
   - Final output arrow points DOWN to Analyst Agent, labeled "Ranking Results + CI"
 
 - Input arrow from Data Agent enters from TOP-LEFT: "Schema + Data Path"
-- The "No" bypass path should be drawn as a curved arrow going AROUND Step 2, not through it
 
 **Panel d - Analyst Agent (fourth band, full width, BLUE accent):**
 - Large rounded rectangle with blue border, labeled "Analyst Agent"
@@ -158,7 +143,7 @@ The diagram is organized vertically in 5 horizontal bands:
 
 **KEY VISUAL ELEMENTS TO EMPHASIZE:**
 1. The distinction between LLM-powered components (blue, rounded) and deterministic components (green, angular)
-2. The conditional two-step execution logic with clear decision diamond
+2. The streamlined spectral ranking execution flow
 3. Feedback loops for validation and error handling
 4. The three-function structure of each agent (Data Agent: 3 sub-modules, Analyst Agent: 3 modules)
 5. Session Memory as a shared resource (shown at bottom)

@@ -113,7 +113,7 @@ Analyze the score distributions:
 ### 4. Data Quality & Methodology
 Provide context about the analysis:
 - Sample size and comparison count
-- Whether refined analysis (two-step method) was applied and why
+- Data quality considerations (sparse data, heterogeneous comparisons)
 - Any data quality considerations (sparse data, heterogeneous comparisons)
 - Confidence level interpretation (95% CI means: if we repeated this analysis many times, 95% of the intervals would contain the true rank)
 
@@ -192,7 +192,6 @@ Provide actionable guidance:
         quality = {
             "sparsity_status": "sufficient" if metadata.sparsity_ratio >= 1.0 else "sparse",
             "heterogeneity_status": "high" if metadata.heterogeneity_index > 0.5 else "balanced",
-            "refinement_applied": metadata.step2_triggered,
         }
         return quality
     
@@ -234,7 +233,7 @@ Provide actionable guidance:
 - **Total Comparisons**: {metadata.n_comparisons}
 - **Sparsity Ratio**: {metadata.sparsity_ratio:.2f} ({"sufficient data" if quality["sparsity_status"] == "sufficient" else "sparse data, interpret with caution"})
 - **Heterogeneity Index**: {metadata.heterogeneity_index:.2f} ({"high variation in comparison counts" if quality["heterogeneity_status"] == "high" else "balanced comparison distribution"})
-- **Refined Analysis Applied**: {"Yes (to account for data imbalance)" if quality["refinement_applied"] else "No (initial analysis sufficient)"}
+- **Analysis Method**: Spectral ranking with bootstrap uncertainty quantification
 - **Runtime**: {metadata.runtime_sec:.2f} seconds
 
 ### Complete Rankings
@@ -356,7 +355,7 @@ Based on {metadata.n_comparisons} comparisons among {metadata.n_items} items, **
 
 - **Data Quality**: {"Sufficient comparison data (sparsity ratio >= 1.0)" if quality["sparsity_status"] == "sufficient" else "Limited comparison data - interpret results with caution"}
 - **Data Balance**: {"High heterogeneity in comparison counts" if quality["heterogeneity_status"] == "high" else "Balanced comparison distribution"}
-- **Analysis Type**: {"Refined analysis was applied to account for data imbalance, achieving improved statistical efficiency" if quality["refinement_applied"] else "Initial analysis was sufficient given balanced data characteristics"}
+- **Analysis Type**: Spectral ranking analysis with bootstrap-based confidence intervals
 - **Computation Time**: {metadata.runtime_sec:.2f} seconds
 
 ### 5. Actionable Insights
@@ -405,9 +404,7 @@ Based on {metadata.n_comparisons} comparisons among {metadata.n_items} items, **
             questions.append("Which rankings can I trust for decision-making?")
         
         # Question 3: About methodology or data quality
-        if metadata.step2_triggered:
-            questions.append("Why was refined analysis applied to my data?")
-        elif metadata.sparsity_ratio < 1.0:
+        if metadata.sparsity_ratio < 1.0:
             questions.append("How does sparse data affect my ranking results?")
         else:
             questions.append("How should I interpret the confidence intervals?")
@@ -452,7 +449,7 @@ Based on {metadata.n_comparisons} comparisons among {metadata.n_items} items, **
 - Comparisons analyzed: {metadata.n_comparisons}
 - Data quality: {quality["sparsity_status"]}
 - Heterogeneity: {quality["heterogeneity_status"]}
-- Refined analysis applied: {"Yes" if metadata.step2_triggered else "No"}
+- Analysis method: Spectral ranking with bootstrap confidence intervals
 - Statistical ties detected: {"Yes, between " + str(ties[0][:3]) if ties else "None"}
 
 ## Generate Questions
@@ -586,7 +583,7 @@ Your goal is to answer questions about ranking results using the "Bottom Line Up
 - Total comparisons: {results.metadata.n_comparisons}
 - Data quality: {"Sufficient" if quality["sparsity_status"] == "sufficient" else "Sparse"}
 - Data balance: {"High heterogeneity" if quality["heterogeneity_status"] == "high" else "Well-balanced"}
-- Refined analysis applied: {"Yes" if quality["refinement_applied"] else "No"}
+- Analysis type: Spectral ranking with bootstrap uncertainty
 
 **Current Rankings:**
 {ranking_table}

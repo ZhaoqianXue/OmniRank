@@ -111,7 +111,7 @@ TOP section - Summary Cards:
 - Three small metric cards in a row:
   - "#1: GPT-4" (with trophy icon)
   - "8 items ranked"
-  - "Step 2 applied ✓"
+  - "Analysis complete ✓"
 
 LEFT side - Visualization Panel:
 - Tabbed interface: "Forest Plot" | "Heatmap" | "Distribution"
@@ -136,7 +136,7 @@ BOTTOM section - Chat Interface:
 - Suggested questions as clickable chips:
   - "Is GPT-4 significantly better than Claude?"
   - "Which rankings have high uncertainty?"
-  - "Why was Step 2 applied?"
+  - "How should I interpret the results?"
 - Previous Q&A exchange shown:
   - User: "Are there statistical ties?"
   - Agent: "Yes, Claude-3 and Gemini-Pro have overlapping CIs..."

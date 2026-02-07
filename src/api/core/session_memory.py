@@ -28,9 +28,7 @@ class TraceType(str, Enum):
     UPLOAD = "upload"
     SCHEMA_INFERENCE = "schema_inference"
     VALIDATION = "validation"
-    STEP1_EXECUTION = "step1_execution"
-    STEP2_DECISION = "step2_decision"
-    STEP2_EXECUTION = "step2_execution"
+    ENGINE_EXECUTION = "engine_execution"
     REPORT_GENERATION = "report_generation"
     ERROR = "error"
     USER_MESSAGE = "user_message"
@@ -84,7 +82,6 @@ class SessionMemory:
     # Results
     results: Optional[RankingResults] = None
     step1_json_path: Optional[str] = None
-    step2_json_path: Optional[str] = None
     
     # Chat history
     messages: list[ChatMessage] = field(default_factory=list)
@@ -180,7 +177,6 @@ class SessionMemory:
             ctx["results_summary"] = {
                 "n_items": self.results.metadata.n_items,
                 "n_comparisons": self.results.metadata.n_comparisons,
-                "step2_triggered": self.results.metadata.step2_triggered,
                 "top_3": [
                     {"name": item.name, "rank": item.rank}
                     for item in sorted(self.results.items, key=lambda x: x.rank)[:3]

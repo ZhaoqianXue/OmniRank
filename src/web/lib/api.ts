@@ -65,7 +65,6 @@ export interface RankingMetadata {
   n_comparisons: number;
   heterogeneity_index: number;
   sparsity_ratio: number;
-  step2_triggered: boolean;
   runtime_sec: number;
 }
 

@@ -74,9 +74,7 @@ function getQuickStartQuestions(
         return [
           `Is ${topItem} significantly better than ${secondItem}?`,
           "Which rankings can I trust for decision-making?",
-          metadata.step2_triggered
-            ? "Why was refined analysis applied to my data?"
-            : "How should I interpret the confidence intervals?",
+          "How should I interpret the confidence intervals?",
         ];
       }
       return [

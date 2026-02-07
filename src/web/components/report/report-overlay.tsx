@@ -127,9 +127,7 @@ function FallbackInsights({ results }: { results: RankingResults }) {
             {metadata.sparsity_ratio >= 1.0 ? " (sufficient data)" : " (sparse data, interpret with caution)"}
           </li>
           <li>
-            {metadata.step2_triggered
-              ? "Refined analysis was applied to account for data imbalance"
-              : "Standard analysis was sufficient given balanced data characteristics"}
+            Standard analysis methodology applied
           </li>
         </ul>
       </div>
@@ -259,9 +257,7 @@ export function ReportOverlay({
       insights: [
         "How should I interpret the confidence intervals?",
         "What makes the top-ranked item stand out?",
-        metadata.step2_triggered
-          ? "Why was refined analysis applied to my data?"
-          : "How does the data quality affect these results?",
+        "How does the data quality affect these results?",
       ],
       scoreDistribution: [
         "What does the score distribution tell us?",

@@ -113,13 +113,13 @@ The diagram shows a stacked layer architecture:
     - "High Heterogeneity: Uneven match counts"
   - Analogy: "Like pixel density in an image"
 
-  BLOCK D - Two-Step Method:
-  - Box titled "Analysis Methods"
+  BLOCK D - Bootstrap Methods:
+  - Box titled "Uncertainty Quantification"
   - Content:
-    - "Step 1 (Standard): Good for balanced data"
-    - "Step 2 (Refined): Triggered for messy data"
-    - "Achieves optimal statistical efficiency"
-  - Small flowchart: Step 1 → Decision → Step 2
+    - "Bootstrap: 2000 iterations default"
+    - "95% CI: confidence interval for ranks"
+    - "Gaussian multiplier bootstrap"
+  - Small visual: confidence bar with whiskers
 
 - Annotation arrow: "Enables expert reasoning without fine-tuning"
 

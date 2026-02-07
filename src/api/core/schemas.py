@@ -138,7 +138,6 @@ class RankingMetadata(BaseModel):
     n_comparisons: int
     heterogeneity_index: float
     sparsity_ratio: float
-    step2_triggered: bool
     runtime_sec: float
 
 
