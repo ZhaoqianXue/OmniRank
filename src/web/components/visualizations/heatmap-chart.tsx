@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import type { RankingItem, RankingResults } from "@/lib/api";
+import type { RankingResults } from "@/lib/api";
 
 interface HeatmapChartProps {
   results: RankingResults;

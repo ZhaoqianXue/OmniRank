@@ -1,170 +1,265 @@
 /**
- * OmniRank API Type Definitions
- * Contract-First: These types define the API contract between frontend and backend.
+ * OmniRank Shared API Contracts
+ * Contract-first shared types for frontend and backend.
  */
 
-// ============================================================================
-// Common Types
-// ============================================================================
+export type ComparisonFormat = "pointwise" | "pairwise" | "multiway";
 
-export type DataFormat = "pointwise" | "pairwise" | "multiway";
+export interface DataSummary {
+  columns: string[];
+  sample_rows: Array<Record<string, unknown>>;
+  row_count: number;
+  column_types: Record<string, "numeric" | "categorical" | "datetime" | "unknown">;
+}
 
-export interface InferredSchema {
-  format: DataFormat;
+export interface ReadDataFileResult {
+  success: boolean;
+  data?: DataSummary;
+  error?: string;
+}
+
+export interface SemanticSchema {
   bigbetter: 0 | 1;
   ranking_items: string[];
   indicator_col: string | null;
   indicator_values: string[];
 }
 
-export interface ValidationWarning {
-  type: "sparsity" | "connectivity" | "format";
-  message: string;
-  severity: "warning" | "error";
+export interface SemanticSchemaResult {
+  success: boolean;
+  format: ComparisonFormat;
+  format_evidence: string;
+  schema?: SemanticSchema;
+  error?: string;
 }
 
-// ============================================================================
-// Upload API
-// ============================================================================
+export interface FormatValidationResult {
+  is_ready: boolean;
+  fixable: boolean;
+  issues: string[];
+  suggested_fixes: string[];
+}
+
+export interface QualityValidationResult {
+  is_valid: boolean;
+  warnings: string[];
+  errors: string[];
+}
+
+export interface PreprocessResult {
+  preprocessed_csv_path: string;
+  transformation_log: string[];
+  row_count: number;
+  dropped_rows: number;
+}
+
+export interface EngineConfig {
+  csv_path: string;
+  bigbetter: 0 | 1;
+  selected_items?: string[];
+  selected_indicator_values?: string[];
+  B: number;
+  seed: number;
+  r_script_path: string;
+}
+
+export interface RankingResults {
+  items: string[];
+  theta_hat: number[];
+  ranks: number[];
+  ci_lower: number[];
+  ci_upper: number[];
+  indicator_value?: string | null;
+}
+
+export interface ExecutionTrace {
+  command: string;
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+  duration_seconds: number;
+  timestamp: string;
+}
+
+export interface ExecutionResult {
+  success: boolean;
+  results?: RankingResults;
+  error?: string;
+  trace: ExecutionTrace;
+}
+
+export interface ToolCallRecord {
+  tool_name: string;
+  inputs: Record<string, unknown>;
+  outputs: Record<string, unknown>;
+  timestamp: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface SessionMemorySnapshot {
+  session_id: string;
+  status:
+    | "idle"
+    | "uploaded"
+    | "inferred"
+    | "awaiting_confirmation"
+    | "confirmed"
+    | "running"
+    | "completed"
+    | "error";
+  original_file_path?: string | null;
+  current_file_path?: string | null;
+  filename?: string | null;
+  data_summary?: DataSummary | null;
+  inferred_schema?: SemanticSchema | null;
+  format_validation_result?: FormatValidationResult | null;
+  quality_validation_result?: QualityValidationResult | null;
+  confirmed_schema?: SemanticSchema | null;
+  config?: EngineConfig | null;
+  current_results?: RankingResults | null;
+  execution_trace: ExecutionTrace[];
+  tool_call_history: ToolCallRecord[];
+  report_output?: ReportOutput | null;
+  visualization_output?: VisualizationOutput | null;
+  citation_blocks?: CitationBlock[];
+  created_at: string;
+  updated_at: string;
+  error?: string | null;
+}
+
+export type SessionMemory = SessionMemorySnapshot;
+
+export interface PlotSpec {
+  type: string;
+  data: Record<string, unknown>;
+  config: Record<string, unknown>;
+  svg_path: string;
+  block_id: string;
+  caption_plain: string;
+  caption_academic: string;
+  hint_ids: string[];
+}
+
+export interface ArtifactRef {
+  kind: string;
+  path: string;
+  title: string;
+  mime_type: string;
+}
+
+export interface HintSpec {
+  hint_id: string;
+  title: string;
+  body: string;
+  kind: "definition" | "assumption" | "caveat" | "method";
+  sources: string[];
+}
+
+export interface CitationBlock {
+  block_id: string;
+  kind: "summary" | "result" | "comparison" | "method" | "limitation" | "repro" | "figure" | "table";
+  markdown: string;
+  text: string;
+  hint_ids: string[];
+  artifact_paths: string[];
+}
+
+export interface QuotePayload {
+  quoted_text: string;
+  block_id?: string;
+  kind?: string;
+  source: "report" | "user_upload" | "external";
+}
+
+export interface VisualizationOutput {
+  plots: PlotSpec[];
+  errors: string[];
+}
+
+export interface ReportOutput {
+  markdown: string;
+  key_findings: Record<string, unknown>;
+  artifacts: ArtifactRef[];
+  hints: HintSpec[];
+  citation_blocks: CitationBlock[];
+}
+
+export interface AnswerOutput {
+  answer: string;
+  supporting_evidence: string[];
+  used_citation_block_ids: string[];
+}
+
+export interface ConfirmationResult {
+  confirmed: boolean;
+  confirmed_schema: SemanticSchema;
+  user_modifications: string[];
+  B: number;
+  seed: number;
+}
+
+export interface DataPreview {
+  columns: string[];
+  rows: Array<Record<string, string | number | null>>;
+  totalRows: number;
+}
 
 export interface UploadResponse {
   session_id: string;
   filename: string;
-  inferred_schema: InferredSchema;
-  warnings: ValidationWarning[];
 }
 
-// ============================================================================
-// Data Agent API
-// ============================================================================
-
-export type DataAgentStartStatus = "started" | "already_started" | "already_completed";
-
-export interface DataAgentStartRequest {
-  session_id: string;
+export interface InferRequest {
+  user_hints?: string;
 }
 
-export interface DataAgentStartResponse {
-  session_id: string;
-  status: DataAgentStartStatus;
-}
-
-// ============================================================================
-// Analyze API
-// ============================================================================
-
-export interface AnalysisConfig {
-  bigbetter: 0 | 1;
-  selected_items?: string[];
-  selected_indicator_values?: string[];
-  bootstrap_iterations: number;
-  random_seed: number;
-}
-
-export interface AnalyzeRequest {
-  session_id: string;
-  config: AnalysisConfig;
-}
-
-export type AnalysisStatus = "processing" | "completed" | "error";
-
-export interface AnalyzeResponse {
-  status: AnalysisStatus;
-  results?: RankingResults;
+export interface InferResponse {
+  success: boolean;
+  data_summary?: DataSummary;
+  schema_result?: SemanticSchemaResult;
+  format_result?: FormatValidationResult;
+  quality_result?: QualityValidationResult;
+  preprocessed_path?: string;
+  requires_confirmation: boolean;
   error?: string;
 }
 
-// ============================================================================
-// Ranking Results
-// ============================================================================
-
-export interface RankingItem {
-  name: string;
-  theta_hat: number;
-  rank: number;
-  ci_lower: number;
-  ci_upper: number;
-  ci_two_sided: [number, number];
+export interface ConfirmRequest {
+  confirmed: boolean;
+  confirmed_schema: SemanticSchema;
+  user_modifications?: string[];
+  B?: number;
+  seed?: number;
 }
 
-export interface RankingMetadata {
-  n_items: number;
-  n_comparisons: number;
-  heterogeneity_index: number;
-  sparsity_ratio: number;
-  runtime_sec: number;
+export interface RunRequest {
+  selected_items?: string[];
+  selected_indicator_values?: string[];
 }
 
-export interface PairwiseComparison {
-  item_a: string;
-  item_b: string;
-  win_rate_a: number;
-  n_comparisons: number;
+export interface RunResponse {
+  success: boolean;
+  config?: EngineConfig;
+  execution?: ExecutionResult;
+  visualizations?: VisualizationOutput;
+  report?: ReportOutput;
+  error?: string;
 }
 
-export interface RankingResults {
-  items: RankingItem[];
-  metadata: RankingMetadata;
-  pairwise_matrix: PairwiseComparison[];
-  report?: string;  // LLM-generated analysis report (markdown)
+export interface QuestionRequest {
+  question: string;
+  quotes?: QuotePayload[];
 }
 
-// ============================================================================
-// WebSocket Messages
-// ============================================================================
-
-export type WSMessageType = "progress" | "agent_message" | "result" | "error";
-export type AgentType = "data" | "orchestrator" | "analyst";
-
-export interface WSProgressPayload {
-  progress: number;
-  message: string;
+export interface ArtifactDescriptor {
+  artifact_id: string;
+  kind: string;
+  title: string;
+  mime_type: string;
 }
 
-export interface WSAgentMessagePayload {
-  agent: AgentType;
-  message: string;
-  thinking?: string;
-}
-
-export interface WSResultPayload {
-  results: RankingResults;
-}
-
-export interface WSErrorPayload {
-  error: string;
-  agent?: AgentType;
-}
-
-export interface WSMessage {
-  type: WSMessageType;
-  payload: WSProgressPayload | WSAgentMessagePayload | WSResultPayload | WSErrorPayload;
-}
-
-// ============================================================================
-// Chat Messages
-// ============================================================================
-
-export type MessageRole = "user" | "assistant" | "system";
-
-export interface ChatMessage {
-  id: string;
-  role: MessageRole;
-  content: string;
-  timestamp: number;
-  agent?: AgentType;
-}
-
-// ============================================================================
-// Session State
-// ============================================================================
-
-export interface SessionState {
-  session_id: string;
-  filename: string | null;
-  schema: InferredSchema | null;
-  config: AnalysisConfig | null;
-  results: RankingResults | null;
-  messages: ChatMessage[];
-  status: "idle" | "uploading" | "configuring" | "analyzing" | "completed" | "error";
+export interface SessionSnapshotResponse {
+  session: SessionMemorySnapshot;
+  artifacts: ArtifactDescriptor[];
 }

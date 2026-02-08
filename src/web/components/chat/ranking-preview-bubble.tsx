@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Play, Loader2, Settings2, Check, X, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -16,10 +16,19 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { InferredSchema, AnalysisConfig, ValidationWarning } from "@/lib/api";
+import type {
+  AnalysisConfig,
+  FormatValidationResult,
+  QualityValidationResult,
+  SemanticSchema,
+  ValidationWarning,
+} from "@/lib/api";
 
 interface RankingPreviewBubbleProps {
-  schema: InferredSchema;
+  schema: SemanticSchema;
+  detectedFormat?: "pointwise" | "pairwise" | "multiway";
+  formatResult?: FormatValidationResult | null;
+  qualityResult?: QualityValidationResult | null;
   warnings?: ValidationWarning[];
   onStartAnalysis: (config: AnalysisConfig) => void;
   isAnalyzing?: boolean;
@@ -71,6 +80,9 @@ function Section({
 
 export function RankingPreviewBubble({
   schema,
+  detectedFormat,
+  formatResult,
+  qualityResult,
   warnings = [],
   onStartAnalysis,
   isAnalyzing = false,
@@ -79,10 +91,15 @@ export function RankingPreviewBubble({
   onToggleReport,
   className,
 }: RankingPreviewBubbleProps) {
+  const hasIndicator = Boolean(schema.indicator_col && schema.indicator_values.length > 0);
+
   // Configuration state
-  const [bigbetter, setBigbetter] = useState<0 | 1>(1);
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [selectedIndicatorValues, setSelectedIndicatorValues] = useState<string[]>([]);
+  const [bigbetter, setBigbetter] = useState<0 | 1>(schema.bigbetter as 0 | 1);
+  const [selectedItems, setSelectedItems] = useState<string[]>([...schema.ranking_items]);
+  const [indicatorCol, setIndicatorCol] = useState<string | null>(schema.indicator_col);
+  const [selectedIndicatorValues, setSelectedIndicatorValues] = useState<string[]>([
+    ...schema.indicator_values,
+  ]);
   const [bootstrapIterations, setBootstrapIterations] = useState(2000);
   const [randomSeed, setRandomSeed] = useState(42);
   
@@ -93,23 +110,16 @@ export function RankingPreviewBubble({
   // Temporary state for dialog editing
   const [tempBigbetter, setTempBigbetter] = useState<0 | 1>(1);
   const [tempSelectedItems, setTempSelectedItems] = useState<string[]>([]);
+  const [tempIndicatorEnabled, setTempIndicatorEnabled] = useState<boolean>(Boolean(schema.indicator_col));
   const [tempSelectedIndicatorValues, setTempSelectedIndicatorValues] = useState<string[]>([]);
   const [tempBootstrapIterations, setTempBootstrapIterations] = useState(2000);
   const [tempRandomSeed, setTempRandomSeed] = useState(42);
-
-  // Initialize state from schema
-  useEffect(() => {
-    if (schema) {
-      setBigbetter(schema.bigbetter as 0 | 1);
-      setSelectedItems(schema.ranking_items);
-      setSelectedIndicatorValues(schema.indicator_values);
-    }
-  }, [schema]);
 
   // Open dialog and sync temp state
   const handleOpenDialog = () => {
     setTempBigbetter(bigbetter);
     setTempSelectedItems([...selectedItems]);
+    setTempIndicatorEnabled(indicatorCol !== null);
     setTempSelectedIndicatorValues([...selectedIndicatorValues]);
     setTempBootstrapIterations(bootstrapIterations);
     setTempRandomSeed(randomSeed);
@@ -119,9 +129,11 @@ export function RankingPreviewBubble({
 
   // Save changes from dialog
   const handleSaveConfig = () => {
+    const nextIndicatorCol = tempIndicatorEnabled ? schema.indicator_col : null;
     setBigbetter(tempBigbetter);
     setSelectedItems(tempSelectedItems);
-    setSelectedIndicatorValues(tempSelectedIndicatorValues);
+    setIndicatorCol(nextIndicatorCol);
+    setSelectedIndicatorValues(tempIndicatorEnabled ? tempSelectedIndicatorValues : []);
     setBootstrapIterations(tempBootstrapIterations);
     setRandomSeed(tempRandomSeed);
     setIsDialogOpen(false);
@@ -154,10 +166,14 @@ export function RankingPreviewBubble({
   const deselectAllIndicators = () => setTempSelectedIndicatorValues([]);
 
   const handleStartAnalysis = () => {
+    const useIndicator = indicatorCol !== null;
     const config: AnalysisConfig = {
       bigbetter,
+      indicator_col: useIndicator ? indicatorCol : null,
       selected_items: selectedItems.length === schema.ranking_items.length ? undefined : selectedItems,
-      selected_indicator_values: selectedIndicatorValues.length === schema.indicator_values.length ? undefined : selectedIndicatorValues,
+      selected_indicator_values: useIndicator
+        ? (selectedIndicatorValues.length === schema.indicator_values.length ? undefined : selectedIndicatorValues)
+        : undefined,
       bootstrap_iterations: bootstrapIterations,
       random_seed: randomSeed,
     };
@@ -170,6 +186,7 @@ export function RankingPreviewBubble({
   // Check if config has been modified from defaults
   const isModified = 
     bigbetter !== schema.bigbetter ||
+    indicatorCol !== schema.indicator_col ||
     selectedItems.length !== schema.ranking_items.length ||
     selectedIndicatorValues.length !== schema.indicator_values.length ||
     bootstrapIterations !== 2000 ||
@@ -206,9 +223,19 @@ export function RankingPreviewBubble({
           <Section title="Data Schema">
             <DisplayRow label="Format">
               <span className={cn(
-                schema.format === "pairwise" ? "text-blue-600 dark:text-blue-400" : "text-green-600 dark:text-green-400"
+                detectedFormat === "pairwise" ? "text-blue-600 dark:text-blue-400" : "text-green-600 dark:text-green-400"
               )}>
-                {schema.format}
+                {detectedFormat || "inferred"}
+              </span>
+            </DisplayRow>
+            <DisplayRow label="Format Check">
+              <span className={cn(formatResult ? (formatResult.is_ready ? "text-green-600" : "text-yellow-600") : "text-muted-foreground")}>
+                {formatResult ? (formatResult.is_ready ? "PASS" : "Needs Attention") : "N/A"}
+              </span>
+            </DisplayRow>
+            <DisplayRow label="Quality Check">
+              <span className={cn(qualityResult ? (qualityResult.is_valid ? "text-green-600" : "text-red-600") : "text-muted-foreground")}>
+                {qualityResult ? (qualityResult.is_valid ? "PASS" : "Blocking Errors") : "N/A"}
               </span>
             </DisplayRow>
             <DisplayRow label="Data Quality">
@@ -249,13 +276,13 @@ export function RankingPreviewBubble({
           </Section>
 
           {/* Ranking Indicator (only if indicator exists) */}
-          {schema.indicator_col && (
+          {hasIndicator && (
             <Section title="Ranking Indicator">
-              <DisplayRow label="Column">{schema.indicator_col}</DisplayRow>
+              <DisplayRow label="Column">{indicatorCol || "Disabled"}</DisplayRow>
               <DisplayRow label="Selected">
-                {selectedIndicatorValues.length} / {schema.indicator_values.length}
+                {indicatorCol ? selectedIndicatorValues.length : 0} / {schema.indicator_values.length}
               </DisplayRow>
-              {selectedIndicatorValues.length > 0 && (
+              {indicatorCol && selectedIndicatorValues.length > 0 && (
                 <div className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded">
                   {selectedIndicatorValues.join(", ")}
                 </div>
@@ -385,10 +412,16 @@ export function RankingPreviewBubble({
               </div>
 
               {/* Indicator Values Selection (if applicable) */}
-              {schema.indicator_col && schema.indicator_values.length > 0 && (
+              {hasIndicator && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium">Indicator: {schema.indicator_col}</h4>
+                    <Switch checked={tempIndicatorEnabled} onCheckedChange={setTempIndicatorEnabled} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {tempIndicatorEnabled ? "Enabled for segmented ranking." : "Disabled (global ranking only)."}
+                  </p>
+                  <div className="flex items-center justify-between">
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={selectAllIndicators}>
                         All
@@ -403,7 +436,7 @@ export function RankingPreviewBubble({
                       <Badge
                         key={value}
                         variant={tempSelectedIndicatorValues.includes(value) ? "default" : "outline"}
-                        className="cursor-pointer text-xs"
+                        className={cn("cursor-pointer text-xs", !tempIndicatorEnabled && "pointer-events-none opacity-50")}
                         onClick={() => toggleIndicatorValue(value)}
                       >
                         {tempSelectedIndicatorValues.includes(value) && <Check className="h-3 w-3 mr-1" />}

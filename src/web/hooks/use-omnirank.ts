@@ -1,32 +1,40 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useState } from "react";
 import {
-  uploadFile,
-  startDataAgent,
-  analyze,
-  getResults,
-  createWebSocket,
   askQuestion,
-  askGeneralQuestion,
-  loadExampleData as apiLoadExampleData,
-  getDataPreview,
+  confirmSession,
+  deleteSession,
   EXAMPLE_DATASETS,
-  type UploadResponse,
-  type SchemaReadyPayload,
+  getSessionSnapshot,
+  getDataPreview,
+  inferSession,
+  loadExampleData as apiLoadExampleData,
+  normalizeRunResponse,
+  runSession,
+  toValidationWarnings,
+  uploadFile,
   type AnalysisConfig,
-  type RankingResults,
-  type ValidationWarning,
-  type InferredSchema,
+  type ArtifactDescriptor,
   type DataPreview,
   type ExampleDataInfo,
+  type FormatValidationResult,
+  type PlotSpec,
+  type QualityValidationResult,
+  type QuotePayload,
+  type RankingResults,
+  type ReportOutput,
+  type SemanticSchema,
+  type ValidationWarning,
 } from "@/lib/api";
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export type AnalysisStatus = "idle" | "uploading" | "configuring" | "analyzing" | "completed" | "error";
+export type AnalysisStatus =
+  | "idle"
+  | "uploading"
+  | "configuring"
+  | "analyzing"
+  | "completed"
+  | "error";
 
 export interface ChatMessage {
   id: string;
@@ -34,67 +42,59 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   agent?: "data" | "orchestrator" | "analyst";
-  // Special message types for interactive components
   type?: "text" | "data-agent-working" | "ranking-config" | "analysis-complete";
-  // Data for ranking-config type
   configData?: {
-    schema: InferredSchema;
-    warnings: ValidationWarning[];
-  };
-  // Data for data-agent-working type
+      schema: SemanticSchema;
+      warnings: ValidationWarning[];
+      formatResult?: FormatValidationResult | null;
+      qualityResult?: QualityValidationResult | null;
+      detectedFormat?: "pointwise" | "pairwise" | "multiway";
+    };
   workingData?: {
     isComplete: boolean;
   };
-  // Data for analysis-complete type
   analysisCompleteData?: {
     suggestedQuestions: string[];
   };
 }
 
 export interface OmniRankState {
-  // Session
   sessionId: string | null;
   status: AnalysisStatus;
 
-  // Data source tracking
   dataSource: "upload" | "example" | null;
   exampleDataInfo: ExampleDataInfo | null;
   dataPreview: DataPreview | null;
 
-  // File
   filename: string | null;
-  schema: InferredSchema | null;
+  schema: SemanticSchema | null;
   warnings: ValidationWarning[];
+  formatResult: FormatValidationResult | null;
+  qualityResult: QualityValidationResult | null;
 
-  // Config
   config: AnalysisConfig | null;
 
-  // Results
   results: RankingResults | null;
+  reportOutput: ReportOutput | null;
+  plots: PlotSpec[];
+  artifacts: ArtifactDescriptor[];
 
-  // Report visibility
   isReportVisible: boolean;
 
-  // Chat
   messages: ChatMessage[];
 
-  // Progress
   progress: number;
   progressMessage: string;
 
-  // Error
   error: string | null;
 }
-
-// ============================================================================
-// Initial State
-// ============================================================================
 
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome-message",
   role: "assistant",
-  content: "Welcome to OmniRank! I'm OmniRank Assistant — here to help you navigate and use this platform. I can answer questions, perform ranking analysis, and analyze results. Let me know what you need help with!",
-  timestamp: 0, // Stable timestamp to prevent SSR hydration mismatch
+  content:
+    "Welcome to OmniRank. Upload data or select an example dataset, then confirm schema and run spectral ranking.",
+  timestamp: 0,
   agent: "analyst",
 };
 
@@ -107,528 +107,276 @@ const initialState: OmniRankState = {
   filename: null,
   schema: null,
   warnings: [],
+  formatResult: null,
+  qualityResult: null,
   config: null,
   results: null,
-  isReportVisible: true,  // Report is visible by default when results are ready
+  reportOutput: null,
+  plots: [],
+  artifacts: [],
+  isReportVisible: true,
   messages: [WELCOME_MESSAGE],
   progress: 0,
   progressMessage: "",
   error: null,
 };
 
-// ============================================================================
-// Hook
-// ============================================================================
-
 export function useOmniRank() {
   const [state, setState] = useState<OmniRankState>(initialState);
-  const wsRef = useRef<WebSocket | null>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+  const addMessage = useCallback(
+    (
+      role: ChatMessage["role"],
+      content: string,
+      agent?: ChatMessage["agent"],
+      options?: {
+        type?: ChatMessage["type"];
+        configData?: ChatMessage["configData"];
+        workingData?: ChatMessage["workingData"];
+        analysisCompleteData?: ChatMessage["analysisCompleteData"];
       }
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
-    };
-  }, []);
+    ) => {
+      const message: ChatMessage = {
+        id: crypto.randomUUID(),
+        role,
+        content,
+        timestamp: Date.now(),
+        agent,
+        type: options?.type,
+        configData: options?.configData,
+        workingData: options?.workingData,
+        analysisCompleteData: options?.analysisCompleteData,
+      };
+      setState((prev) => ({ ...prev, messages: [...prev.messages, message] }));
+      return message;
+    },
+    []
+  );
 
-  // Add a chat message
-  const addMessage = useCallback((
-    role: ChatMessage["role"],
-    content: string,
-    agent?: ChatMessage["agent"],
-    options?: {
-      type?: ChatMessage["type"];
-      configData?: ChatMessage["configData"];
-      workingData?: ChatMessage["workingData"];
-      analysisCompleteData?: ChatMessage["analysisCompleteData"];
-    }
-  ) => {
-    const message: ChatMessage = {
-      id: crypto.randomUUID(),
-      role,
-      content,
-      timestamp: Date.now(),
-      agent,
-      type: options?.type,
-      configData: options?.configData,
-      workingData: options?.workingData,
-      analysisCompleteData: options?.analysisCompleteData,
-    };
-    setState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, message],
-    }));
-    return message;
-  }, []);
-
-  // Update an existing message by ID
-  const updateMessage = useCallback((
-    messageId: string,
-    updates: Partial<Pick<ChatMessage, "content" | "workingData" | "configData" | "type">>
-  ) => {
-    setState((prev) => ({
-      ...prev,
-      messages: prev.messages.map((msg) =>
-        msg.id === messageId ? { ...msg, ...updates } : msg
-      ),
-    }));
-  }, []);
-
-  // Handle file upload - Two phase process
-  // Phase 1: Upload file, show preview immediately
-  // Phase 2: Start Data Agent after preview, results via WebSocket
-  const handleUpload = useCallback(async (file: File) => {
-    // Set uploading state with filename for immediate UI feedback
-    setState((prev) => ({
-      ...prev,
-      status: "uploading",
-      filename: file.name,
-      dataSource: "upload",
-      dataPreview: null,
-      error: null,
-      progress: 0,
-      progressMessage: "Uploading file...",
-    }));
-
-    // 1. User message showing what was uploaded
-    addMessage("user", `Uploaded: ${file.name}`);
-
-    // Track working message ID for later update
-    let workingMessageId: string | null = null;
-
-    try {
-      // Phase 1: Upload file (returns immediately)
-      const response = await uploadFile(file);
-
-      // File uploaded! Update state to show data preview
+  const prepareSession = useCallback(
+    async (sessionId: string, filename: string, source: "upload" | "example", exampleInfo: ExampleDataInfo | null) => {
       setState((prev) => ({
         ...prev,
-        sessionId: response.session_id,
-        filename: response.filename,
-        status: "uploading",  // Keep uploading until schema is ready
+        sessionId,
+        filename,
+        dataSource: source,
+        exampleDataInfo: exampleInfo,
+        status: "uploading",
+        error: null,
+        progress: 0.2,
+        progressMessage: "Loading preview...",
+      }));
+
+      const preview = await getDataPreview(sessionId);
+      setState((prev) => ({ ...prev, dataPreview: preview, progress: 0.35, progressMessage: "Inferring schema..." }));
+
+      const infer = await inferSession(sessionId);
+      if (!infer.success || !infer.schema_result?.schema) {
+        throw new Error(infer.error || "Failed to infer schema");
+      }
+
+      const warnings = toValidationWarnings(infer.format_result, infer.quality_result);
+
+      setState((prev) => ({
+        ...prev,
+        schema: infer.schema_result?.schema || null,
+        warnings,
+        formatResult: infer.format_result || null,
+        qualityResult: infer.quality_result || null,
+        status: "configuring",
+        progress: 0.5,
+        progressMessage: "Schema inferred. Awaiting confirmation.",
+      }));
+
+      addMessage("assistant", "", "data", {
+        type: "ranking-config",
+        configData: {
+          schema: infer.schema_result.schema,
+          warnings,
+          formatResult: infer.format_result || null,
+          qualityResult: infer.quality_result || null,
+          detectedFormat: infer.schema_result.format,
+        },
+      });
+    },
+    [addMessage]
+  );
+
+  const handleUpload = useCallback(
+    async (file: File) => {
+      setState((prev) => ({
+        ...prev,
+        status: "uploading",
+        filename: file.name,
         dataSource: "upload",
         exampleDataInfo: null,
         dataPreview: null,
+        error: null,
+        progress: 0.1,
+        progressMessage: "Uploading file...",
       }));
+      addMessage("user", `Uploaded: ${file.name}`);
+      addMessage("assistant", "", "data", { type: "data-agent-working", workingData: { isComplete: false } });
 
-      // Fetch data preview before starting Data Agent
       try {
-        const preview = await getDataPreview(response.session_id);
-        setState((prev) => ({
-          ...prev,
-          dataPreview: preview,
-        }));
-      } catch {
-        console.warn("Failed to fetch data preview");
+        const upload = await uploadFile(file);
+        await prepareSession(upload.session_id, upload.filename, "upload", null);
+        setState((prev) => ({ ...prev, progress: 0.6 }));
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Upload failed";
+        setState((prev) => ({ ...prev, status: "error", error: errorMessage }));
+        addMessage("system", `Error: ${errorMessage}`);
+        return;
+      }
+    },
+    [addMessage, prepareSession]
+  );
+
+  const loadExampleData = useCallback(
+    async (exampleId: string) => {
+      const exampleInfo = EXAMPLE_DATASETS.find((item) => item.id === exampleId) || null;
+      if (!exampleInfo) {
+        const errorMessage = "Unknown example dataset";
+        setState((prev) => ({ ...prev, status: "error", error: errorMessage }));
+        addMessage("system", `Error: ${errorMessage}`);
+        return;
       }
 
-      // 2. Show Data Agent working message after preview is ready
-      const workingMessage = addMessage(
-        "assistant",
-        "",
-        "data",
-        { type: "data-agent-working", workingData: { isComplete: false } }
-      );
-      workingMessageId = workingMessage.id;
-
-      // Connect WebSocket to receive Data Agent results
-      wsRef.current = createWebSocket(
-        response.session_id,
-        (msg) => {
-          // Handle WebSocket messages
-          if (msg.type === "schema_ready") {
-            // Data Agent completed! 
-            const payload = msg.payload as SchemaReadyPayload;
-            setState((prev) => ({
-              ...prev,
-              schema: payload.inferred_schema,
-              warnings: payload.warnings,
-              status: "configuring",
-            }));
-
-            // Add ranking config bubble
-            addMessage(
-              "assistant",
-              "",
-              "data",
-              {
-                type: "ranking-config",
-                configData: { schema: payload.inferred_schema, warnings: payload.warnings }
-              }
-            );
-
-            // Mark working message as complete after preview is shown
-            if (workingMessageId) {
-              const messageId = workingMessageId;
-              setTimeout(() => {
-                updateMessage(messageId, { workingData: { isComplete: true } });
-              }, 0);
-            }
-          } else if (msg.type === "progress") {
-            const payload = msg.payload as { progress: number; message: string };
-            setState((prev) => ({
-              ...prev,
-              progress: payload.progress,
-              progressMessage: payload.message,
-            }));
-          } else if (msg.type === "result") {
-            const payload = msg.payload as { results: RankingResults; suggested_questions?: string[] };
-            setState((prev) => ({
-              ...prev,
-              results: payload.results,
-              status: "completed",
-              progress: 1,
-              progressMessage: "Complete!",
-              isReportVisible: true,  // Auto-show report when ranking completes
-            }));
-            // Add analysis complete message with suggested questions
-            addMessage(
-              "assistant",
-              "",
-              "analyst",
-              {
-                type: "analysis-complete",
-                analysisCompleteData: {
-                  suggestedQuestions: payload.suggested_questions || [],
-                },
-              }
-            );
-          } else if (msg.type === "error") {
-            const payload = msg.payload as { error: string };
-            setState((prev) => ({
-              ...prev,
-              error: payload.error,
-              status: "error",
-            }));
-            // Mark working as complete on error
-            if (workingMessageId) {
-              updateMessage(workingMessageId, { workingData: { isComplete: true } });
-            }
-            addMessage("system", `Error: ${payload.error}`);
-          }
-        },
-        () => console.error("WebSocket error"),
-        () => console.log("WebSocket closed"),
-        async () => {
-          try {
-            await startDataAgent(response.session_id);
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "Failed to start Data Agent";
-            setState((prev) => ({
-              ...prev,
-              status: "error",
-              error: errorMessage,
-            }));
-            if (workingMessageId) {
-              updateMessage(workingMessageId, { workingData: { isComplete: true } });
-            }
-            addMessage("system", `Error: ${errorMessage}`);
-          }
-        }
-      );
-
-      return response;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Upload failed";
       setState((prev) => ({
         ...prev,
-        status: "error",
-        error: errorMessage,
-        filename: null,
-      }));
-      if (workingMessageId) {
-        updateMessage(workingMessageId, { workingData: { isComplete: true } });
-      }
-      addMessage("system", `Error: ${errorMessage}`);
-      throw error;
-    }
-  }, [addMessage, updateMessage]);
-
-  // Start analysis
-  const startAnalysis = useCallback(async (config: AnalysisConfig) => {
-    if (!state.sessionId) {
-      throw new Error("No session ID");
-    }
-
-    setState((prev) => ({
-      ...prev,
-      config,
-      status: "analyzing",
-      progress: 0,
-      progressMessage: "Starting analysis...",
-      error: null,
-    }));
-
-    addMessage("user", "Starting analysis with the configured parameters...");
-
-    try {
-      await analyze(state.sessionId, config);
-
-      // Start polling for results (fallback if WebSocket doesn't deliver)
-      pollingRef.current = setInterval(async () => {
-        try {
-          const result = await getResults(state.sessionId!);
-          if (result.status === "completed" && result.results) {
-            clearInterval(pollingRef.current!);
-            pollingRef.current = null;
-
-            setState((prev) => {
-              // Only update if not already completed (WebSocket might have delivered first)
-              if (prev.status !== "completed") {
-                return {
-                  ...prev,
-                  results: result.results!,
-                  status: "completed",
-                  progress: 1,
-                  progressMessage: "Complete!",
-                  isReportVisible: true,  // Auto-show report when ranking completes
-                };
-              }
-              return prev;
-            });
-          } else if (result.status === "error") {
-            clearInterval(pollingRef.current!);
-            pollingRef.current = null;
-            setState((prev) => ({
-              ...prev,
-              error: result.error || "Unknown error",
-              status: "error",
-            }));
-          }
-        } catch (e) {
-          // Ignore polling errors
-        }
-      }, 2000);
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Analysis failed";
-      setState((prev) => ({
-        ...prev,
-        status: "error",
-        error: errorMessage,
-      }));
-      addMessage("system", `Error: ${errorMessage}`);
-      throw error;
-    }
-  }, [state.sessionId, addMessage]);
-
-  // Send a question to the Analyst Agent
-  // Supports three stages:
-  // 1. Pre-upload: General questions about system and methodology
-  // 2. Post-schema: Questions about data format and configuration
-  // 3. Post-analysis: Questions about ranking results
-  const sendMessage = useCallback(async (message: string) => {
-    // Add user message
-    addMessage("user", message);
-
-    try {
-      let response;
-
-      if (!state.sessionId) {
-        // Pre-upload stage: Ask general questions
-        response = await askGeneralQuestion(message);
-      } else {
-        // Post-schema or Post-analysis: Ask with session context
-        response = await askQuestion(state.sessionId, message);
-      }
-
-      // Add assistant response
-      addMessage("assistant", response.answer, "analyst");
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to get answer";
-      addMessage("system", `Error: ${errorMessage}`);
-      throw error;
-    }
-  }, [state.sessionId, addMessage]);
-
-  // Load example data - Two phase process (same as file upload)
-  const loadExampleData = useCallback(async (exampleId: string) => {
-    const exampleInfo = EXAMPLE_DATASETS.find((d) => d.id === exampleId);
-    if (!exampleInfo) {
-      throw new Error("Unknown example dataset");
-    }
-
-    // Set uploading state with filename for immediate UI feedback
-    setState((prev) => ({
-      ...prev,
-      status: "uploading",
-      filename: exampleInfo.filename,
-      dataSource: "example",
-      exampleDataInfo: exampleInfo,
-      dataPreview: null,
-      error: null,
-      progress: 0,
-      progressMessage: "Loading example data...",
-    }));
-
-    // 1. User message showing what was selected
-    addMessage("user", `Selected example: ${exampleInfo.title}`);
-
-    // Track working message ID for later update
-    let workingMessageId: string | null = null;
-
-    try {
-      // Phase 1: Load example file (returns immediately)
-      const response = await apiLoadExampleData(exampleId);
-
-      // File loaded! Update state
-      setState((prev) => ({
-        ...prev,
-        sessionId: response.session_id,
-        filename: response.filename,
-        status: "uploading",  // Keep uploading until schema is ready
+        status: "uploading",
+        filename: exampleInfo.filename,
         dataSource: "example",
         exampleDataInfo: exampleInfo,
         dataPreview: null,
+        error: null,
+        progress: 0.1,
+        progressMessage: "Loading example dataset...",
       }));
+      addMessage("user", `Selected example: ${exampleInfo.title}`);
+      addMessage("assistant", "", "data", { type: "data-agent-working", workingData: { isComplete: false } });
 
-      // Fetch data preview before starting Data Agent
       try {
-        const preview = await getDataPreview(response.session_id);
-        setState((prev) => ({
-          ...prev,
-          dataPreview: preview,
-        }));
-      } catch {
-        console.warn("Failed to fetch data preview");
+        const upload = await apiLoadExampleData(exampleId);
+        await prepareSession(upload.session_id, upload.filename, "example", exampleInfo);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to load example data";
+        setState((prev) => ({ ...prev, status: "error", error: errorMessage }));
+        addMessage("system", `Error: ${errorMessage}`);
+        return;
+      }
+    },
+    [addMessage, prepareSession]
+  );
+
+  const startAnalysis = useCallback(
+    async (config: AnalysisConfig) => {
+      if (!state.sessionId || !state.schema) {
+        const errorMessage = "Session and schema are required before analysis";
+        setState((prev) => ({ ...prev, status: "error", error: errorMessage }));
+        addMessage("system", `Error: ${errorMessage}`);
+        return;
       }
 
-      // 2. Show Data Agent working message after preview is ready
-      const workingMessage = addMessage(
-        "assistant",
-        "",
-        "data",
-        { type: "data-agent-working", workingData: { isComplete: false } }
-      );
-      workingMessageId = workingMessage.id;
-
-      // Connect WebSocket to receive Data Agent results
-      wsRef.current = createWebSocket(
-        response.session_id,
-        (msg) => {
-          if (msg.type === "schema_ready") {
-            // Data Agent completed!
-            const payload = msg.payload as SchemaReadyPayload;
-            setState((prev) => ({
-              ...prev,
-              schema: payload.inferred_schema,
-              warnings: payload.warnings,
-              status: "configuring",
-            }));
-
-            // Add ranking config bubble
-            addMessage(
-              "assistant",
-              "",
-              "data",
-              {
-                type: "ranking-config",
-                configData: { schema: payload.inferred_schema, warnings: payload.warnings }
-              }
-            );
-
-            // Mark working message as complete after preview is shown
-            if (workingMessageId) {
-              const messageId = workingMessageId;
-              setTimeout(() => {
-                updateMessage(messageId, { workingData: { isComplete: true } });
-              }, 0);
-            }
-          } else if (msg.type === "progress") {
-            const payload = msg.payload as { progress: number; message: string };
-            setState((prev) => ({
-              ...prev,
-              progress: payload.progress,
-              progressMessage: payload.message,
-            }));
-          } else if (msg.type === "result") {
-            const payload = msg.payload as { results: RankingResults; suggested_questions?: string[] };
-            setState((prev) => ({
-              ...prev,
-              results: payload.results,
-              status: "completed",
-              progress: 1,
-              progressMessage: "Complete!",
-              isReportVisible: true,  // Auto-show report when ranking completes
-            }));
-            // Add analysis complete message with suggested questions
-            addMessage(
-              "assistant",
-              "",
-              "analyst",
-              {
-                type: "analysis-complete",
-                analysisCompleteData: {
-                  suggestedQuestions: payload.suggested_questions || [],
-                },
-              }
-            );
-          } else if (msg.type === "error") {
-            const payload = msg.payload as { error: string };
-            setState((prev) => ({
-              ...prev,
-              error: payload.error,
-              status: "error",
-            }));
-            if (workingMessageId) {
-              updateMessage(workingMessageId, { workingData: { isComplete: true } });
-            }
-            addMessage("system", `Error: ${payload.error}`);
-          }
-        },
-        () => console.error("WebSocket error"),
-        () => console.log("WebSocket closed"),
-        async () => {
-          try {
-            await startDataAgent(response.session_id);
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "Failed to start Data Agent";
-            setState((prev) => ({
-              ...prev,
-              status: "error",
-              error: errorMessage,
-            }));
-            if (workingMessageId) {
-              updateMessage(workingMessageId, { workingData: { isComplete: true } });
-            }
-            addMessage("system", `Error: ${errorMessage}`);
-          }
-        }
-      );
-
-      return response;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to load example data";
       setState((prev) => ({
         ...prev,
-        status: "error",
-        error: errorMessage,
-        filename: null,
+        status: "analyzing",
+        progress: 0.7,
+        progressMessage: "Confirming schema and running engine...",
+        config,
+        error: null,
       }));
-      if (workingMessageId) {
-        updateMessage(workingMessageId, { workingData: { isComplete: true } });
-      }
-      addMessage("system", `Error: ${errorMessage}`);
-      throw error;
-    }
-  }, [addMessage, updateMessage]);
 
-  // Cancel data selection and return to idle state
+      addMessage("user", "Starting analysis with confirmed schema and parameters...");
+
+      const selectedItems = config.selected_items || state.schema.ranking_items;
+      const effectiveIndicatorCol =
+        config.indicator_col === undefined ? state.schema.indicator_col : config.indicator_col;
+      const selectedIndicators = effectiveIndicatorCol
+        ? config.selected_indicator_values || state.schema.indicator_values
+        : [];
+      const confirmedSchema: SemanticSchema = {
+        bigbetter: config.bigbetter,
+        ranking_items: selectedItems,
+        indicator_col: effectiveIndicatorCol,
+        indicator_values: selectedIndicators,
+      };
+
+      try {
+        await confirmSession(state.sessionId, {
+          confirmed: true,
+          confirmed_schema: confirmedSchema,
+          user_modifications: [],
+          B: config.bootstrap_iterations,
+          seed: config.random_seed,
+        });
+
+        setState((prev) => ({ ...prev, progress: 0.82, progressMessage: "Executing spectral ranking..." }));
+
+        const run = await runSession(state.sessionId, {
+          selected_items: selectedItems,
+          selected_indicator_values: effectiveIndicatorCol ? selectedIndicators : undefined,
+        });
+
+        const normalized = normalizeRunResponse(run);
+        const snapshot = await getSessionSnapshot(state.sessionId);
+
+        setState((prev) => ({
+          ...prev,
+          status: "completed",
+          progress: 1,
+          progressMessage: "Complete",
+          results: normalized.rankingResults,
+          reportOutput: snapshot.session.report_output || normalized.reportOutput,
+          plots: normalized.plots,
+          artifacts: snapshot.artifacts,
+          isReportVisible: true,
+        }));
+
+        addMessage("assistant", "", "analyst", {
+          type: "analysis-complete",
+          analysisCompleteData: {
+            suggestedQuestions: [
+              "What is the top-ranked item and how certain is it?",
+              "Which items are statistically close?",
+              "What do the confidence intervals imply?",
+            ],
+          },
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Analysis failed";
+        setState((prev) => ({ ...prev, status: "error", error: errorMessage }));
+        addMessage("system", `Error: ${errorMessage}`);
+        return;
+      }
+    },
+    [addMessage, state.schema, state.sessionId]
+  );
+
+  const sendMessage = useCallback(
+    async (message: string, quotes: QuotePayload[] = []) => {
+      addMessage("user", message);
+
+      if (!state.sessionId || state.status !== "completed") {
+        const fallback =
+          "Run the full analysis first. After completion I can answer quote-aware questions using report blocks and ranking results.";
+        addMessage("assistant", fallback, "analyst");
+        return;
+      }
+
+      try {
+        const response = await askQuestion(state.sessionId, message, quotes);
+        addMessage("assistant", response.answer.answer, "analyst");
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to answer question";
+        addMessage("system", `Error: ${errorMessage}`);
+        return;
+      }
+    },
+    [addMessage, state.sessionId, state.status]
+  );
+
   const cancelData = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
     setState((prev) => ({
       ...prev,
       sessionId: null,
@@ -639,50 +387,41 @@ export function useOmniRank() {
       filename: null,
       schema: null,
       warnings: [],
+      formatResult: null,
+      qualityResult: null,
       config: null,
       results: null,
+      reportOutput: null,
+      plots: [],
+      artifacts: [],
       progress: 0,
       progressMessage: "",
       error: null,
     }));
-    addMessage("system", "Data selection cancelled. Please upload a new file or select an example dataset.");
+    addMessage("system", "Data selection cancelled.");
   }, [addMessage]);
 
-  // Reset state
-  const reset = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
+  const reset = useCallback(async () => {
+    if (state.sessionId) {
+      try {
+        await deleteSession(state.sessionId);
+      } catch {
+        // Ignore cleanup failures.
+      }
     }
     setState(initialState);
-  }, []);
+  }, [state.sessionId]);
 
-  // Toggle report visibility
   const toggleReportVisibility = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      isReportVisible: !prev.isReportVisible,
-    }));
+    setState((prev) => ({ ...prev, isReportVisible: !prev.isReportVisible }));
   }, []);
 
-  // Hide report
   const hideReport = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      isReportVisible: false,
-    }));
+    setState((prev) => ({ ...prev, isReportVisible: false }));
   }, []);
 
-  // Show report
   const showReport = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      isReportVisible: true,
-    }));
+    setState((prev) => ({ ...prev, isReportVisible: true }));
   }, []);
 
   return {

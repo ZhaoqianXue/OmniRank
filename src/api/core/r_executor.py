@@ -1,258 +1,159 @@
-"""
-R Script Executor
+"""R spectral engine executor for OmniRank."""
 
-Manages subprocess execution of R spectral ranking scripts with robust error handling,
-timeout management, and JSON output parsing.
-"""
+from __future__ import annotations
 
 import json
-import logging
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+import pandas as pd
 
-# Path to R scripts (relative to project root)
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-SCRIPT_DIR = PROJECT_ROOT / "src" / "spectral_ranking"
-STEP1_SCRIPT = SCRIPT_DIR / "spectral_ranking.R"
+from .schemas import EngineConfig, ExecutionResult, ExecutionTrace, RankingResults
 
 
-class RExecutorError(Exception):
-    """Base exception for R executor errors."""
-    pass
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_SCRIPT_PATH = PROJECT_ROOT / "src" / "spectral_ranking" / "spectral_ranking.R"
 
 
-class RScriptNotFoundError(RExecutorError):
-    """R script file not found."""
-    pass
-
-
-class RExecutionError(RExecutorError):
-    """R script execution failed."""
-
-    def __init__(self, message: str, stderr: str = "", exit_code: int = -1):
-        super().__init__(message)
-        self.stderr = stderr
-        self.exit_code = exit_code
-
-
-class RTimeoutError(RExecutorError):
-    """R script execution timed out."""
-    pass
-
-
-class ROutputParseError(RExecutorError):
-    """Failed to parse R script output."""
-    pass
+class RExecutorError(RuntimeError):
+    """Raised when R execution fails."""
 
 
 @dataclass
-class Step1Params:
-    """Parameters for Spectral Ranking execution."""
+class PreparedInput:
+    """Prepared CSV input for the R engine."""
+
     csv_path: str
-    bigbetter: int  # 0 or 1
-    bootstrap_iterations: int = 2000
-    random_seed: int = 42
-    output_dir: Optional[str] = None
-
-
-@dataclass
-class Step1Result:
-    """Result from spectral ranking execution."""
-    job_id: str
-    params: dict
-    methods: list[dict]
-    metadata: dict
-    json_path: str
-    csv_path: str
-
-
-@dataclass
-class ExecutionTrace:
-    """Trace of R script execution for debugging."""
-    script: str
-    args: list[str]
-    exit_code: int
-    stdout: str
-    stderr: str
-    runtime_sec: float
-    success: bool
-    error_message: Optional[str] = None
+    cleanup_paths: list[Path]
 
 
 class RScriptExecutor:
-    """
-    Executes R spectral ranking scripts via subprocess.
-    
-    Usage:
-        executor = RScriptExecutor()
-        result = executor.run_step1(params)
-    """
+    """Execute spectral_ranking.R in subprocess."""
 
-    def __init__(
-        self,
-        rscript_path: str = "Rscript",
-        default_timeout: int = 300,
-        work_dir: Optional[Path] = None,
-    ):
-        """
-        Initialize the R script executor.
-        
-        Args:
-            rscript_path: Path to Rscript executable
-            default_timeout: Default timeout in seconds
-            work_dir: Working directory for temporary files (defaults to system temp)
-        """
-        self.rscript_path = rscript_path
-        self.default_timeout = default_timeout
-        self.work_dir = work_dir or Path(tempfile.gettempdir()) / "omnirank"
-        self.work_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Execution history for debugging
-        self.traces: list[ExecutionTrace] = []
-    
-    def _verify_scripts(self) -> None:
-        """Verify that R scripts exist."""
-        if not STEP1_SCRIPT.exists():
-            raise RScriptNotFoundError(f"Spectral ranking script not found: {STEP1_SCRIPT}")
-    
-    def _create_output_dir(self, session_id: str, step: str) -> Path:
-        """Create output directory for a session/step."""
-        output_dir = self.work_dir / session_id / step
+    def __init__(self, rscript_binary: str = "Rscript", timeout_seconds: int = 300):
+        self.rscript_binary = rscript_binary
+        self.timeout_seconds = timeout_seconds
+
+    def _prepare_filtered_input(self, config: EngineConfig, work_dir: Path) -> PreparedInput:
+        """Apply selected item / indicator filters and materialize temp csv if needed."""
+        cleanup_paths: list[Path] = []
+        csv_path = Path(config.csv_path)
+
+        if not config.selected_items and not config.selected_indicator_values:
+            return PreparedInput(csv_path=str(csv_path), cleanup_paths=cleanup_paths)
+
+        df = pd.read_csv(csv_path)
+
+        if config.selected_items:
+            keep_cols = [col for col in df.columns if col in set(config.selected_items)]
+            non_numeric_cols = [
+                col
+                for col in df.columns
+                if col not in keep_cols and not pd.api.types.is_numeric_dtype(df[col])
+            ]
+            keep_cols = non_numeric_cols + keep_cols
+            keep_cols = [col for col in keep_cols if col in df.columns]
+            df = df[keep_cols]
+
+        if config.selected_indicator_values:
+            # Find candidate indicator column from non-numeric columns.
+            indicator_cols = [col for col in df.columns if not pd.api.types.is_numeric_dtype(df[col])]
+            if indicator_cols:
+                indicator_col = indicator_cols[0]
+                df = df[df[indicator_col].isin(config.selected_indicator_values)]
+
+        filtered_path = work_dir / "engine_input_filtered.csv"
+        df.to_csv(filtered_path, index=False)
+        cleanup_paths.append(filtered_path)
+        return PreparedInput(csv_path=str(filtered_path), cleanup_paths=cleanup_paths)
+
+    def run(self, config: EngineConfig, session_work_dir: Path) -> ExecutionResult:
+        """Execute R script and parse ranking JSON output."""
+        script_path = Path(config.r_script_path)
+        if not script_path.is_absolute():
+            script_path = PROJECT_ROOT / script_path
+        if not script_path.exists():
+            raise RExecutorError(f"R script not found: {script_path}")
+
+        output_dir = session_work_dir / "engine_output"
         output_dir.mkdir(parents=True, exist_ok=True)
-        return output_dir
-    
-    def _execute(
-        self,
-        script_path: Path,
-        args: list[str],
-        timeout: Optional[int] = None,
-    ) -> tuple[str, str, int, float]:
-        """
-        Execute an R script with arguments.
-        
-        Returns:
-            tuple of (stdout, stderr, exit_code, runtime_sec)
-        """
-        import time
-        
-        cmd = [self.rscript_path, str(script_path)] + args
-        logger.info(f"Executing: {' '.join(cmd)}")
-        
-        timeout = timeout or self.default_timeout
-        start_time = time.time()
-        
+
+        prepared = self._prepare_filtered_input(config, session_work_dir)
+
+        command = [
+            self.rscript_binary,
+            str(script_path),
+            "--csv",
+            prepared.csv_path,
+            "--bigbetter",
+            str(config.bigbetter),
+            "--B",
+            str(config.B),
+            "--seed",
+            str(config.seed),
+            "--out",
+            str(output_dir),
+        ]
+
+        started = time.time()
         try:
-            result = subprocess.run(
-                cmd,
+            proc = subprocess.run(  # noqa: S603
+                command,
+                cwd=PROJECT_ROOT,
                 capture_output=True,
                 text=True,
-                timeout=timeout,
-                cwd=str(PROJECT_ROOT),
+                timeout=self.timeout_seconds,
+                check=False,
             )
-            runtime = time.time() - start_time
-            return result.stdout, result.stderr, result.returncode, runtime
-            
-        except subprocess.TimeoutExpired as e:
-            runtime = time.time() - start_time
-            raise RTimeoutError(
-                f"R script timed out after {timeout} seconds"
-            ) from e
-    
-    def _parse_json_output(self, output_dir: Path, filename: str) -> dict:
-        """Parse JSON output from R script."""
-        json_path = output_dir / filename
-        
-        if not json_path.exists():
-            raise ROutputParseError(f"Expected output file not found: {json_path}")
-        
-        try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except json.JSONDecodeError as e:
-            raise ROutputParseError(f"Failed to parse JSON output: {e}") from e
-    
-    def run_step1(
-        self,
-        params: Step1Params,
-        session_id: str,
-        timeout: Optional[int] = None,
-    ) -> Step1Result:
-        """
-        Execute spectral ranking.
-        
-        Args:
-            params: Spectral ranking parameters
-            session_id: Session identifier for output organization
-            timeout: Execution timeout in seconds
-            
-        Returns:
-            Step1Result with ranking results and metadata
-        """
-        self._verify_scripts()
-        
-        # Create output directory
-        output_dir = params.output_dir or str(
-            self._create_output_dir(session_id, "ranking")
-        )
-        
-        # Build arguments
-        args = [
-            "--csv", params.csv_path,
-            "--bigbetter", str(params.bigbetter),
-            "--B", str(params.bootstrap_iterations),
-            "--seed", str(params.random_seed),
-            "--out", output_dir,
-        ]
-        
-        # Execute
-        stdout, stderr, exit_code, runtime = self._execute(
-            STEP1_SCRIPT, args, timeout
-        )
-        
-        # Record trace
+        except subprocess.TimeoutExpired as exc:
+            duration = time.time() - started
+            trace = ExecutionTrace(
+                command=" ".join(command),
+                stdout=exc.stdout or "",
+                stderr=exc.stderr or "",
+                exit_code=-1,
+                duration_seconds=duration,
+                timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            )
+            return ExecutionResult(success=False, error="R execution timed out", trace=trace)
+
+        duration = time.time() - started
         trace = ExecutionTrace(
-            script="spectral_ranking",
-            args=args,
-            exit_code=exit_code,
-            stdout=stdout,
-            stderr=stderr,
-            runtime_sec=runtime,
-            success=(exit_code == 0),
-            error_message=stderr if exit_code != 0 else None,
+            command=" ".join(command),
+            stdout=proc.stdout,
+            stderr=proc.stderr,
+            exit_code=proc.returncode,
+            duration_seconds=duration,
+            timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
-        self.traces.append(trace)
-        
-        # Check for errors
-        if exit_code != 0:
-            logger.error(f"Spectral ranking failed: {stderr}")
-            raise RExecutionError(
-                f"Spectral ranking execution failed",
-                stderr=stderr,
-                exit_code=exit_code,
-            )
-        
-        # Parse output
-        output_path = Path(output_dir)
-        data = self._parse_json_output(output_path, "ranking_results.json")
-        
-        return Step1Result(
-            job_id=data.get("job_id", session_id),
-            params=data.get("params", {}),
-            methods=data.get("methods", []),
-            metadata=data.get("metadata", {}),
-            json_path=str(output_path / "ranking_results.json"),
-            csv_path=str(output_path / "ranking_results.csv"),
+
+        result_path = output_dir / "ranking_results.json"
+        if proc.returncode != 0:
+            return ExecutionResult(success=False, error="R execution failed", trace=trace)
+
+        if not result_path.exists():
+            return ExecutionResult(success=False, error="ranking_results.json not produced", trace=trace)
+
+        try:
+            payload = json.loads(result_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            return ExecutionResult(success=False, error=f"Failed to parse output JSON: {exc}", trace=trace)
+
+        methods = payload.get("methods", [])
+        if not methods:
+            return ExecutionResult(success=False, error="Engine output has no methods", trace=trace)
+
+        ranking = RankingResults(
+            items=[str(method.get("name", "")) for method in methods],
+            theta_hat=[float(method.get("theta_hat", 0.0)) for method in methods],
+            ranks=[int(method.get("rank", i + 1)) for i, method in enumerate(methods)],
+            ci_lower=[float(method.get("ci_left", method.get("ci_two_sided", [1, 1])[0])) for method in methods],
+            ci_upper=[float(method.get("ci_uniform_left", method.get("ci_two_sided", [1, 1])[1])) for method in methods],
+            indicator_value=None,
         )
-    
-    def get_traces(self) -> list[ExecutionTrace]:
-        """Get all execution traces for debugging."""
-        return self.traces
-    
-    def clear_traces(self) -> None:
-        """Clear execution traces."""
-        self.traces.clear()
+
+        return ExecutionResult(success=True, results=ranking, trace=trace)

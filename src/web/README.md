@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OmniRank Web
 
-## Getting Started
+Next.js frontend for the staged OmniRank SOP backend.
 
-First, run the development server:
+## Workflow
+
+The UI follows backend stages directly:
+
+1. Upload CSV or load example dataset
+2. Preview data
+3. Run `/infer` (schema + format/quality validation)
+4. User confirms schema/config in ranking preview bubble
+5. Run `/run` for spectral ranking + deterministic SVG + report
+6. Ask follow-up questions via `/question`
+
+## Quote-Aware Report Loop
+
+- Report renders backend markdown blocks (`data-omni-block-id`, `data-omni-kind`)
+- User selects text and clicks **Quote**
+- Frontend sends `quotes: QuotePayload[]` to `/question`
+- Backend returns `used_citation_block_ids` for traceable evidence
+
+## Scripts
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Dev Startup (Hot Reload)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Frontend (this folder):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cd src/web
+npm run dev
+```
 
-## Learn More
+Backend (separate terminal):
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+cd src/api
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`npm run dev` and `uvicorn --reload` both auto-reload on code changes.
+If you change `.env.local`, restart `npm run dev`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Environment
 
-## Deploy on Vercel
+Frontend API base URL:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```

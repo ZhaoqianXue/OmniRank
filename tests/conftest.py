@@ -13,6 +13,16 @@ API_PATH = Path(__file__).parent.parent / "src" / "api"
 sys.path.insert(0, str(API_PATH))
 
 
+@pytest.fixture(autouse=True)
+def reset_session_store():
+    """Reset global in-memory session store between tests."""
+    from core import session_memory
+
+    session_memory._store = None
+    yield
+    session_memory._store = None
+
+
 # =============================================================================
 # Test Data Fixtures
 # =============================================================================

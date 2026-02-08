@@ -14,7 +14,7 @@ import type { AnalysisConfig } from "@/lib/api";
 interface ChatInterfaceProps {
   messages: ChatMessage[];
   onStartAnalysis?: (config: AnalysisConfig) => void;
-  onSendMessage?: (message: string) => void;
+  onSendMessage?: (message: string) => void | Promise<void>;
   isAnalyzing?: boolean;
   isCompleted?: boolean;
   isReportVisible?: boolean;
@@ -41,7 +41,7 @@ const MessageIcon = memo(function MessageIcon({ role }: { role: ChatMessage["rol
 interface ChatMessageItemProps {
   message: ChatMessage;
   onStartAnalysis?: (config: AnalysisConfig) => void;
-  onSendMessage?: (message: string) => void;
+  onSendMessage?: (message: string) => void | Promise<void>;
   isAnalyzing?: boolean;
   isCompleted?: boolean;
   isReportVisible?: boolean;
@@ -113,6 +113,9 @@ const ChatMessageItem = memo(function ChatMessageItem({
         <MessageIcon role="assistant" />
         <RankingPreviewBubble
           schema={message.configData.schema}
+          detectedFormat={message.configData.detectedFormat}
+          formatResult={message.configData.formatResult}
+          qualityResult={message.configData.qualityResult}
           warnings={message.configData.warnings}
           onStartAnalysis={onStartAnalysis}
           isAnalyzing={isAnalyzing}

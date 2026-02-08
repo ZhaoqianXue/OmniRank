@@ -34,8 +34,9 @@ export function DataPreviewComponent({
     }
 
     const total = preview.rows.length;
-    const pages = Math.ceil(total / ROWS_PER_PAGE);
-    const start = (currentPage - 1) * ROWS_PER_PAGE;
+    const pages = Math.max(1, Math.ceil(total / ROWS_PER_PAGE));
+    const page = Math.min(currentPage, pages);
+    const start = (page - 1) * ROWS_PER_PAGE;
     const end = Math.min(start + ROWS_PER_PAGE, total);
     const rows = preview.rows.slice(start, end);
 
@@ -46,11 +47,6 @@ export function DataPreviewComponent({
       endRow: end,
     };
   }, [preview, currentPage]);
-
-  // Reset page when preview changes
-  useMemo(() => {
-    setCurrentPage(1);
-  }, [preview?.totalRows]);
 
   if (isLoading) {
     return (

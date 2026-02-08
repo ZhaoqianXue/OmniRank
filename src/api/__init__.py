@@ -1,1 +1,1 @@
-"""OmniRank API Package."""
+"""OmniRank API package root."""

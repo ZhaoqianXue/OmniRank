@@ -89,6 +89,10 @@ export default function Home() {
                 <ReportOverlay
                   isVisible={state.isReportVisible}
                   results={state.results}
+                  reportOutput={state.reportOutput}
+                  plots={state.plots}
+                  artifacts={state.artifacts}
+                  sessionId={state.sessionId}
                   schema={state.schema}
                   config={state.config}
                   onClose={hideReport}

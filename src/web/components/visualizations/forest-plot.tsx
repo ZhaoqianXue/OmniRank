@@ -1,18 +1,15 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import {
   ComposedChart,
-  Bar,
   Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
   ReferenceLine,
-  Line,
 } from "recharts";
 import { motion } from "framer-motion";
 import type { RankingItem } from "@/lib/api";
@@ -78,12 +75,6 @@ interface ForestPlotDataItem {
  * Common visualization in statistical analysis for showing point estimates with CIs
  */
 export function ForestPlot({ items, className }: ForestPlotProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   // Prepare data for the forest plot - sort by rank
   const chartData: ForestPlotDataItem[] = useMemo(() => {
     return [...items]
@@ -109,17 +100,6 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
 
   // Dynamic height based on number of items
   const chartHeight = Math.max(300, items.length * 40 + 80);
-
-  // Don't render until client-side to avoid SSR dimension issues
-  if (!mounted) {
-    return (
-      <div className={className} style={{ minHeight: 300 }}>
-        <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-          Loading chart...
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={className} style={{ width: "100%", minHeight: chartHeight }}>
@@ -170,7 +150,7 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
           />
 
           {/* CI bars - rendered as horizontal lines for each item */}
-          {chartData.map((item, index) => (
+          {chartData.map((item) => (
             <ReferenceLine
               key={`ci-${item.name}`}
               segment={[
@@ -187,8 +167,13 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
           <Scatter
             dataKey="rank"
             fill="hsl(var(--foreground))"
-            shape={(props: any) => {
-              const { cx, cy, payload } = props;
+            shape={(props: { cx?: number; cy?: number; payload?: ForestPlotDataItem }) => {
+              const cx = props.cx ?? 0;
+              const cy = props.cy ?? 0;
+              const payload = props.payload;
+              if (!payload) {
+                return null;
+              }
               const color = getColor(payload.rank, items.length);
               // Diamond shape for point estimate
               return (

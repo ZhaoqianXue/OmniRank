@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -59,12 +59,6 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: unknow
 };
 
 export function RankingChart({ items, className }: RankingChartProps) {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   // Prepare data for the chart - sort by rank
   const chartData = useMemo(() => {
     return [...items]
@@ -89,17 +83,6 @@ export function RankingChart({ items, className }: RankingChartProps) {
       maxScore: max + padding + 0.3,
     };
   }, [items]);
-
-  // Don't render until client-side to avoid SSR dimension issues
-  if (!mounted) {
-    return (
-      <div className={className} style={{ minHeight: 300 }}>
-        <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-          Loading chart...
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={className} style={{ width: "100%", minHeight: 300 }}>

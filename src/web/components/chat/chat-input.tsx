@@ -5,7 +5,7 @@ import { Send, Loader2, Zap, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { InferredSchema, RankingResults } from "@/lib/api";
+import type { RankingResults, SemanticSchema } from "@/lib/api";
 import type { AnalysisStatus } from "@/hooks/use-omnirank";
 
 // Analysis stage for quick start questions
@@ -18,7 +18,7 @@ interface ChatInputProps {
   className?: string;
   // Context for generating quick start questions
   status?: AnalysisStatus;
-  schema?: InferredSchema | null;
+  schema?: SemanticSchema | null;
   results?: RankingResults | null;
 }
 
@@ -28,7 +28,7 @@ interface ChatInputProps {
  */
 function getQuickStartQuestions(
   stage: AnalysisStage,
-  schema?: InferredSchema | null,
+  schema?: SemanticSchema | null,
   results?: RankingResults | null
 ): string[] {
   switch (stage) {
@@ -45,7 +45,7 @@ function getQuickStartQuestions(
       if (schema) {
         const items = schema.ranking_items?.slice(0, 3).join(", ") || "items";
         return [
-          `What does the "${schema.format}" data format mean for my analysis?`,
+          "How does my current data format affect ranking assumptions?",
           schema.indicator_col
             ? `How will the "${schema.indicator_col}" indicator affect the ranking?`
             : "How should I choose the ranking direction?",
@@ -69,7 +69,6 @@ function getQuickStartQuestions(
       if (results?.items?.length) {
         const topItem = results.items[0]?.name || "the top item";
         const secondItem = results.items[1]?.name || "the second item";
-        const metadata = results.metadata;
 
         return [
           `Is ${topItem} significantly better than ${secondItem}?`,

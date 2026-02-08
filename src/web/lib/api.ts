@@ -1,50 +1,103 @@
 /**
- * OmniRank API Client
- * Handles communication with the FastAPI backend.
+ * OmniRank API client (SOP single-agent pipeline).
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
-// ============================================================================
-// Types (imported from shared/types for type safety)
-// ============================================================================
+function apiEndpoint(path: string): string {
+  return `${API_URL}${path}`;
+}
 
-export interface InferredSchema {
-  format: "pointwise" | "pairwise" | "multiway";
+function networkFailureMessage(path: string, error: unknown): string {
+  const cause = error instanceof Error ? error.message : String(error);
+  const endpoint = apiEndpoint(path);
+  let message =
+    `Cannot reach OmniRank API at ${endpoint}. ` +
+    "Start backend with: cd src/api && uvicorn main:app --reload --port 8000.";
+
+  if (typeof window !== "undefined" && window.location.protocol === "https:" && API_URL.startsWith("http://")) {
+    message += " Mixed-content is likely blocked (frontend HTTPS, backend HTTP).";
+  }
+
+  if (API_URL.includes("localhost")) {
+    message += " If backend runs on another host/port, set NEXT_PUBLIC_API_URL in src/web/.env.local.";
+  }
+
+  return `${message} Original error: ${cause}`;
+}
+
+async function fetchApi(path: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(apiEndpoint(path), init);
+  } catch (error) {
+    throw new Error(networkFailureMessage(path, error));
+  }
+}
+
+export interface SemanticSchema {
   bigbetter: 0 | 1;
   ranking_items: string[];
   indicator_col: string | null;
   indicator_values: string[];
 }
 
-export interface ValidationWarning {
-  type: string;
-  message: string;
-  severity: "warning" | "error";
+export interface DataSummary {
+  columns: string[];
+  sample_rows: Array<Record<string, unknown>>;
+  row_count: number;
+  column_types: Record<string, string>;
 }
 
-// Phase 1 response: file uploaded, Data Agent processing in background
+export interface FormatValidationResult {
+  is_ready: boolean;
+  fixable: boolean;
+  issues: string[];
+  suggested_fixes: string[];
+}
+
+export interface QualityValidationResult {
+  is_valid: boolean;
+  warnings: string[];
+  errors: string[];
+}
+
+export interface ValidationWarning {
+  type: "format" | "quality";
+  severity: "warning" | "error";
+  message: string;
+}
+
 export interface UploadResponse {
   session_id: string;
   filename: string;
 }
 
-export type DataAgentStartStatus = "started" | "already_started" | "already_completed";
-
-export interface DataAgentStartResponse {
-  session_id: string;
-  status: DataAgentStartStatus;
+export interface DataPreview {
+  columns: string[];
+  rows: Array<Record<string, string | number | null>>;
+  totalRows: number;
 }
 
-// Phase 2: Data Agent results (received via WebSocket)
-export interface SchemaReadyPayload {
-  inferred_schema: InferredSchema;
-  warnings: ValidationWarning[];
+export interface InferResponse {
+  success: boolean;
+  data_summary?: DataSummary;
+  schema_result?: {
+    success: boolean;
+    format: "pointwise" | "pairwise" | "multiway";
+    format_evidence: string;
+    schema?: SemanticSchema;
+    error?: string;
+  };
+  format_result?: FormatValidationResult;
+  quality_result?: QualityValidationResult;
+  preprocessed_path?: string;
+  requires_confirmation: boolean;
+  error?: string;
 }
 
 export interface AnalysisConfig {
   bigbetter: 0 | 1;
+  indicator_col?: string | null;
   selected_items?: string[];
   selected_indicator_values?: string[];
   bootstrap_iterations: number;
@@ -68,11 +121,40 @@ export interface RankingMetadata {
   runtime_sec: number;
 }
 
-export interface SectionQuestions {
-  rankings: string[];
-  insights: string[];
-  score_distribution: string[];
-  confidence_intervals: string[];
+export interface PlotSpec {
+  type: string;
+  data: Record<string, unknown>;
+  config: Record<string, unknown>;
+  svg_path: string;
+  block_id: string;
+  caption_plain: string;
+  caption_academic: string;
+  hint_ids: string[];
+}
+
+export interface HintSpec {
+  hint_id: string;
+  title: string;
+  body: string;
+  kind: "definition" | "assumption" | "caveat" | "method";
+  sources: string[];
+}
+
+export interface CitationBlock {
+  block_id: string;
+  kind: "summary" | "result" | "comparison" | "method" | "limitation" | "repro" | "figure" | "table";
+  markdown: string;
+  text: string;
+  hint_ids: string[];
+  artifact_paths: string[];
+}
+
+export interface ReportOutput {
+  markdown: string;
+  key_findings: Record<string, unknown>;
+  artifacts: Array<{ kind: string; path: string; title: string; mime_type: string }>;
+  hints: HintSpec[];
+  citation_blocks: CitationBlock[];
 }
 
 export interface RankingResults {
@@ -84,137 +166,76 @@ export interface RankingResults {
     win_rate_a: number;
     n_comparisons: number;
   }>;
-  report?: string;  // LLM-generated analysis report (markdown)
-  section_questions?: SectionQuestions;  // LLM-generated questions for each section
+  report?: string;
+  section_questions?: {
+    rankings: string[];
+    insights: string[];
+    score_distribution: string[];
+    confidence_intervals: string[];
+  };
 }
 
-export interface AnalyzeResponse {
-  status: "processing" | "completed" | "error";
-  results?: RankingResults;
+export interface RunResponse {
+  success: boolean;
+  config?: {
+    csv_path: string;
+    bigbetter: 0 | 1;
+    selected_items?: string[];
+    selected_indicator_values?: string[];
+    B: number;
+    seed: number;
+    r_script_path: string;
+  };
+  execution?: {
+    success: boolean;
+    results?: {
+      items: string[];
+      theta_hat: number[];
+      ranks: number[];
+      ci_lower: number[];
+      ci_upper: number[];
+      indicator_value?: string | null;
+    };
+    error?: string;
+    trace: {
+      command: string;
+      stdout: string;
+      stderr: string;
+      exit_code: number;
+      duration_seconds: number;
+      timestamp: string;
+    };
+  };
+  visualizations?: {
+    plots: PlotSpec[];
+    errors: string[];
+  };
+  report?: ReportOutput;
   error?: string;
 }
 
-// ============================================================================
-// API Functions
-// ============================================================================
-
-/**
- * Upload a file for analysis.
- */
-export async function uploadFile(file: File): Promise<UploadResponse> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch(`${API_URL}/api/upload`, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Upload failed");
-  }
-
-  return response.json();
+export interface QuotePayload {
+  quoted_text: string;
+  block_id?: string;
+  kind?: string;
+  source: "report" | "user_upload" | "external";
 }
 
-/**
- * Start Data Agent processing for a session.
- */
-export async function startDataAgent(sessionId: string): Promise<DataAgentStartResponse> {
-  const response = await fetch(`${API_URL}/api/data-agent/start`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ session_id: sessionId }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to start Data Agent");
-  }
-
-  return response.json();
+export interface ArtifactDescriptor {
+  artifact_id: string;
+  kind: string;
+  title: string;
+  mime_type: string;
 }
 
-/**
- * Trigger analysis with user configuration.
- */
-export async function analyze(
-  sessionId: string,
-  config: AnalysisConfig
-): Promise<AnalyzeResponse> {
-  const response = await fetch(`${API_URL}/api/analyze`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      session_id: sessionId,
-      config,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Analysis failed");
-  }
-
-  return response.json();
+export interface QuestionResponse {
+  answer: {
+    answer: string;
+    supporting_evidence: string[];
+    used_citation_block_ids: string[];
+  };
 }
 
-/**
- * Get results for a session.
- */
-export async function getResults(sessionId: string): Promise<AnalyzeResponse> {
-  const response = await fetch(`${API_URL}/api/results/${sessionId}`);
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to get results");
-  }
-
-  return response.json();
-}
-
-/**
- * Delete a session.
- */
-export async function deleteSession(sessionId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/api/session/${sessionId}`, {
-    method: "DELETE",
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to delete session");
-  }
-}
-
-/**
- * Check API health.
- */
-export async function checkHealth(): Promise<{
-  status: string;
-  version: string;
-  r_available: boolean;
-}> {
-  const response = await fetch(`${API_URL}/health`);
-  return response.json();
-}
-
-/**
- * Chat response type.
- */
-export interface ChatResponse {
-  answer: string;
-  agent: string;
-}
-
-/**
- * Example data metadata.
- */
 export interface ExampleDataInfo {
   id: string;
   filename: string;
@@ -223,18 +244,6 @@ export interface ExampleDataInfo {
   format: "pointwise" | "pairwise" | "multiway";
 }
 
-/**
- * Data preview information.
- */
-export interface DataPreview {
-  columns: string[];
-  rows: Array<Record<string, string | number>>;
-  totalRows: number;
-}
-
-/**
- * Available example datasets.
- */
 export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   {
     id: "pairwise",
@@ -279,129 +288,183 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   },
 ];
 
-/**
- * Send a follow-up question about the analysis.
- */
+async function parseResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || payload.error || fallbackMessage);
+  }
+  return response.json();
+}
+
+export async function uploadFile(file: File): Promise<UploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetchApi("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
+  return parseResponse<UploadResponse>(response, "Upload failed");
+}
+
+export async function loadExampleData(exampleId: string): Promise<UploadResponse> {
+  const response = await fetchApi(`/api/upload/example/${exampleId}`, {
+    method: "POST",
+  });
+  return parseResponse<UploadResponse>(response, "Failed to load example");
+}
+
+export async function getDataPreview(sessionId: string): Promise<DataPreview> {
+  const response = await fetchApi(`/api/preview/${sessionId}`, {});
+  return parseResponse<DataPreview>(response, "Failed to fetch data preview");
+}
+
+export async function inferSession(sessionId: string, userHints?: string): Promise<InferResponse> {
+  const response = await fetchApi(`/api/sessions/${sessionId}/infer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_hints: userHints ?? null }),
+  });
+  return parseResponse<InferResponse>(response, "Failed to infer schema");
+}
+
+export async function confirmSession(
+  sessionId: string,
+  payload: {
+    confirmed: boolean;
+    confirmed_schema: SemanticSchema;
+    user_modifications: string[];
+    B: number;
+    seed: number;
+  }
+): Promise<{ confirmation: unknown; session_status: string }> {
+  const response = await fetchApi(`/api/sessions/${sessionId}/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse(response, "Failed to confirm schema");
+}
+
+export async function runSession(
+  sessionId: string,
+  payload: { selected_items?: string[]; selected_indicator_values?: string[] }
+): Promise<RunResponse> {
+  const response = await fetchApi(`/api/sessions/${sessionId}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse<RunResponse>(response, "Failed to run analysis");
+}
+
 export async function askQuestion(
   sessionId: string,
-  question: string
-): Promise<ChatResponse> {
-  const response = await fetch(`${API_URL}/api/chat`, {
+  question: string,
+  quotes: QuotePayload[] = []
+): Promise<QuestionResponse> {
+  const response = await fetchApi(`/api/sessions/${sessionId}/question`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      session_id: sessionId,
-      question,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, quotes }),
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to get answer");
-  }
-
-  return response.json();
+  return parseResponse<QuestionResponse>(response, "Failed to answer question");
 }
 
-/**
- * Send a general question without session context.
- * Used in pre-upload stage for questions about system and methodology.
- */
-export async function askGeneralQuestion(
-  question: string
-): Promise<ChatResponse> {
-  const response = await fetch(`${API_URL}/api/chat/general`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ question }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to get answer");
-  }
-
-  return response.json();
-}
-
-/**
- * Load example data from the server.
- * This uses the FastAPI backend's example endpoint.
- */
-export async function loadExampleData(exampleId: string): Promise<UploadResponse> {
-  const response = await fetch(`${API_URL}/api/upload/example/${exampleId}`, {
-    method: "POST",
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to load example data");
-  }
-
-  return response.json();
-}
-
-/**
- * Fetch data preview for a session.
- */
-export async function getDataPreview(sessionId: string): Promise<DataPreview> {
-  const response = await fetch(`${API_URL}/api/preview/${sessionId}`);
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to get data preview");
-  }
-
-  return response.json();
-}
-
-// ============================================================================
-// WebSocket Connection
-// ============================================================================
-
-export type WSMessageHandler = (message: {
-  type: string;
-  payload: unknown;
-}) => void;
-
-/**
- * Create a WebSocket connection for real-time updates.
- */
-export function createWebSocket(
-  sessionId: string,
-  onMessage: WSMessageHandler,
-  onError?: (error: Event) => void,
-  onClose?: () => void,
-  onOpen?: () => void
-): WebSocket {
-  const ws = new WebSocket(`${WS_URL}/api/ws/${sessionId}`);
-
-  ws.onopen = () => {
-    onOpen?.();
+export async function getSessionSnapshot(sessionId: string): Promise<{
+  session: {
+    status: string;
+    report_output?: ReportOutput;
+    visualization_output?: { plots: PlotSpec[]; errors: string[] };
+    citation_blocks?: CitationBlock[];
   };
+  artifacts: ArtifactDescriptor[];
+}> {
+  const response = await fetchApi(`/api/sessions/${sessionId}`, {});
+  return parseResponse(response, "Failed to fetch session snapshot");
+}
 
-  ws.onmessage = (event) => {
-    try {
-      const message = JSON.parse(event.data);
-      onMessage(message);
-    } catch (e) {
-      console.error("Failed to parse WebSocket message:", e);
+export function artifactUrl(sessionId: string, artifactId: string): string {
+  return `${API_URL}/api/sessions/${sessionId}/artifacts/${artifactId}`;
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  const response = await fetchApi(`/api/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+  await parseResponse(response, "Failed to delete session");
+}
+
+export async function checkHealth(): Promise<{ status: string; version: string; r_available: boolean }> {
+  const response = await fetchApi("/health", {});
+  return parseResponse(response, "Health check failed");
+}
+
+export function toValidationWarnings(
+  formatResult?: FormatValidationResult,
+  qualityResult?: QualityValidationResult
+): ValidationWarning[] {
+  const warnings: ValidationWarning[] = [];
+
+  if (formatResult) {
+    for (const issue of formatResult.issues) {
+      warnings.push({ type: "format", severity: formatResult.fixable ? "warning" : "error", message: issue });
     }
+  }
+
+  if (qualityResult) {
+    for (const warning of qualityResult.warnings) {
+      warnings.push({ type: "quality", severity: "warning", message: warning });
+    }
+    for (const error of qualityResult.errors) {
+      warnings.push({ type: "quality", severity: "error", message: error });
+    }
+  }
+
+  return warnings;
+}
+
+export function normalizeRunResponse(run: RunResponse): {
+  rankingResults: RankingResults | null;
+  reportOutput: ReportOutput | null;
+  plots: PlotSpec[];
+} {
+  if (!run.execution?.results) {
+    return { rankingResults: null, reportOutput: run.report ?? null, plots: run.visualizations?.plots ?? [] };
+  }
+
+  const raw = run.execution.results;
+  const items: RankingItem[] = raw.items.map((name, index) => ({
+    name,
+    theta_hat: raw.theta_hat[index],
+    rank: raw.ranks[index],
+    ci_lower: raw.ci_lower[index],
+    ci_upper: raw.ci_upper[index],
+    ci_two_sided: [raw.ci_lower[index], raw.ci_upper[index]],
+  }));
+
+  const rankingResults: RankingResults = {
+    items,
+    metadata: {
+      n_items: items.length,
+      n_comparisons: 0,
+      heterogeneity_index: 0,
+      sparsity_ratio: 0,
+      runtime_sec: run.execution.trace.duration_seconds,
+    },
+    pairwise_matrix: [],
+    report: run.report?.markdown,
+    section_questions: {
+      rankings: [],
+      insights: [],
+      score_distribution: [],
+      confidence_intervals: [],
+    },
   };
 
-  ws.onerror = (error) => {
-    console.error("WebSocket error:", error);
-    onError?.(error);
+  return {
+    rankingResults,
+    reportOutput: run.report ?? null,
+    plots: run.visualizations?.plots ?? [],
   };
-
-  ws.onclose = () => {
-    console.log("WebSocket closed");
-    onClose?.();
-  };
-
-  return ws;
 }

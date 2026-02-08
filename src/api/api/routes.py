@@ -1,595 +1,234 @@
-"""
-OmniRank REST API Routes
-Handles file upload, analysis triggering, and results retrieval.
-"""
+"""OmniRank HTTP API routes (single-agent SOP pipeline)."""
 
-import asyncio
+from __future__ import annotations
+
 import csv
 import io
 import logging
+import mimetypes
 from pathlib import Path
-from typing import Annotated
 
-from fastapi import APIRouter, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 
-from pydantic import BaseModel
-
+from agents.omnirank_agent import OmniRankAgent
 from core.schemas import (
-    UploadResponse,
-    AnalyzeRequest,
-    AnalyzeResponse,
-    AnalysisStatus,
-    SessionStatus,
-    WSMessage,
-    WSMessageType,
-    AgentType,
+    ConfirmRequest,
     DataPreview,
-    DataAgentStartRequest,
-    DataAgentStartResponse,
-    DataAgentStartStatus,
+    InferRequest,
+    InferResponse,
+    QuestionRequest,
+    RunRequest,
+    RunResponse,
+    SessionStatus,
+    SessionSnapshotResponse,
+    UploadResponse,
 )
-
-# Example data configuration
-EXAMPLE_DATA_DIR = Path(__file__).parent.parent.parent.parent / "data" / "examples"
-
-EXAMPLE_DATASETS = {
-    "pairwise": {
-        "filename": "example_data_pairwise.csv",
-        "title": "LLM Pairwise Comparison",
-    },
-    "pointwise": {
-        "filename": "example_data_pointwise.csv",
-        "title": "Model Performance Scores",
-    },
-    "multiway": {
-        "filename": "example_data_multiway.csv",
-        "title": "Horse Racing Results",
-    },
-}
-
-
-class ChatRequest(BaseModel):
-    """Request body for chat endpoint."""
-    session_id: str
-    question: str
-
-
-class ChatResponse(BaseModel):
-    """Response body for chat endpoint."""
-    answer: str
-    agent: str = "analyst"
-
-
-class GeneralChatRequest(BaseModel):
-    """Request body for general chat endpoint (no session required)."""
-    question: str
-
-
-class GeneralChatResponse(BaseModel):
-    """Response body for general chat endpoint."""
-    answer: str
-    agent: str = "analyst"
 from core.session_memory import get_session_store
-from agents.data_agent import DataAgent
-from agents.orchestrator import EngineOrchestrator
-from agents.analyst_agent import AnalystAgent
-from api.websocket import get_connection_manager
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["ranking"])
+router = APIRouter(tags=["omnirank"])
 
 
-class UploadOnlyResponse(BaseModel):
-    """Response for file upload (before Data Agent processing)."""
-    session_id: str
-    filename: str
+EXAMPLE_DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "examples"
+EXAMPLE_DATASETS: dict[str, str] = {
+    "pairwise": "example_data_pairwise.csv",
+    "pointwise": "example_data_pointwise.csv",
+    "multiway": "example_data_multiway.csv",
+}
+
+agent = OmniRankAgent()
 
 
-@router.post("/upload", response_model=UploadOnlyResponse)
-async def upload_file(file: Annotated[UploadFile, File(description="CSV or JSON file")]):
-    """
-    Upload a comparison data file for analysis.
-    
-    Phase 1: Immediately save file and return session_id for data preview.
-    Phase 2: Data Agent is started explicitly after preview.
-    """
-    # Validate file type
+@router.post("/upload", response_model=UploadResponse)
+async def upload_file(file: UploadFile = File(...)):
+    """Upload CSV file and create session."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
-    
-    if not (file.filename.endswith(".csv") or file.filename.endswith(".json")):
-        raise HTTPException(
-            status_code=400,
-            detail="Only CSV and JSON files are supported",
-        )
-    
-    # Read file content
+    if not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported")
+
     content = await file.read()
-    
-    # Create session
     store = get_session_store()
     session = store.create_session()
-    
-    # Save file
-    file_path = store.save_file(session.session_id, file.filename, content)
+
+    saved_path = store.save_file(session.session_id, file.filename, content)
     session.filename = file.filename
-    session.file_content = content
-    session.file_path = file_path
-    session.status = SessionStatus.UPLOADING
+    session.original_file_path = saved_path
+    session.current_file_path = saved_path
+    session.status = SessionStatus.UPLOADED
     store.update_session(session)
-    
-    # Return immediately with session_id for data preview
-    return UploadOnlyResponse(
-        session_id=session.session_id,
-        filename=file.filename,
-    )
+
+    return UploadResponse(session_id=session.session_id, filename=file.filename)
 
 
-@router.post("/upload/example/{example_id}", response_model=UploadOnlyResponse)
+@router.post("/upload/example/{example_id}", response_model=UploadResponse)
 async def upload_example(example_id: str):
-    """
-    Load example data for analysis.
-    
-    Phase 1: Immediately save file and return session_id for data preview.
-    Phase 2: Data Agent is started explicitly after preview.
-    """
+    """Upload one built-in example dataset into a new session."""
     if example_id not in EXAMPLE_DATASETS:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Unknown example dataset: {example_id}. Available: {list(EXAMPLE_DATASETS.keys())}",
-        )
-    
-    example_info = EXAMPLE_DATASETS[example_id]
-    file_path = EXAMPLE_DATA_DIR / example_info["filename"]
-    
-    if not file_path.exists():
-        raise HTTPException(
-            status_code=500,
-            detail=f"Example data file not found: {example_info['filename']}",
-        )
-    
-    # Read file content
-    content = file_path.read_bytes()
-    filename = example_info["filename"]
-    
-    # Create session
+        raise HTTPException(status_code=404, detail=f"Unknown example id: {example_id}")
+
+    filename = EXAMPLE_DATASETS[example_id]
+    source_path = EXAMPLE_DATA_DIR / filename
+    if not source_path.exists():
+        raise HTTPException(status_code=500, detail=f"Example file missing: {filename}")
+
+    content = source_path.read_bytes()
     store = get_session_store()
     session = store.create_session()
-    
-    # Save file
     saved_path = store.save_file(session.session_id, filename, content)
+
     session.filename = filename
-    session.file_content = content
-    session.file_path = saved_path
-    session.status = SessionStatus.UPLOADING
+    session.original_file_path = saved_path
+    session.current_file_path = saved_path
+    session.status = SessionStatus.UPLOADED
     store.update_session(session)
-    
-    # Return immediately with session_id for data preview
-    return UploadOnlyResponse(
-        session_id=session.session_id,
-        filename=filename,
-    )
+
+    return UploadResponse(session_id=session.session_id, filename=filename)
 
 
 @router.get("/preview/{session_id}", response_model=DataPreview)
-async def get_data_preview(session_id: str):
-    """
-    Get full data for preview and pagination in the UI.
-    
-    Returns all rows - pagination is handled client-side for better UX.
-    """
+async def get_preview(session_id: str):
+    """Get full CSV rows for client-side pagination preview."""
     store = get_session_store()
     session = store.get_session(session_id)
-    
-    if not session:
+    if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    if not session.file_content:
-        raise HTTPException(status_code=400, detail="No file uploaded for this session")
-    
-    try:
-        # Decode content
-        content_str = session.file_content.decode("utf-8")
-        
-        # Parse CSV
-        reader = csv.DictReader(io.StringIO(content_str))
-        columns = reader.fieldnames or []
-        
-        rows = []
-        for row in reader:
-            # Convert numeric strings to numbers for cleaner display
-            processed_row = {}
-            for k, v in row.items():
-                try:
-                    # Try float conversion
-                    if v and "." in v:
-                        processed_row[k] = float(v)
-                    elif v:
-                        processed_row[k] = int(v)
-                    else:
-                        processed_row[k] = v
-                except (ValueError, TypeError):
-                    processed_row[k] = v
-            rows.append(processed_row)
-        
-        return DataPreview(
-            columns=columns,
-            rows=rows,
-            totalRows=len(rows),
-        )
-    except Exception as e:
-        logger.error(f"Failed to parse data preview: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to parse data: {str(e)}")
+    if not session.current_file_path:
+        raise HTTPException(status_code=400, detail="Session has no uploaded file")
+
+    content = Path(session.current_file_path).read_text(encoding="utf-8")
+    reader = csv.DictReader(io.StringIO(content))
+    columns = reader.fieldnames or []
+
+    rows: list[dict[str, str | float | int | None]] = []
+    for row in reader:
+        normalized: dict[str, str | float | int | None] = {}
+        for key, value in row.items():
+            if value is None or value == "":
+                normalized[key] = None
+                continue
+            try:
+                if "." in value:
+                    normalized[key] = float(value)
+                else:
+                    normalized[key] = int(value)
+            except ValueError:
+                normalized[key] = value
+        rows.append(normalized)
+
+    return DataPreview(columns=columns, rows=rows, totalRows=len(rows))
 
 
-@router.post("/data-agent/start", response_model=DataAgentStartResponse)
-async def start_data_agent(request: DataAgentStartRequest):
-    """
-    Start Data Agent processing for a session.
-    
-    This should be called after data preview is loaded.
-    """
+@router.post("/sessions/{session_id}/infer", response_model=InferResponse)
+async def infer_session(session_id: str, request: InferRequest):
+    """Run infer phase: read -> infer -> format loop -> quality validation."""
     store = get_session_store()
-    session = store.get_session(request.session_id)
-    
-    if not session:
+    session = store.get_session(session_id)
+    if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    if not session.file_content or not session.filename:
-        raise HTTPException(status_code=400, detail="No file uploaded for this session")
-    
-    if session.inferred_schema:
-        return DataAgentStartResponse(
-            session_id=session.session_id,
-            status=DataAgentStartStatus.ALREADY_COMPLETED,
-        )
-    
-    if session.data_agent_started:
-        return DataAgentStartResponse(
-            session_id=session.session_id,
-            status=DataAgentStartStatus.ALREADY_STARTED,
-        )
-    
-    session.data_agent_started = True
+
+    response = agent.infer(session=session, user_hints=request.user_hints)
     store.update_session(session)
-    
-    asyncio.create_task(_run_data_agent_async(session.session_id, session.file_content, session.filename))
-    
-    return DataAgentStartResponse(
-        session_id=session.session_id,
-        status=DataAgentStartStatus.STARTED,
-    )
+    return response
 
 
-async def _send_ws_progress(session_id: str, progress: float, message: str, agent: str = None):
-    """Send progress update via WebSocket."""
-    try:
-        manager = get_connection_manager()
-        ws_message = WSMessage(
-            type=WSMessageType.PROGRESS,
-            payload={"progress": progress, "message": message, "agent": agent},
-        )
-        await manager.send_message(session_id, ws_message)
-    except Exception as e:
-        logger.debug(f"WebSocket send failed (no clients?): {e}")
-
-
-async def _send_ws_schema_ready(session_id: str, schema, warnings: list):
-    """Send Data Agent schema inference result via WebSocket."""
-    try:
-        manager = get_connection_manager()
-        logger.info(f"Sending schema_ready to session {session_id}")
-        ws_message = WSMessage(
-            type=WSMessageType.SCHEMA_READY,
-            payload={
-                "inferred_schema": schema.model_dump() if schema else None,
-                "warnings": [w.model_dump() for w in warnings] if warnings else [],
-            },
-        )
-        await manager.send_message(session_id, ws_message)
-        logger.info(f"schema_ready sent successfully to session {session_id}")
-    except Exception as e:
-        logger.error(f"WebSocket send failed for session {session_id}: {e}")
-
-
-async def _send_ws_agent_message(session_id: str, agent: AgentType, message: str):
-    """Send agent message via WebSocket."""
-    try:
-        manager = get_connection_manager()
-        ws_message = WSMessage(
-            type=WSMessageType.AGENT_MESSAGE,
-            payload={"agent": agent.value, "message": message},
-        )
-        await manager.send_message(session_id, ws_message)
-    except Exception as e:
-        logger.debug(f"WebSocket send failed: {e}")
-
-
-async def _send_ws_result(session_id: str, results):
-    """Send final results via WebSocket."""
-    try:
-        manager = get_connection_manager()
-        ws_message = WSMessage(
-            type=WSMessageType.RESULT,
-            payload={"results": results.model_dump() if results else None},
-        )
-        await manager.send_message(session_id, ws_message)
-    except Exception as e:
-        logger.debug(f"WebSocket send failed: {e}")
-
-
-async def _send_ws_result_with_questions(session_id: str, results, suggested_questions: list[str]):
-    """Send final results with suggested questions via WebSocket."""
-    try:
-        manager = get_connection_manager()
-        ws_message = WSMessage(
-            type=WSMessageType.RESULT,
-            payload={
-                "results": results.model_dump() if results else None,
-                "suggested_questions": suggested_questions or [],
-            },
-        )
-        await manager.send_message(session_id, ws_message)
-    except Exception as e:
-        logger.debug(f"WebSocket send failed: {e}")
-
-
-async def _send_ws_error(session_id: str, error: str):
-    """Send error via WebSocket."""
-    try:
-        manager = get_connection_manager()
-        ws_message = WSMessage(
-            type=WSMessageType.ERROR,
-            payload={"error": error},
-        )
-        await manager.send_message(session_id, ws_message)
-    except Exception as e:
-        logger.debug(f"WebSocket send failed: {e}")
-
-
-async def _run_data_agent_async(session_id: str, content: bytes, filename: str):
-    """Run Data Agent in background and send results via WebSocket."""
+@router.post("/sessions/{session_id}/confirm", response_model=dict)
+async def confirm_session(session_id: str, request: ConfirmRequest):
+    """Persist user confirmation and schema adjustments."""
     store = get_session_store()
     session = store.get_session(session_id)
-    
-    if not session:
-        logger.error(f"Session {session_id} not found for Data Agent")
-        return
-    
-    try:
-        # Run Data Agent (blocking call in thread pool)
-        data_agent = DataAgent()
-        loop = asyncio.get_event_loop()
-        schema, warnings, explanation = await loop.run_in_executor(
-            None, data_agent.process, content, filename, session
-        )
-        
-        # Log explanation if available
-        if explanation:
-            logger.info(f"Data Agent explanation: {explanation}")
-        
-        # Update session
-        session.inferred_schema = schema
-        session.status = SessionStatus.CONFIGURING
-        store.update_session(session)
-        
-        # Send schema ready via WebSocket
-        await _send_ws_schema_ready(session_id, schema, warnings)
-        
-    except Exception as e:
-        logger.error(f"Data Agent failed: {e}")
-        session.status = SessionStatus.ERROR
-        store.update_session(session)
-        await _send_ws_error(session_id, f"Data Agent error: {str(e)}")
-
-
-
-
-async def _run_analysis_async(session_id: str, config):
-    """Async analysis execution with WebSocket progress updates."""
-    store = get_session_store()
-    session = store.get_session(session_id)
-    
-    if not session:
-        return
-    
-    try:
-        session.status = SessionStatus.ANALYZING
-        session.config = config
-        store.update_session(session)
-        
-        # Progress: Starting
-        await _send_ws_progress(session_id, 0.1, "Starting analysis...")
-        
-        # Run Engine Orchestrator (blocking call in thread pool)
-        orchestrator = EngineOrchestrator()
-        
-        await _send_ws_progress(session_id, 0.3, "Computing rankings...")
-        
-        # Execute in thread pool to not block event loop
-        loop = asyncio.get_event_loop()
-        results = await loop.run_in_executor(None, orchestrator.execute, session, config)
-        
-        await _send_ws_progress(session_id, 0.7, "Generating report...")
-        
-        # Generate report, suggested questions, and section questions
-        analyst = AnalystAgent()
-        report = await loop.run_in_executor(None, analyst.generate_report, results, session)
-        suggested_questions = await loop.run_in_executor(None, analyst.generate_suggested_questions, results)
-        section_questions = await loop.run_in_executor(None, analyst.generate_section_questions, results)
-        
-        # Attach report and section questions to results
-        results.report = report
-        results.section_questions = section_questions
-        
-        await _send_ws_progress(session_id, 0.9, "Finalizing results...")
-        
-        # Update session
-        session.results = results
-        session.status = SessionStatus.COMPLETED
-        store.update_session(session)
-        
-        # Send final results (now includes report and suggested questions)
-        await _send_ws_progress(session_id, 1.0, "Complete!")
-        await _send_ws_result_with_questions(session_id, results, suggested_questions)
-        
-    except Exception as e:
-        logger.error(f"Analysis failed: {e}")
-        session.status = SessionStatus.ERROR
-        session.add_message("system", f"Error: {str(e)}", agent=None)
-        store.update_session(session)
-        await _send_ws_error(session_id, str(e))
-
-
-def _run_analysis_sync(session_id: str, config):
-    """Synchronous wrapper for async analysis execution."""
-    asyncio.run(_run_analysis_async(session_id, config))
-
-
-@router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
-    """
-    Trigger ranking analysis with user-confirmed configuration.
-    
-    The Engine Orchestrator will:
-    1. Preprocess data based on user configuration
-    2. Execute spectral_ranking.R with bootstrap confidence intervals
-    3. Return ranking results with uncertainty quantification
-    """
-    store = get_session_store()
-    session = store.get_session(request.session_id)
-    
-    if not session:
+    if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    if not session.file_path:
-        raise HTTPException(status_code=400, detail="No file uploaded for this session")
-    
-    # Start analysis in background
-    background_tasks.add_task(_run_analysis_sync, request.session_id, request.config)
-    
-    return AnalyzeResponse(
-        status=AnalysisStatus.PROCESSING,
-        results=None,
-        error=None,
-    )
+
+    try:
+        confirmation = agent.confirm(
+            session=session,
+            confirmed=request.confirmed,
+            confirmed_schema=request.confirmed_schema,
+            user_modifications=request.user_modifications,
+            B=request.B,
+            seed=request.seed,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    store.update_session(session)
+    return {"confirmation": confirmation.model_dump(), "session_status": session.status.value}
 
 
-@router.get("/results/{session_id}", response_model=AnalyzeResponse)
-async def get_results(session_id: str):
-    """
-    Retrieve analysis results for a session.
-    """
+@router.post("/sessions/{session_id}/run", response_model=RunResponse)
+async def run_session(session_id: str, request: RunRequest):
+    """Run confirmed session through engine + visualization + report."""
     store = get_session_store()
     session = store.get_session(session_id)
-    
-    if not session:
+    if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    if session.status == SessionStatus.COMPLETED:
-        return AnalyzeResponse(
-            status=AnalysisStatus.COMPLETED,
-            results=session.results,
-            error=None,
-        )
-    elif session.status == SessionStatus.ERROR:
-        # Get last error message
-        error_msgs = [m for m in session.messages if m.role == "system" and "Error" in m.content]
-        error = error_msgs[-1].content if error_msgs else "Unknown error"
-        return AnalyzeResponse(
-            status=AnalysisStatus.ERROR,
-            results=None,
-            error=error,
-        )
-    else:
-        return AnalyzeResponse(
-            status=AnalysisStatus.PROCESSING,
-            results=None,
-            error=None,
-        )
+
+    response = agent.run(
+        session=session,
+        selected_items=request.selected_items,
+        selected_indicator_values=request.selected_indicator_values,
+    )
+    store.update_session(session)
+
+    if not response.success:
+        raise HTTPException(status_code=400, detail=response.error or "Run failed")
+    return response
 
 
-@router.delete("/session/{session_id}")
+@router.post("/sessions/{session_id}/question", response_model=dict)
+async def ask_question(session_id: str, request: QuestionRequest):
+    """Answer follow-up question with optional quote payloads."""
+    store = get_session_store()
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    try:
+        answer = agent.answer(session=session, question=request.question, quotes=request.quotes)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    store.update_session(session)
+    return {"answer": answer.model_dump()}
+
+
+@router.get("/sessions/{session_id}/artifacts/{artifact_id}")
+async def get_artifact(session_id: str, artifact_id: str):
+    """Download artifact by id."""
+    store = get_session_store()
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    meta = session.artifacts.get(artifact_id)
+    if meta is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    path = Path(meta["path"])
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Artifact file missing")
+
+    media_type = meta["mime_type"] or mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+    return FileResponse(path=path, filename=path.name, media_type=media_type)
+
+
+@router.get("/sessions/{session_id}", response_model=SessionSnapshotResponse)
+async def get_session_snapshot(session_id: str):
+    """Return full session snapshot with artifact descriptors."""
+    store = get_session_store()
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return SessionSnapshotResponse(session=session.to_snapshot(), artifacts=session.artifact_descriptors())
+
+
+@router.delete("/sessions/{session_id}")
 async def delete_session(session_id: str):
-    """
-    Delete a session and its associated data.
-    """
+    """Delete session and associated temporary files."""
     store = get_session_store()
-    
     if not store.delete_session(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
-    
     return {"status": "deleted", "session_id": session_id}
-
-
-@router.get("/session/{session_id}/messages")
-async def get_messages(session_id: str):
-    """
-    Get chat messages for a session.
-    """
-    store = get_session_store()
-    session = store.get_session(session_id)
-    
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    return {
-        "session_id": session_id,
-        "messages": [m.model_dump() for m in session.messages],
-    }
-
-
-@router.post("/chat/general", response_model=GeneralChatResponse)
-async def chat_general(request: GeneralChatRequest):
-    """
-    Ask a general question about OmniRank without needing a session.
-    
-    Used in the pre-upload stage for questions about:
-    - System capabilities and methodology
-    - Data format requirements
-    - Getting started guidance
-    """
-    analyst = AnalystAgent()
-    answer = analyst.answer_general_question(request.question)
-    
-    return GeneralChatResponse(answer=answer, agent="analyst")
-
-
-@router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """
-    Ask a question about the analysis.
-    
-    Supports two stages:
-    1. Post-schema (no results): Questions about data format, configuration, methodology
-    2. Post-analysis (with results): Questions about specific ranking results
-    
-    The Analyst Agent will answer using:
-    - Session context (data schema, execution trace)
-    - Ranking results (if available)
-    - Spectral ranking domain knowledge
-    """
-    store = get_session_store()
-    session = store.get_session(request.session_id)
-    
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    # Add user question to session messages
-    session.add_message("user", request.question, agent=None)
-    
-    # Get answer from Analyst Agent based on analysis stage
-    analyst = AnalystAgent()
-    
-    if session.results:
-        # Post-analysis: Full context with results
-        answer = analyst.answer_question(request.question, session.results, session)
-    else:
-        # Post-schema: Schema context without results
-        answer = analyst.answer_schema_question(request.question, session)
-    
-    # Add answer to session messages
-    session.add_message("assistant", answer, agent=AgentType.ANALYST)
-    store.update_session(session)
-    
-    return ChatResponse(answer=answer, agent="analyst")
