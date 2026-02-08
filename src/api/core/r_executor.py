@@ -60,11 +60,24 @@ class RScriptExecutor:
             df = df[keep_cols]
 
         if config.selected_indicator_values:
-            # Find candidate indicator column from non-numeric columns.
+            selected_values = {str(value) for value in config.selected_indicator_values}
+
+            # Choose the most likely indicator column by value overlap.
             indicator_cols = [col for col in df.columns if not pd.api.types.is_numeric_dtype(df[col])]
-            if indicator_cols:
-                indicator_col = indicator_cols[0]
-                df = df[df[indicator_col].isin(config.selected_indicator_values)]
+            best_col: Optional[str] = None
+            best_overlap = 0
+            for col in indicator_cols:
+                column_values = {str(value) for value in df[col].dropna().astype(str).tolist()}
+                overlap = len(column_values.intersection(selected_values))
+                if overlap > best_overlap:
+                    best_overlap = overlap
+                    best_col = col
+
+            if best_col and best_overlap > 0:
+                normalized = df[best_col].where(df[best_col].notna(), None).map(
+                    lambda value: str(value) if value is not None else None
+                )
+                df = df[normalized.isin(selected_values)]
 
         filtered_path = work_dir / "engine_input_filtered.csv"
         df.to_csv(filtered_path, index=False)
@@ -147,12 +160,23 @@ class RScriptExecutor:
         if not methods:
             return ExecutionResult(success=False, error="Engine output has no methods", trace=trace)
 
+        ci_bounds: list[tuple[float, float]] = []
+        for method in methods:
+            ci_two_sided = method.get("ci_two_sided")
+            if isinstance(ci_two_sided, (list, tuple)) and len(ci_two_sided) >= 2:
+                ci_bounds.append((float(ci_two_sided[0]), float(ci_two_sided[1])))
+                continue
+
+            ci_left = method.get("ci_left", method.get("ci_two_left", 1.0))
+            ci_right = method.get("ci_uniform_left", method.get("ci_two_right", ci_left))
+            ci_bounds.append((float(ci_left), float(ci_right)))
+
         ranking = RankingResults(
             items=[str(method.get("name", "")) for method in methods],
             theta_hat=[float(method.get("theta_hat", 0.0)) for method in methods],
             ranks=[int(method.get("rank", i + 1)) for i, method in enumerate(methods)],
-            ci_lower=[float(method.get("ci_left", method.get("ci_two_sided", [1, 1])[0])) for method in methods],
-            ci_upper=[float(method.get("ci_uniform_left", method.get("ci_two_sided", [1, 1])[1])) for method in methods],
+            ci_lower=[bounds[0] for bounds in ci_bounds],
+            ci_upper=[bounds[1] for bounds in ci_bounds],
             indicator_value=None,
         )
 

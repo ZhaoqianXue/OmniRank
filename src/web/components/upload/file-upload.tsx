@@ -43,8 +43,8 @@ export function FileUpload({
       const file = acceptedFiles[0];
       
       // Validate file type
-      if (!file.name.endsWith(".csv") && !file.name.endsWith(".json")) {
-        setError("Please upload a CSV or JSON file");
+      if (!file.name.endsWith(".csv")) {
+        setError("Please upload a CSV file");
         return;
       }
 
@@ -67,7 +67,6 @@ export function FileUpload({
     onDrop,
     accept: {
       "text/csv": [".csv"],
-      "application/json": [".json"],
     },
     maxFiles: 1,
     disabled: isUploading || mode === "sticker",
@@ -207,7 +206,7 @@ export function FileUpload({
                 {isDragActive ? "Drop your file here" : "Drop your data here"}
               </p>
               <p className="text-sm text-muted-foreground">
-                Supports CSV and JSON files with comparison data
+                Supports CSV files with comparison data
               </p>
             </motion.div>
           )}

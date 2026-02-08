@@ -141,3 +141,21 @@ def test_reject_confirmation_then_reinfer_with_hints(monkeypatch):
     )
     assert reinfer.status_code == 200
     assert reinfer.json()["success"] is True
+
+
+def test_pairwise_long_upload_infer_requires_confirmation():
+    client = TestClient(app)
+    csv_content = "task,item_a,item_b,winner\ncode,A,B,A\nmath,A,C,C\nqa,B,C,C\n"
+
+    upload = client.post(
+        "/api/upload",
+        files={"file": ("pairwise_long.csv", csv_content, "text/csv")},
+    )
+    assert upload.status_code == 200
+    session_id = upload.json()["session_id"]
+
+    infer = client.post(f"/api/sessions/{session_id}/infer", json={"user_hints": None})
+    assert infer.status_code == 200
+    body = infer.json()
+    assert body["success"] is True
+    assert body["requires_confirmation"] is True

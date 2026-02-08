@@ -45,6 +45,22 @@ def test_infer_semantic_schema_pairwise(tmp_path: Path):
     assert len(result.schema.ranking_items) >= 2
 
 
+def test_infer_semantic_schema_pairwise_long_columns(tmp_path: Path):
+    file_path = _write(
+        tmp_path / "pairwise_long.csv",
+        "task,item_a,item_b,winner\ncode,A,B,A\nmath,A,C,C\nqa,B,C,C\n",
+    )
+    summary = read_data_file(file_path).data
+    assert summary is not None
+
+    result = infer_semantic_schema(summary, file_path)
+
+    assert result.success is True
+    assert result.format.value == "pairwise"
+    assert result.schema is not None
+    assert result.schema.ranking_items == ["A", "B", "C"]
+
+
 def test_infer_semantic_schema_multiway(tmp_path: Path):
     file_path = _write(
         tmp_path / "multiway.csv",
@@ -59,6 +75,37 @@ def test_infer_semantic_schema_multiway(tmp_path: Path):
     assert result.format.value == "multiway"
     assert result.schema is not None
     assert sorted(result.schema.ranking_items) == ["A", "B", "C"]
+
+
+def test_infer_semantic_schema_multiway_sets_lower_better(tmp_path: Path):
+    file_path = _write(
+        tmp_path / "multiway_direction.csv",
+        "race,rank_1,rank_2,rank_3\nr1,A,B,C\nr2,B,C,A\nr3,C,A,B\n",
+    )
+    summary = read_data_file(file_path).data
+    assert summary is not None
+
+    result = infer_semantic_schema(summary, file_path)
+
+    assert result.success is True
+    assert result.schema is not None
+    assert result.schema.bigbetter == 0
+
+
+def test_infer_semantic_schema_long_item_value_ignores_id_column(tmp_path: Path):
+    file_path = _write(
+        tmp_path / "long_item_value.csv",
+        "case_id,item,value\n1,A,0.9\n1,B,0.8\n2,A,0.7\n2,B,0.6\n",
+    )
+    summary = read_data_file(file_path).data
+    assert summary is not None
+
+    result = infer_semantic_schema(summary, file_path)
+
+    assert result.success is True
+    assert result.schema is not None
+    assert result.schema.ranking_items == ["A", "B"]
+    assert "case_id" not in result.schema.ranking_items
 
 
 def test_infer_semantic_schema_selects_single_indicator_column(tmp_path: Path):
@@ -113,6 +160,25 @@ def test_validate_data_format_fixable(tmp_path: Path):
     assert result.is_ready is False
     assert result.fixable is True
     assert len(result.suggested_fixes) > 0
+
+
+def test_validate_data_format_pairwise_long_is_fixable(tmp_path: Path):
+    file_path = _write(
+        tmp_path / "pairwise_fixable.csv",
+        "task,item_a,item_b,winner\ncode,A,B,A\nmath,A,C,C\nqa,B,C,C\n",
+    )
+    schema = SemanticSchema(
+        bigbetter=1,
+        ranking_items=["A", "B", "C"],
+        indicator_col="task",
+        indicator_values=["code", "math", "qa"],
+    )
+
+    result = validate_data_format(file_path, schema)
+
+    assert result.is_ready is False
+    assert result.fixable is True
+    assert any("pairwise" in fix.lower() for fix in result.suggested_fixes)
 
 
 def test_validate_data_format_unfixable(tmp_path: Path):

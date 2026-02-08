@@ -6,7 +6,14 @@ from pathlib import Path
 
 import pandas as pd
 
-from .common import normalize_column_name, read_table, safe_numeric
+from .common import (
+    find_long_item_value_columns,
+    find_pairwise_long_columns,
+    is_meta_column,
+    normalize_column_name,
+    read_table,
+    safe_numeric,
+)
 from core.schemas import PreprocessResult, SemanticSchema
 
 
@@ -21,9 +28,7 @@ def _rank_column_order(column: str) -> tuple[int, str]:
 
 def _pivot_long_if_possible(df: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
     """Convert common long format (item/value) into wide matrix if detected."""
-    lower_map = {col.lower(): col for col in df.columns}
-    item_col = lower_map.get("item") or lower_map.get("item_name")
-    value_col = lower_map.get("value") or lower_map.get("score") or lower_map.get("metric")
+    item_col, value_col = find_long_item_value_columns(df)
 
     if item_col and value_col:
         id_cols = [col for col in df.columns if col not in {item_col, value_col}]
@@ -86,20 +91,7 @@ def _convert_pairwise_long_if_possible(
     ranking_items: list[str],
 ) -> tuple[pd.DataFrame, bool]:
     """Convert pairwise long format to wide item-score rows."""
-    lower_map = {col.lower(): col for col in df.columns}
-    left_col = (
-        lower_map.get("item_a")
-        or lower_map.get("item1")
-        or lower_map.get("left")
-        or lower_map.get("player_a")
-    )
-    right_col = (
-        lower_map.get("item_b")
-        or lower_map.get("item2")
-        or lower_map.get("right")
-        or lower_map.get("player_b")
-    )
-    winner_col = lower_map.get("winner") or lower_map.get("preferred") or lower_map.get("outcome")
+    left_col, right_col, winner_col = find_pairwise_long_columns(df)
 
     if not left_col or not right_col:
         return df, False
@@ -208,7 +200,7 @@ def preprocess_data(
     # If schema items were inferred from pairwise/multiway values, keep all numeric item columns.
     if len(ranking_items) < 2:
         numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
-        ranking_items = [col for col in numeric_cols if col not in {"B", "seed"}]
+        ranking_items = [col for col in numeric_cols if col not in {"B", "seed"} and not is_meta_column(col)]
 
     # Convert ranking columns to numeric.
     for col in ranking_items:

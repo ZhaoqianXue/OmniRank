@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ComparisonFormat(str, Enum):
@@ -58,11 +58,18 @@ class SemanticSchema(BaseModel):
 class SemanticSchemaResult(BaseModel):
     """Result from infer_semantic_schema tool."""
 
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
     success: bool
     format: ComparisonFormat
     format_evidence: str
-    schema: Optional[SemanticSchema] = None
+    schema_: Optional[SemanticSchema] = Field(default=None, alias="schema")
     error: Optional[str] = None
+
+    @property
+    def schema(self) -> Optional[SemanticSchema]:
+        """Backward-compatible accessor for schema payload."""
+        return self.schema_
 
 
 class FormatValidationResult(BaseModel):
@@ -378,3 +385,28 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     r_available: bool
+
+
+class WSMessageType(str, Enum):
+    """WebSocket message categories."""
+
+    CONNECTED = "connected"
+    SUBSCRIBED = "subscribed"
+    PROGRESS = "progress"
+    ERROR = "error"
+    ECHO = "echo"
+    PONG = "pong"
+
+
+class WSProgressPayload(BaseModel):
+    """Progress payload for websocket notifications."""
+
+    progress: float
+    message: str
+
+
+class WSMessage(BaseModel):
+    """Generic websocket message container."""
+
+    type: WSMessageType
+    payload: dict[str, Any]

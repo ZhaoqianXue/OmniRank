@@ -9,6 +9,7 @@ from .common import (
     infer_bigbetter,
     infer_indicator_column,
     infer_ranking_items,
+    is_meta_column,
     read_table,
 )
 from core.schemas import ComparisonFormat, DataSummary, SemanticSchema, SemanticSchemaResult
@@ -36,12 +37,8 @@ def infer_semantic_schema(
     bigbetter = infer_bigbetter(df, ranking_items, user_hints=user_hints)
 
     if format_name == "multiway":
-        numeric_subset = [col for col in ranking_items if col in df.columns]
-        if numeric_subset:
-            values = df[numeric_subset].to_numpy().flatten()
-            values = [value for value in values if value == value]
-            if values and all(float(value).is_integer() and value >= 1 for value in values):
-                bigbetter = 0
+        # Multiway rank semantics use rank positions (1 is best), so lower is better by default.
+        bigbetter = 0
 
     # Fall back to DataSummary column ordering if heuristics did not find enough items.
     if len(ranking_items) < 2:
@@ -49,6 +46,7 @@ def infer_semantic_schema(
             col
             for col in data_summary.columns
             if data_summary.column_types.get(col) == "numeric"
+            and not is_meta_column(col)
         ]
         if len(numeric_like) >= 2:
             ranking_items = numeric_like

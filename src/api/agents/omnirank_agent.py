@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from tools import ToolRegistry, build_tool_registry
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(PROJECT_ROOT / ".env")
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
+logger = logging.getLogger(__name__)
 
 
 class OmniRankAgent:
@@ -82,17 +84,20 @@ class OmniRankAgent:
         """
         if self.client is None:
             return
-        self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": self.system_prompt},
-                {
-                    "role": "user",
-                    "content": f"Stage: {stage}. Keep fixed pipeline. Context: {context}",
-                },
-            ],
-            max_completion_tokens=300,
-        )
+        try:
+            self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.system_prompt},
+                    {
+                        "role": "user",
+                        "content": f"Stage: {stage}. Keep fixed pipeline. Context: {context}",
+                    },
+                ],
+                max_completion_tokens=300,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Optional LLM stage note skipped for stage '%s': %s", stage, exc)
 
     def infer(self, session: SessionMemory, user_hints: str | None = None) -> InferResponse:
         """Run read->infer->format-loop->quality validation pipeline."""

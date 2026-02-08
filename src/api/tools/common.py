@@ -57,6 +57,35 @@ PAIRWISE_STRUCTURAL_COLUMNS = {
     "preferred",
     "outcome",
 }
+PAIRWISE_LEFT_COLUMNS = ("item_a", "item1", "left", "player_a")
+PAIRWISE_RIGHT_COLUMNS = ("item_b", "item2", "right", "player_b")
+PAIRWISE_WINNER_COLUMNS = ("winner", "preferred", "outcome", "label", "result")
+LONG_ITEM_COLUMNS = ("item", "item_name", "method", "model", "candidate", "algorithm")
+LONG_VALUE_COLUMNS = ("value", "score", "metric", "rating", "measurement")
+
+
+def is_meta_column(name: str) -> bool:
+    """Return True when column name is likely metadata."""
+    lower = name.lower()
+    return any(keyword in lower for keyword in META_KEYWORDS)
+
+
+def find_pairwise_long_columns(df: pd.DataFrame) -> tuple[str | None, str | None, str | None]:
+    """Find pairwise long-format columns (left, right, winner)."""
+    lower_map = {col.lower(): col for col in df.columns}
+
+    left_col = next((lower_map[key] for key in PAIRWISE_LEFT_COLUMNS if key in lower_map), None)
+    right_col = next((lower_map[key] for key in PAIRWISE_RIGHT_COLUMNS if key in lower_map), None)
+    winner_col = next((lower_map[key] for key in PAIRWISE_WINNER_COLUMNS if key in lower_map), None)
+    return left_col, right_col, winner_col
+
+
+def find_long_item_value_columns(df: pd.DataFrame) -> tuple[str | None, str | None]:
+    """Find long-format item/value columns."""
+    lower_map = {col.lower(): col for col in df.columns}
+    item_col = next((lower_map[key] for key in LONG_ITEM_COLUMNS if key in lower_map), None)
+    value_col = next((lower_map[key] for key in LONG_VALUE_COLUMNS if key in lower_map), None)
+    return item_col, value_col
 
 
 def read_table(file_path: str) -> pd.DataFrame:
@@ -95,6 +124,14 @@ def detect_format_from_df(df: pd.DataFrame) -> tuple[str, str]:
     lower_cols = [c.lower() for c in df.columns]
     if any(col.startswith("rank_") for col in lower_cols):
         return "multiway", "Detected rank_* columns indicating multiway comparisons."
+
+    left_col, right_col, _winner_col = find_pairwise_long_columns(df)
+    if left_col and right_col:
+        left_values = df[left_col].dropna().astype(str).str.strip()
+        right_values = df[right_col].dropna().astype(str).str.strip()
+        unique_items = sorted({*left_values.tolist(), *right_values.tolist()} - {""})
+        if len(unique_items) >= 2:
+            return "pairwise", "Detected pairwise long format columns (item_a/item_b style)."
 
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     if len(numeric_cols) >= 3:
@@ -177,46 +214,48 @@ def infer_ranking_items(df: pd.DataFrame, format_name: str) -> list[str]:
             return rank_columns
 
     if format_name == "pairwise":
-        lower_map = {col.lower(): col for col in df.columns}
-        left_col = (
-            lower_map.get("item_a")
-            or lower_map.get("item1")
-            or lower_map.get("left")
-            or lower_map.get("player_a")
-        )
-        right_col = (
-            lower_map.get("item_b")
-            or lower_map.get("item2")
-            or lower_map.get("right")
-            or lower_map.get("player_b")
-        )
+        left_col, right_col, _winner_col = find_pairwise_long_columns(df)
         if left_col and right_col:
             values = pd.concat([df[left_col], df[right_col]], axis=0).dropna().astype(str).tolist()
             unique_items = sorted({value.strip() for value in values if value.strip()})
             if len(unique_items) >= 2:
                 return unique_items
 
+    item_col, value_col = find_long_item_value_columns(df)
+    if item_col and value_col:
+        item_values = df[item_col].dropna().astype(str).str.strip()
+        unique_items = sorted({value for value in item_values.tolist() if value})
+        if len(unique_items) >= 2:
+            return unique_items
+
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     ranking_items: list[str] = []
     for col in numeric_cols:
-        lower = col.lower()
-        if any(token in lower for token in META_KEYWORDS):
+        if is_meta_column(col):
             continue
         ranking_items.append(col)
-
-    if len(ranking_items) < 2:
-        ranking_items = numeric_cols
 
     return ranking_items
 
 
 def infer_indicator_column(df: pd.DataFrame, ranking_items: list[str]) -> tuple[str | None, list[str]]:
     """Infer at most one indicator column."""
+    pairwise_left, pairwise_right, pairwise_winner = find_pairwise_long_columns(df)
+    long_item_col, long_value_col = find_long_item_value_columns(df)
+    structural_exclusions = {
+        pairwise_left,
+        pairwise_right,
+        pairwise_winner,
+        long_item_col,
+        long_value_col,
+    }
     candidates = [
         col
         for col in df.columns
         if col not in ranking_items
         and col.lower() not in PAIRWISE_STRUCTURAL_COLUMNS
+        and col not in structural_exclusions
+        and not col.lower().startswith("rank_")
         and not pd.api.types.is_numeric_dtype(df[col])
     ]
 
