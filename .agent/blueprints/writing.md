@@ -164,7 +164,7 @@ The execution workflow consists of:
 
 1. **Parameter Preparation**: Constructing the R script command with validated parameters (data path, bigbetter direction, bootstrap iterations, random seed).
 
-2. **Engine Invocation**: Executing `spectral_ranking_step1.R` in an isolated subprocess with timeout protection.
+2. **Engine Invocation**: Executing `spectral_ranking.R` in an isolated subprocess with timeout protection.
 
 3. **Output Parsing**: Processing the JSON output to extract preference scores, rankings, and confidence intervals.
 

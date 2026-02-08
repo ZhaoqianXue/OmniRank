@@ -38,7 +38,7 @@ class EngineOrchestrator:
     
     Workflow:
     1. Preprocess data based on user selections
-    2. Run spectral ranking (spectral_ranking_step1.R)
+    2. Run spectral ranking (spectral_ranking.R)
     3. Convert results to frontend-compatible format
     """
     

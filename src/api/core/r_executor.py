@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Path to R scripts (relative to project root)
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 SCRIPT_DIR = PROJECT_ROOT / "src" / "spectral_ranking"
-STEP1_SCRIPT = SCRIPT_DIR / "spectral_ranking_step1.R"
+STEP1_SCRIPT = SCRIPT_DIR / "spectral_ranking.R"
 
 
 class RExecutorError(Exception):

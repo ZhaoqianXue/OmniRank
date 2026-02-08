@@ -17,7 +17,7 @@ This experiment corresponds to **Section 3.2 Data Agent** of the OmniRank paper,
 ### Function 1: Format Recognition & Standardization
 
 **Definition from writing.md:**
-> The agent automatically identifies the structure of uploaded data (e.g., Pointwise, Pairwise, Multiway) and performs lightweight standardization to ensure compatibility with the spectral engine (`spectral_ranking_step1.R`). Instead of enforcing a rigid conversion to a single format, it adapts to the input structure, preserving the original data fidelity while ensuring it meets the engine's interface requirements.
+> The agent automatically identifies the structure of uploaded data (e.g., Pointwise, Pairwise, Multiway) and performs lightweight standardization to ensure compatibility with the spectral engine (`spectral_ranking.R`). Instead of enforcing a rigid conversion to a single format, it adapts to the input structure, preserving the original data fidelity while ensuring it meets the engine's interface requirements.
 
 **Implementation Details:**
 

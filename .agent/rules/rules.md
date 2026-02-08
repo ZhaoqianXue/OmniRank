@@ -262,8 +262,6 @@ Instead of manual prompting, the agent should maintain a **"Skill-First" mindset
 2. **Assume reader competence** — Do not explain common knowledge
 3. **Avoid defensive framing** — Do not preemptively address hypothetical criticism
 
-**Avoid:** "A critical design decision is...", "Unlike X, we...", "This ensures/guarantees...", "Addressing concerns...", "It is important to note..."
-
 ## Browser and Background Execution
 
 1. **Prioritize Background Execution**: For search queries, information retrieval, and testing, prioritize using background tools (e.g., `search_web`, `read_url_content`, CLI-based testing tools) rather than opening a browser window.

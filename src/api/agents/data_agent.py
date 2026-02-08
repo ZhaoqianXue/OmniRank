@@ -100,7 +100,7 @@ CRITICAL: If data is invalid, set format="invalid", engine_compatible=false, and
 
 ## Spectral Engine Compatibility
 
-The spectral ranking engine (spectral_ranking_step1.R) has built-in tolerance:
+The spectral ranking engine (spectral_ranking.R) has built-in tolerance:
 - Automatically drops non-numeric columns
 - Automatically removes known metadata columns (case_num, model, description)
 - Requires at least 2 numeric columns

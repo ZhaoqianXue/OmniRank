@@ -7,16 +7,24 @@ OmniRank: A Large-Language-Model Agent Platform for Statistically Rigorous Ranki
 Journal of the American Statistical Association - Applications and Case Studies
 
 ## Background
-- Mengxin Yu, the author of `docs/literature/spectral_ranking_inferences.md`, proposed a ranking inference method based on spectral theory that can handle arbitrary multiway comparison data with statistical optimality. Currently, this method primarily exists as an R package, requiring users to have a specific statistical background and programming skills.
+- Mengxin Yu, the author of `.agent/literature/spectral_ranking_inferences.md`, proposed a ranking inference method based on spectral theory that can handle arbitrary multiway comparison data with statistical optimality. Currently, this method primarily exists as an R package, requiring users to have a specific statistical background and programming skills.
 - Mengxin Yu expects me to draw inspiration from several published top-tier journal articles regarding LLM agent platforms (their publication validates the feasibility of their LLM agent architectures). We aim to build an LLM-based agent platform that encapsulates the spectral ranking method into a user-friendly tool, enabling users without a statistical background to conveniently perform ranking inference.
 - Reviewers from the target journal may question the architecture of OmniRank. Therefore, we need to reference published LLM agent research in top journals to ensure that the LLM agent's role in OmniRank is substantial enough to avoid being dismissed by reviewers as a simple API wrapper (LLM Agent as a Wrapper).
 - OmniRank will adopt a top-down construction approach: first completing the manuscript to a level comparable with top-tier LLM agent publications and meeting the standards of premier journals, followed by the implementation of the OmniRank codebase.
 - Already Published Articles
-    1. `docs/literature/automated_hypothesis_validation.md`
-    2. `docs/literature/clinical_prediction_models.md`
-    3. `docs/literature/lambda.md`
-    4. `docs/literature/tissuelab.md`
-    Specifically, `docs/literature/lambda.md` should be used as a primary reference for writing style and structure (without copying specific content), as its publication in the *Journal of the American Statistical Association - Applications and Case Studies* indicates that its writing quality meets the requirements of top-tier journals.
+    1. `.agent/literature/automated_hypothesis_validation.md`
+    2. `.agent/literature/clinical_prediction_models.md`
+    3. `.agent/literature/lambda.md`
+    4. `.agent/literature/tissuelab.md`
+    Specifically, `.agent/literature/lambda.md` should be used as a primary reference for writing style and structure (without copying specific content), as its publication in the *Journal of the American Statistical Association - Applications and Case Studies* indicates that its writing quality meets the requirements of top-tier journals.
+
+## LLM Agentic Engineering Knowledge Base
+
+**To ensure the autonomy and reliability of the single llm agent system, this project must strictly adhere to the engineering standards detailed in the following documentation, each of which MUST be read in its entirety:**
+
+- [Anthropic: Long-Running Agents](../knowledge/context_engineering/anthropic_long_running_agents.md)
+- [Anthropic: Effective Context Engineering](../knowledge/context_engineering/anthropic_context_engineering.md)
+- [Manus: Context Engineering](../knowledge/context_engineering/manus_context_engineering.md)
 
 ## Contributions
 
@@ -24,7 +32,7 @@ This paper makes the following contributions:
 
 1. **Accessible Spectral Ranking**: We present OmniRank, the first natural language interface for spectral ranking inference, democratizing access to minimax-optimal ranking methods for practitioners without statistical programming expertise. Unlike standard LLMs that are prone to hallucinations in arithmetic tasks, OmniRank decouples instruction following from computation via a specialized Spectral Calculation Engine.
 
-2. **Semantic Schema Inference**: We develop an LLM-based Data Agent capable of automatically inferring comparison data semantics (preference direction, ranking items, indicators), reducing user configuration burden while maintaining statistical rigor. Our evaluation demonstrates 92.7% format detection accuracy and 100% semantic schema inference accuracy across 85 test datasets.
+2. **Semantic Schema Inference**: We develop an LLM-based Data Agent capable of automatically inferring comparison data semantics (preference direction, ranking items, indicators), reducing user configuration burden while maintaining statistical rigor. Our evaluation demonstrates xyz% format detection accuracy and xyz% semantic schema inference accuracy across xyz test datasets.
 
 3. **Integrated Uncertainty Quantification**: OmniRank provides automatic generation of bootstrap confidence intervals and rank inference reports based on Fan et al.'s (2023) Gaussian multiplier bootstrap method, enabling practitioners to make statistically grounded decisions without manual bootstrap implementation.
 
@@ -41,1310 +49,962 @@ Following LAMBDA's successful positioning in JASA-ACS, OmniRank explicitly posit
 | A tool to lower the "coding barrier" | A black-box that obscures computation |
 | A platform for reproducible ranking analysis | A one-off analysis script |
 
-**Key Messaging**: OmniRank enables domain experts (sociologists, biologists, sports scientists) to leverage the minimax-optimal spectral ranking methods without requiring linear algebra expertise or R programming skills. The statistical foundations remain unchanged; only the accessibility improves.
+**Key Messaging**: OmniRank enables domain experts (biologists, sociologists, computer scientists, etc.) to leverage the minimax-optimal spectral ranking methods without requiring linear algebra expertise or R programming skills. The statistical foundations remain unchanged; only the accessibility improves.
 
-## Architecture
+## OmniRank Agent Architecture
 
-### Executive Summary
+### Single Agent + Tool Calling
 
-OmniRank is an **agentic framework** that combines the reasoning capabilities of Large Language Models (LLMs) with the mathematical rigor of **spectral ranking inferences**. The system employs a **decoupled architecture** where LLM agents parse user queries and orchestrate the analysis pipeline, while a specialized **Spectral Calculation Engine** (`spectral_ranking_step1.R`) executes the mathematical computations.
+OmniRank employs a Single Agent architecture with Tool Calling (powered by **gpt-5-mini**). The agent operates within a single context window and invokes specialized tools for data processing, spectral computation, and analysis.
 
-This architecture is inspired by the LAMBDA framework published in the *Journal of the American Statistical Association - Applications and Case Studies*.
-
----
-
-### 1. System Architecture Overview
-
-#### 1.1 High-Level Architecture Diagram
+### High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         OmniRank System Architecture                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                     USER INTERACTION LAYER                           │    │
-│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────┐  │    │
-│  │  │  Natural Lang.  │  │   Data Upload   │  │   Visualization     │  │    │
-│  │  │    Interface    │  │   (CSV/JSON)    │  │    Dashboard        │  │    │
-│  │  └────────┬────────┘  └────────┬────────┘  └──────────▲──────────┘  │    │
-│  └───────────┼────────────────────┼───────────────────────┼────────────┘    │
-│              │                    │                       │                  │
-│              ▼                    ▼                       │                  │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                      LLM AGENT ORCHESTRATION LAYER                   │    │
-│  │                                                                      │    │
-│  │              ┌──────────────────────────────────────┐               │    │
-│  │              │         FIXED PIPELINE               │               │    │
-│  │              │   (Triggered by data upload)         │               │    │
-│  │              └──────────────────┬───────────────────┘               │    │
-│  │                                 │                                    │    │
-│  │         ┌───────────────────────┴───────────────────┐               │    │
-│  │         ▼                                           ▼               │    │
-│  │  ┌────────────┐      ┌────────────┐      ┌────────────────────┐    │    │
-│  │  │  DATA      │      │  ENGINE    │      │  ANALYST AGENT     │    │    │
-│  │  │  AGENT     │─────▶│ORCHESTRATOR│─────▶│                    │    │    │
-│  │  │            │      │            │      │ • Report generation│    │    │
-│  │  │ • Schema   │      │ • Dynamic  │      │ • Visualization    │    │    │
-│  │  │   parsing  │      │   Workflow │      │ • Q&A with user    │    │    │
-│  │  │ • Format   │      │ • Output   │      │ • Error diagnosis  │    │    │
-│  │  │   convert  │      │   parse    │      │   (ReAct loop)     │    │    │
-│  │  │ • bigbetter│      │            │      │                    │    │    │
-│  │  │   inference│      │            │      │                    │    │    │
-│  │  └─────┬──────┘      └────────────┘      └──────────┬─────────┘    │    │
-│  │        │                                            │               │    │
-│  │        └────────── Error Correction ◄───────────────┘               │    │
-│  │                                                                      │    │
-│  └─────────────────────────────────┬───────────────────────────────────┘    │
-│                                    │                                         │
-│                                    ▼                                         │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                   SPECTRAL CALCULATION ENGINE                        │    │
-│  │                                                                      │    │
-│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────────────┐ │    │
-│  │  │   HYPERGRAPH   │  │   MARKOV CHAIN │  │   UNCERTAINTY          │ │    │
-│  │  │  CONSTRUCTOR   │  │   ANALYZER     │  │   QUANTIFICATION       │ │    │
-│  │  │                │  │                │  │                        │ │    │
-│  │  │ • Multiway     │  │ • Transition   │  │ • Asymptotic variance  │ │    │
-│  │  │   comparison   │  │   matrix P     │  │ • Bootstrap CI         │ │    │
-│  │  │   encoding     │  │ • Stationary   │  │ • Rank confidence      │ │    │
-│  │  │ • Heterogen.   │  │   distribution │  │   intervals            │ │    │
-│  │  │   edge sizes   │  │ • Eigenvector  │  │                        │ │    │
-│  │  │ • Weight func  │  │   computation  │  │                        │ │    │
-│  │  │   f(A_l)       │  │                │  │                        │ │    │
-│  │  └───────┬────────┘  └───────┬────────┘  └───────────┬────────────┘ │    │
-│  │          │                   │                       │              │    │
-│  │          ▼                   ▼                       ▼              │    │
-│  │  ┌──────────────────────────────────────────────────────────────┐   │    │
-│  │  │              SPECTRAL RANKING INFERENCE CORE                  │   │    │
-│  │  │                                                               │   │    │
-│  │  │  θ̂_i := log π̂_i - (1/n) Σ log π̂_k                           │   │    │
-│  │  │                                                               │   │    │
-│  │  │  • Minimax optimal estimation                                 │   │    │
-│  │  │  • O(n³) complexity via eigen-decomposition                   │   │    │
-│  │  │  • Bootstrap confidence intervals                             │   │    │
-│  │  └──────────────────────────────────────────────────────────────┘   │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                      KNOWLEDGE BASE LAYER                            │    │
-│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────────────┐ │    │
-│  │  │   DOMAIN       │  │   METHOD       │  │   TEMPLATE             │ │    │
-│  │  │   KNOWLEDGE    │  │   LIBRARY      │  │   REPOSITORY           │ │    │
-│  │  │                │  │                │  │                        │ │    │
-│  │  │ • BTL model    │  │ • Spectral     │  │ • Code templates       │ │    │
-│  │  │ • PL model     │  │   methods      │  │ • Prompt templates     │ │    │
-│  │  │ • Applications │  │ • Bootstrap    │  │ • Report templates     │ │    │
-│  │  │   examples     │  │ • Testing      │  │ • Visualization        │ │    │
-│  │  └────────────────┘  └────────────────┘  └────────────────────────┘ │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+                          OmniRank Single Agent
+    ┌─────────────────────────────────────────────────────────────────┐
+    │                                                                  │
+    │                    OmniRank Agent (gpt-5-mini)                  │
+    │                    ───────────────────────────                  │
+    │                    Single context window                         │
+    │                    Tool Calling enabled                          │
+    │                                                                  │
+    ├──────────────────────────────────────────────────────────────────┤
+    │                                                                  │
+    │   ┌─────────────────────────────────────────────────────────┐   │
+    │   │                    TOOL REGISTRY (10 Tools)              │   │
+    │   ├─────────────────────────────────────────────────────────┤   │
+    │   │                                                          │   │
+    │   │  ┌─────────────────────┐   ┌─────────────────────────┐  │   │
+    │   │  │   DATA TOOLS (5)    │   │   ANALYSIS TOOLS (3)    │  │   │
+    │   │  │   ─────────────     │   │   ───────────────       │  │   │
+    │   │  │   read_data_file    │   │   generate_report       │  │   │
+    │   │  │   infer_semantic    │   │   generate_visualizations│  │   │
+    │   │  │   _schema           │   │   answer_question       │  │   │
+    │   │  │   validate_data     │   └─────────────────────────┘  │   │
+    │   │  │   _format           │                                 │   │
+    │   │  │   validate_data     │                                 │   │
+    │   │  │   _quality          │                                 │   │
+    │   │  │   preprocess_data   │                                 │   │
+    │   │  └─────────────────────┘                                 │   │
+    │   │                                                          │   │
+    │   │  ┌─────────────────────┐   ┌─────────────────────────┐  │   │
+    │   │  │   ENGINE TOOL (1)   │   │ USER INTERACTION (1)    │  │   │
+    │   │  │   ───────────       │   │ ─────────────────       │  │   │
+    │   │  │   execute_spectral  │   │ request_user            │  │   │
+    │   │  │   _ranking          │   │ _confirmation           │  │   │
+    │   │  └─────────────────────┘   └─────────────────────────┘  │   │
+    │   │                                                          │   │
+    │   └─────────────────────────────────────────────────────────┘   │
+    │                                                                  │
+    └──────────────────────────────────────────────────────────────────┘
 ```
 
-#### 1.2 Multi-Agent Collaboration Workflow (Fixed Pipeline)
+### Tool Calling Workflow
 
+The Agent enforces the OmniRank Fixed Pipeline through sequential tool calling.
 ```
-                    ┌──────────────────┐
-                    │   User Uploads   │
-                    │       Data       │
-                    └────────┬─────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │          DATA AGENT          │
-              │  ┌────────────────────────┐  │
-              │  │ 1. Format Recognition  │  │
-              │  │ 2. Schema Inference    │  │
-              │  │    (BigBetter, Items, Indicator)  │  │
-              │  │ 3. Data Validation     │  │
-              │  └────────────────────────┘  │
-              └──────────────┬───────────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │   INTERACTIVE CONFIG (UI)    │
-              │  ┌────────────────────────┐  │
-              │  │ User verifies schema   │  │
-              │  │ & adjusts parameters   │  │
-              │  └────────────────────────┘  │
-              └──────────────┬───────────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │     ENGINE ORCHESTRATOR      │
-              │  ┌────────────────────────┐  │
-              │  │ Spectral Ranking       │  │
-              │  │ (spectral_ranking_step1.R)│  │
-              │  │                        │  │
-              │  │ • Bootstrap CI         │  │
-              │  │ • Parse output         │  │
-              │  └─────────┬──────────────┘  │
-              └────────────┼─────────────────┘
-                           │
-            ┌──────────────┴──────────────┐
-            │         Status?             │
-            │  ┌───────┐      ┌────────┐  │
-            │  │ Error │      │Success │  │
-            │  └───────┘      └────────┘  │
-            │      │               │      │
-            ▼      ▼               ▼      ▼
-    ┌────────────────────┐    ┌────────────────────┐
-    │   ANALYST AGENT    │    │   ANALYST AGENT    │
-    │ (Error Diagnosis)  │    │ (Report Generation)│
-    │                    │    │                    │
-    │ • Diagnose Cause   │    │ • Generate Plots   │
-    │ • Suggest Fix      │    │ • Write Report     │
-    │                    │    │ • Answer User Q&A  │
-    └──────────┬─────────┘    └─────────┬──────────┘
-               │                        │
-               │                        ▼
-               │              ┌──────────────────┐
-    To Data or │              │   Final Output   │
-    Orchestrator              │ • Rankings       │
-               │              │ • Visualizations │
-               │              │ • Analysis Report│
-               │              └──────────────────┘
-```
+Phase 1: Data Processing
+────────────────────────
+    read_data_file(file_path)
+           │
+           ├──[Error]──► Return error to user
+           ▼
+    infer_semantic_schema(data_summary, user_hints=None)
+           │
+           ├──[Ambiguous inference]──► Flag for user review
+           ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │                    FORMAT VALIDATION LOOP                        │
+    │  ┌────────────────────────────────────────────────────────────┐ │
+    │  │                                                             │ │
+    │  │  validate_data_format(current_file_path, schema)            │ │
+    │  │         │                                                   │ │
+    │  │         ├──[PASS]──────────────────────────► EXIT LOOP ─────┼─┼──► (proceed to quality)
+    │  │         │                                                   │ │
+    │  │         ├──[FIXABLE]──► preprocess_data(file, schema)       │ │
+    │  │         │                      │                            │ │
+    │  │         │                      ├─► Update current_file_path │ │
+    │  │         │                      └─► (loop back to validate)◄─┘ │
+    │  │         │                                                     │
+    │  │         └──[UNFIXABLE]──► Return error to user                │
+    │  │                                                               │
+    │  └───────────────────────────────────────────────────────────────┘
+    └──────────────────────────────────────────────────────────────────┘
+           │
+           ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │                    QUALITY VALIDATION (once)                     │
+    │                                                                  │
+    │  validate_data_quality(current_file_path, schema)                │
+    │         │                                                        │
+    │         ├──[PASS]──► Proceed to user confirmation                │
+    │         │                                                        │
+    │         ├──[Warnings only]──► Proceed with warnings attached     │
+    │         │                                                        │
+    │         └──[Critical errors]──► Return error to user             │
+    │                                                                  │
+    └──────────────────────────────────────────────────────────────────┘
+           │
+           ▼
+    request_user_confirmation(proposed_schema, format_result, quality_result)
+           │
+           ├──[User modifies schema]──► Loop back to infer_schema(user_hints=...)
+           │
+           ├──[User rejects entirely]──► Ask clarifying questions, re-infer
+           ▼
+    (Data is ready for Phase 2)
 
-#### 1.3 Self-Correcting Mechanism
+Phase 2: Computation
+────────────────────────
+    execute_spectral_ranking(config: EngineConfig)
+           │
+           ├──[R script error]──► Parse error, suggest fixes
+           ├──[Convergence warning]──► Include in results
+           ▼
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                     SELF-CORRECTING MECHANISM                        │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌─────────────┐                                                     │
-│  │ User Query  │                                                     │
-│  │ + Data      │                                                     │
-│  └──────┬──────┘                                                     │
-│         ▼                                                            │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                    ENGINE ORCHESTRATOR                       │    │
-│  │  1. Invoke spectral_ranking_step1.R                                      │    │
-│  │  2. Parse output and return results                          │    │
-│  └──────────────────────────┬──────────────────────────────────┘    │
-│                             │                                        │
-│                             ▼                                        │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                    SPECTRAL ENGINE                           │    │
-│  │                    Execute Code                              │    │
-│  └──────────────────────────┬──────────────────────────────────┘    │
-│                             │                                        │
-│                     ┌───────┴───────┐                               │
-│                     │    Result?    │                               │
-│                     └───────┬───────┘                               │
-│               ┌─────────────┴─────────────┐                         │
-│               │                           │                         │
-│         ┌─────▼─────┐              ┌──────▼─────┐                   │
-│         │  SUCCESS  │              │   ERROR    │                   │
-│         └─────┬─────┘              └──────┬─────┘                   │
-│               │                           │                         │
-│               │                           ▼                         │
-│               │         ┌────────────────────────────────┐          │
-│               │         │         ANALYST AGENT          │          │
-│               │         │                                │          │
-│               │         │  1. Analyze error message      │          │
-│               │         │  2. Identify root cause        │          │
-│               │         │  3. Suggest corrections        │          │
-│               │         └──────────────┬─────────────────┘          │
-│               │                        │                            │
-│               │                        ▼                            │
-│               │         ┌────────────────────────────────┐          │
-│               │         │    n < MAX_ATTEMPTS?           │          │
-│               │         └──────────────┬─────────────────┘          │
-│               │               ┌────────┴────────┐                   │
-│               │               │                 │                   │
-│               │         ┌─────▼─────┐    ┌──────▼──────┐            │
-│               │         │    YES    │    │     NO      │            │
-│               │         │           │    │             │            │
-│               │         │ Revise &  │    │ Request     │            │
-│               │         │ Re-execute│    │ Human Help  │            │
-│               │         └─────┬─────┘    └──────┬──────┘            │
-│               │               │                 │                   │
-│               │               │      ┌──────────▼──────────┐        │
-│               │               │      │  HUMAN INTERVENTION │        │
-│               │               │      │  • Review code      │        │
-│               │               │      │  • Manual fix       │        │
-│               │               │      │  • Provide guidance │        │
-│               │               │      └──────────┬──────────┘        │
-│               │               │                 │                   │
-│               │               └────────┬────────┘                   │
-│               │                        │                            │
-│               └────────────────────────┼───────────────────────────►│
-│                                        │                            │
-│                                        ▼                            │
-│                         ┌────────────────────────────────┐          │
-│                         │        FINAL RESPONSE          │          │
-│                         │  • Ranking results + Code      │          │
-│                         │  • Natural language summary    │          │
-│                         └────────────────────────────────┘          │
-│                                                                      │
-└──────────────────────────────────────────────────────────────────────┘
+Phase 3: Output Generation
+────────────────────────
+    generate_report(results, session)
+           │
+           ▼
+    generate_visualizations(results, viz_types)
+           │
+           ▼
+    answer_question(question, session)   [User Q&A Loop - multiple iterations]
 ```
 
-#### 1.4 Spectral Ranking Pipeline Detail
+## OmniRank Agent Tools Design
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                   SPECTRAL RANKING INFERENCE PIPELINE                     │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│   ┌───────────────────────────────────────────────────────────────┐     │
-│   │                INPUT: Comparison Data                         │     │
-│   │                                                               │     │
-│   │   D = {(c_l, A_l)}_{l∈D}                                      │     │
-│   │                                                               │     │
-│   │   where c_l = winner, A_l = choice set (heterogeneous sizes) │     │
-│   └───────────────────────────────┬───────────────────────────────┘     │
-│                                   │                                      │
-│                                   ▼                                      │
-│   ┌───────────────────────────────────────────────────────────────┐     │
-│   │            STEP 1: HYPERGRAPH CONSTRUCTION                    │     │
-│   │                                                               │     │
-│   │   Build comparison graph G = {A_l | l ∈ D}                   │     │
-│   │                                                               │     │
-│   │   Compute index sets:                                         │     │
-│   │   • W_j = {l ∈ D | j ∈ A_l, c_l = j}  (j wins)              │     │
-│   │   • L_i = {l ∈ D | i ∈ A_l, c_l ≠ i}  (i loses)             │     │
-│   └───────────────────────────────┬───────────────────────────────┘     │
-│                                   │                                      │
-│                                   ▼                                      │
-│   ┌───────────────────────────────────────────────────────────────┐     │
-│   │            TRANSITION MATRIX CONSTRUCTION                      │     │
-│   │                                                               │     │
-│   │                  ┌ (1/d) Σ 1/f(A_l),  if i ≠ j               │     │
-│   │   P_ij =        │      l∈W_j∩L_i                              │     │
-│   │                  └ 1 - Σ P_ik,        if i = j               │     │
-│   │                       k≠i                                     │     │
-│   │                                                               │     │
-│   │   Weight function: f(A_l) = |A_l| (size weighting)           │     │
-│   └───────────────────────────────┬───────────────────────────────┘     │
-│                                   │                                      │
-│                                   ▼                                      │
-│   ┌───────────────────────────────────────────────────────────────┐     │
-│   │            STEP 3: EIGEN-DECOMPOSITION                        │     │
-│   │                                                               │     │
-│   │   Solve: π̂^T P = π̂^T   (stationary distribution)             │     │
-│   │                                                               │     │
-│   │   Method: Left eigenvector of P for eigenvalue 1              │     │
-│   │   Complexity: O(n³) via standard decomposition                │     │
-│   │              O(n²) via power iteration                        │     │
-│   └───────────────────────────────┬───────────────────────────────┘     │
-│                                   │                                      │
-│                                   ▼                                      │
-│   ┌───────────────────────────────────────────────────────────────┐     │
-│   │            STEP 4: PREFERENCE SCORE ESTIMATION                │     │
-│   │                                                               │     │
-│   │   θ̂_i = log π̂_i - (1/n) Σ log π̂_k                           │     │
-│   │                         k=1                                   │     │
-│   │                                                               │     │
-│   │   Identification constraint: Σ θ*_i = 0                       │     │
-│   │                              i=1                              │     │
-│   └───────────────────────────────┬───────────────────────────────┘     │
-│                                   │                                      │
-│                                   ▼                                      │
-│   ┌───────────────────────────────────────────────────────────────┐     │
-│   │            STEP 5: UNCERTAINTY QUANTIFICATION                 │     │
-│   │                                                               │     │
-│   │   Asymptotic variance (Theorem 2):                            │     │
-│   │                                                               │     │
-│   │             1                 1(i∈A_l)                        │     │
-│   │   Var = ────────── Σ  ─────────── (Σ exp(θ_u) - exp(θ_i))exp(θ_i) │
-│   │         d²τ_i²   l∈D   f²(A_l)   u∈A_l                       │     │
-│   │                                                               │     │
-│   │   • Bootstrap for critical values (Section 3.4):                │     │
-│   │   • Gaussian multiplier: G_M = max|Σ J_kl ω_l|/σ̃_km          │     │
-│   │   • Monte Carlo: Q_{1-α} = (1-α)-quantile of G_M             │     │
-│   └───────────────────────────────┬───────────────────────────────┘     │
-│                                   │                                      │
-│                                   ▼                                      │
-│   ┌───────────────────────────────────────────────────────────────┐     │
-│   │            OUTPUT: RANKING INFERENCE RESULTS                  │     │
-│   │                                                               │     │
-│   │   • Estimated scores: θ̂ = (θ̂_1, ..., θ̂_n)                   │     │
-│   │   • Rankings: r̂ = argsort(-θ̂)                               │     │
-│   │   • Confidence intervals: [R_mL, R_mU] for each item         │     │
-│   │   • Hypothesis test results (if requested)                   │     │
-│   └───────────────────────────────────────────────────────────────┘     │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+### Tool Design Principles
 
----
+Following Context Engineering best practices from Anthropic and Manus:
 
-### 2. Multi-Agent Collaboration Design
+**Core Principles:**
+1. **Atomicity**: Each tool performs one well-defined operation
+2. **Self-Contained**: Tools include all necessary context in their output
+3. **JIT Context Loading**: `read_data_file` returns summaries, not full data (file system as externalized memory)
+4. **Robust Error Handling**: Each tool returns structured error information that is preserved in context for model learning
+5. **Token Efficiency**: Output is minimal but sufficient for LLM reasoning
+6. **Clear Parameters**: Input parameters are descriptive, unambiguous, and play to model strengths
+7. **Unambiguous Selection**: Each tool has a clearly differentiated purpose; human can definitively say which tool applies
+8. **Stable Registry**: Tool definitions remain constant throughout execution; no dynamic tool loading
+9. **Append-Only Results**: Tool outputs are append-only; previous actions/observations are never modified
 
-OmniRank employs a streamlined architecture with a fixed pipeline and two specialized agents.
+### Tools Overview
 
-#### 2.1 Agent Roles and Responsibilities
+#### Data Tools (5)
 
-| Component | Primary Role | Key Responsibilities |
-|-----------|-------------|---------------------|
-| **Fixed Pipeline** | Workflow Control | Trigger on data upload, coordinate agent execution sequence |
-| **Data Agent** | Data Processing | Schema parsing, format conversion, validation, **preference direction inference (bigbetter)** |
-| **Engine Orchestrator** | Engine Invocation | Invoke `spectral_ranking_step1.R`, parse results, manage execution lifecycle |
-| **Analyst Agent** | Analysis & Output | Report generation, visualization, user Q&A, error diagnosis |
+- **`read_data_file`**
+  - Purpose: Read file and return lightweight summary (JIT Context)
+  - Input: `file_path: str`
+  - Output: `{success: bool, data: Optional[DataSummary], error: Optional[str]}`
+  - Note: `DataSummary = {columns: List[str], sample_rows: List[dict], row_count: int, column_types: dict}`
 
-#### 2.2 Short-term Memory Architecture
+- **`infer_semantic_schema`**
+  - Purpose: Infer data format and semantic metadata for user verification
+  - Input: `data_summary: DataSummary, user_hints: Optional[str] = None`
+  - Output: `{success: bool, format: str, format_evidence: str, schema: Optional[SemanticSchema], error: Optional[str]}`
+  - Note: `format` is one of `"pointwise"`, `"pairwise"`, or `"multiway"`; `SemanticSchema = {bigbetter: int, ranking_items: List[str], indicator_col: Optional[str], indicator_values: List[str]}`
 
-To maintain coherent multi-turn interactions, OmniRank implements a **short-term memory system** that persists within each analysis session:
+- **`validate_data_format`**
+  - Purpose: Check if data format/structure can physically run in R script (fixable issues)
+  - Input: `file_path: str, schema: SemanticSchema`
+  - Output: `{is_ready: bool, fixable: bool, issues: List[str], suggested_fixes: List[str]}`
+
+- **`validate_data_quality`**
+  - Purpose: Check if data meets statistical requirements for ranking (unfixable issues)
+  - Input: `file_path: str, schema: SemanticSchema`
+  - Output: `{is_valid: bool, warnings: List[str], errors: List[str]}`
+
+- **`preprocess_data`**
+  - Purpose: Restructure data to R-compatible format (format fixes)
+  - Input: `file_path: str, schema: SemanticSchema`
+  - Output: `{preprocessed_csv_path: str, transformation_log: List[str], row_count: int, dropped_rows: int}`
+
+#### User Interaction Tool (1)
+
+- **`request_user_confirmation`**
+  - Purpose: Explicit user interaction point for schema confirmation
+  - Input: `proposed_schema: SemanticSchema, format_result: FormatValidationResult, quality_result: QualityValidationResult`
+  - Output: `{confirmed: bool, confirmed_schema: SemanticSchema, user_modifications: List[str]}`
+
+#### Engine Tool (1)
+
+- **`execute_spectral_ranking`**
+  - Purpose: Invoke R script for spectral computation
+  - Input: `config: EngineConfig`
+  - Output: `{success: bool, results: Optional[RankingResults], error: Optional[str], trace: ExecutionTrace}`
+
+#### Analysis Tools (3)
+
+- **`generate_report`**
+  - Purpose: Generate structured analysis report
+  - Input: `results: RankingResults, session: SessionMemory`
+  - Output: `{markdown: str, key_findings: Dict[str, Any], artifacts: List[ArtifactRef], hints: List[HintSpec], citation_blocks: List[CitationBlock]}`
+
+- **`generate_visualizations`**
+  - Purpose: Create ranking visualizations
+  - Input: `results: RankingResults, viz_types: List[str]`
+  - Output: `{plots: List[PlotSpec], errors: List[str]}`
+  - Note: `PlotSpec = {type: str, data: dict, config: dict, svg_path: str, block_id: str, caption_plain: str, caption_academic: str, hint_ids: List[str]}`
+
+- **`answer_question`**
+  - Purpose: Answer user follow-up questions
+  - Input: `question: str, session: SessionMemory, quotes: Optional[List[QuotePayload]]`
+  - Output: `{answer: str, supporting_evidence: List[str], used_citation_block_ids: List[str]}`
+  - Note: Uses session.current_results and session.data_summary for context-aware answers
+
+### Data Tools Details
+
+#### Tool: `read_data_file`
 
 ```python
+def read_data_file(file_path: str) -> ReadDataFileResult:
+    """
+    Reads uploaded file and returns a lightweight summary for LLM reasoning.
+    
+    This tool implements JIT (Just-In-Time) context loading - the full dataset
+    remains on disk while only essential metadata enters the context window.
+    
+    Returns:
+        ReadDataFileResult containing:
+        - success: bool
+        - data: Optional[DataSummary]
+        - error: Optional[str]
+        
+        When success=True, data contains a DataSummary with:
+        - columns: List of column names
+        - sample_rows: First 10 rows as list of dicts
+        - row_count: Total number of rows
+        - column_types: Dict mapping column names to inferred types
+    
+    Design Rationale:
+        Following Manus Context Engineering: "Use file system as externalized memory.
+        Read it only when the information is needed and write it when significant
+        state changes."
+    """
+```
+
+#### Tool: `infer_semantic_schema`
+
+```python
+def infer_semantic_schema(
+    data_summary: DataSummary, 
+    user_hints: Optional[str] = None
+) -> SemanticSchemaResult:
+    """
+    Infers data format and semantic metadata for user verification.
+    
+    This tool analyzes the data summary to understand both what type of 
+    comparison data it represents and what each column means semantically.
+    
+    Format Detection:
+        Identifies the comparison type based on column patterns:
+        - Pointwise: Contains Item and Score columns (e.g., ratings data)
+        - Pairwise: Contains two item columns and winner/outcome indicator
+        - Multiway: Contains rank-ordered columns (Rank_1, Rank_2, ..., Rank_k)
+    
+    Semantic Inference:
+        1. bigbetter: 
+           - Priority 1: Semantic keywords (accuracy->1, latency->0)
+           - Priority 2: Distribution analysis (0-1 bounded -> 1)
+           - Priority 3: User hints if provided
+           
+        2. ranking_items:
+           - For WIDE format: numeric column names are ranking items
+           - For LONG format: unique values in item_name column
+           
+        3. indicator_col (Optional):
+           - A categorical column for stratified analysis (e.g., "Task", "Category")
+           - Selection Criteria:
+             * Must be categorical/string type, not numeric
+             * Cardinality: 2-20 unique values preferred (max 50)
+             * Semantic Preference: Column names matching keywords (task, category, type, group, class, domain)
+             * CRITICAL: Select AT MOST ONE indicator column
+           - Returns null if:
+             * No categorical columns exist
+             * All categorical columns have cardinality < 2 or > 50
+             * No semantically meaningful stratification dimension found
+           
+        4. indicator_values:
+           - Unique values within selected indicator column
+           - Used for stratified ranking (segmenting results by task/category)
+    
+    Parameters:
+        data_summary: Lightweight data summary from read_data_file
+        user_hints: Optional natural language hints from user when re-inferring
+                    after rejection (e.g., "the Score column represents accuracy")
+    
+    Returns:
+        SemanticSchemaResult containing:
+        - success: bool
+        - format: "pointwise" | "pairwise" | "multiway"
+        - format_evidence: str explaining the detection reasoning
+        - schema: SemanticSchema if successful
+        - error: str if failed
+    
+    User Override:
+        All inferred values are presented to user for verification/modification
+        via request_user_confirmation before execution.
+    """
+```
+
+#### Tool: `validate_data_format`
+
+```python
+def validate_data_format(
+    file_path: str, 
+    schema: SemanticSchema
+) -> FormatValidationResult:
+    """
+    Checks if the data structure can physically run in the R script.
+    
+    This tool validates FORMAT/STRUCTURE compatibility (fixable through preprocessing),
+    not statistical validity. It operates BEFORE quality checks because format
+    issues must be resolved before meaningful statistical checks can be performed.
+    
+    Format Checks:
+    1. CSV Parsability:
+       - Can the file be parsed as a valid CSV/table?
+       - Are there encoding issues?
+       
+    2. Column Availability:
+       - Are there at least 2 extractable numeric columns (ranking items)?
+       - Can ranking_items from schema be mapped to actual columns?
+       
+    3. Format Compatibility:
+       - Is the data format (wide/long) compatible with R script expectations?
+       - Does the structure match the inferred format (pointwise/pairwise/multiway)?
+       
+    4. Data Type Validity:
+       - Are ranking columns numeric or convertible to numeric?
+       - Are metadata columns properly identified?
+    
+    Returns:
+        FormatValidationResult containing:
+        - is_ready: bool (True if format is R-ready)
+        - fixable: bool (True if issues can be fixed by preprocess_data)
+        - issues: List[str] (specific format problems found)
+        - suggested_fixes: List[str] (preprocessing operations needed)
+    
+    Design Rationale:
+        Separating format from quality checks enables:
+        1. Early detection of format mismatches
+        2. Automatic format fixes via preprocess_data
+        3. Meaningful quality checks only after format is correct
+    """
+```
+
+#### Tool: `validate_data_quality`
+
+```python
+def validate_data_quality(
+    file_path: str, 
+    schema: SemanticSchema
+) -> QualityValidationResult:
+    """
+    Checks if data meets statistical requirements for spectral ranking.
+    
+    This tool validates DATA QUALITY and statistical requirements (unfixable issues).
+    It operates AFTER format checks because statistical metrics (sparsity,
+    connectivity) can only be computed on correctly formatted data.
+    
+    Quality Checks:
+    1. Warnings (Non-blocking):
+       - **Sparsity Check**: Warn if M < n*log(n) where M=comparisons, n=items.
+         Rationale: Below this threshold, spectral estimation is unstable and statistical inference (CIs) may be less reliable.
+       
+    2. Errors (Blocking):
+       - **Connectivity Check**: Verify comparison graph strong connectivity using networkx.
+         Rationale: Disconnected components make global scores mathematically incomparable, preventing a valid global ranking.
+       - **Data Integrity**: 
+         - Fewer than 2 items present (after preprocessing).
+         - Data does not represent valid/logical comparisons.
+         - All comparisons involve the same items (no variation).
+    
+    Returns:
+        QualityValidationResult containing:
+        - is_valid: bool (True if data meets statistical requirements)
+        - warnings: List[str] (non-blocking issues user should be aware of)
+        - errors: List[str] (blocking issues that prevent execution)
+    
+    Design Rationale:
+        Quality checks validate data CONTENT and statistical validity, not format.
+        These issues cannot be fixed by preprocessing - they require user to provide
+        better data or more comparisons.
+    """
+```
+
+**Theoretical Basis**:
+- **Sparsity Threshold ($n \log n$):** Defines the phase transition for graph connectivity and statistical reliability. According to *Assumption 4* and *Theorem 4* in `.agent/literature/spectral_ranking_inferences.md`, this sample complexity is necessary for the spectral estimator to concentrate sufficiently for valid inference (Gaussian multiplier bootstrap).
+- **Connectivity:** A necessary condition for Markov chain ergodicity. As per *Section 2.2* in `.agent/literature/spectral_ranking_inferences.md`, strong connectivity ensures a unique stationary distribution; if disconnected, the ranking scores of different components are mathematically incomparable.
+
+#### Tool: `preprocess_data`
+
+```python
+def preprocess_data(
+    file_path: str, 
+    schema: SemanticSchema
+) -> PreprocessResult:
+    """
+    Restructures data to R-compatible format (format fixes only).
+    
+    This tool operates WITHIN the FORMAT VALIDATION LOOP to fix format issues
+    identified by validate_data_format. It performs schema-guided transformations
+    to make data physically runnable in the R script.
+    
+    R Script Input Format Expectation:
+        The spectral_ranking.R script expects CSV data in WIDE format where:
+        - Each column (except indicator_col) represents an item to rank
+        - Each row represents a comparison/observation
+        - Cell values are numeric scores (higher = better if bigbetter=1)
+        
+        The R script internally handles the spectral decomposition to infer
+        rankings from these comparison scores. It accepts all three input
+        data types (pointwise, pairwise, multiway) as long as they are
+        provided in the correct wide-format structure.
+    
+    Transformation Steps:
+    1. Format Restructuring:
+       - Long format -> Wide format (pivot item_name column to columns)
+       - Multiway -> Wide format normalization (Rank_1..Rank_k to columns)
+       - Note: Pairwise data is NOT converted to pointwise; instead it's
+         restructured to wide format where the R script applies appropriate
+         spectral methods for pairwise comparisons.
+       
+    2. Column Mapping:
+       - Rename columns to match ranking_items from schema
+       - Extract numeric columns representing ranking items
+       - Preserve indicator_col for segmented analysis
+       - Drop non-ranking metadata columns
+       
+    3. Data Type Conversion:
+       - Convert string scores to numeric
+       - Standardize item name encoding (UTF-8)
+       - Handle missing values (impute or drop based on strategy)
+       
+    4. Output Generation:
+       - Write preprocessed CSV to session temp directory
+       - Generate transformation log for audit trail
+       - Return new file path for subsequent validation
+    
+    Returns:
+        PreprocessResult containing:
+        - preprocessed_csv_path: Path to the transformed CSV file
+        - transformation_log: List of applied transformations
+        - row_count: Number of rows after preprocessing
+        - dropped_rows: Number of rows removed during cleaning
+    
+    Design Rationale:
+        Preprocessing is a FORMAT FIX tool within the validation loop:
+        1. Fixes format issues identified by validate_data_format
+        2. Schema guides all transformations (what columns are items, etc.)
+        3. After preprocessing, data re-enters format check to verify fix
+        4. SessionMemory.current_file_path is updated to the new path
+    """
+```
+
+#### Tool: `request_user_confirmation`
+
+```python
+def request_user_confirmation(
+    proposed_schema: SemanticSchema,
+    format_result: FormatValidationResult,
+    quality_result: QualityValidationResult
+) -> ConfirmationResult:
+    """
+    Explicit user interaction point for schema and configuration confirmation.
+    
+    This tool makes the implicit "[User Interactive Configuration via UI]" 
+    step explicit, ensuring the agent knows when to wait for user input.
+    
+    This tool is called AFTER the DATA VALIDATION LOOP completes successfully,
+    meaning data has passed both format and quality checks (or has only
+    non-blocking warnings).
+    
+    Presentation to User:
+    1. Inferred Schema Summary:
+       - bigbetter: "Higher values are better" or "Lower values are better"
+       - ranking_items: List of detected items to rank
+       - indicator_col: Selected segmentation column (if any)
+       
+    2. Validation Status:
+       - Warnings: List of non-blocking quality concerns (e.g., sparsity) that the user should acknowledge before proceeding.
+       
+    3. Modification Options:
+       - User can modify any inferred value (bigbetter, ranking_items, etc.)
+       - User can change indicator column selection
+       - **Advanced Settings**: User can adjust bootstrap iterations (B) and random seed.
+    
+    Returns:
+        ConfirmationResult containing:
+        - confirmed: bool (True if user approves, False if user cancels)
+        - confirmed_schema: SemanticSchema (original or modified)
+        - user_modifications: List of changes made by user
+    
+    Error Handling:
+        If user rejects the schema entirely, the agent should:
+        1. Ask clarifying questions about the data
+        2. Re-run infer_semantic_schema with user hints
+        3. Re-enter validation loop with updated schema
+    
+    Design Rationale:
+        Confirmation happens AFTER validation ensures:
+        1. User sees validated, R-ready data structure
+        2. User makes informed decision with full validation context
+        3. Schema modifications trigger re-validation (loop back)
+        4. Audit trail includes user decision point
+    """
+```
+
+### Engine Tool Details
+
+#### Tool: `execute_spectral_ranking`
+
+```python
+def execute_spectral_ranking(config: EngineConfig) -> ExecutionResult:
+    """
+    Deterministic tool that invokes spectral_ranking.R.
+    
+    This tool is NOT an LLM call - it executes the R script in a subprocess
+    and parses the JSON output.
+    
+    Config Parameters:
+    - csv_path: Path to preprocessed data file
+    - bigbetter: 1 (higher is better) or 0 (lower is better)
+    - selected_items: Optional filter for specific items
+    - selected_indicator_values: Optional filter for indicator segments
+    - B: Bootstrap iterations (default 2000)
+    - seed: Random seed (default 42)
+    
+    Returns:
+        ExecutionResult containing:
+        - success: bool
+        - results: RankingResults if successful (theta_hat, ranks, CIs)
+        - error: str if failed
+        - trace: ExecutionTrace for debugging
+    
+    CLI Invocation:
+        Rscript src/spectral_ranking/spectral_ranking.R \
+            --csv {csv_path} --bigbetter {bigbetter} \
+            --B {B} --seed {seed} --out {output_dir}
+    """
+```
+
+### Analysis Tools Details
+
+#### Tool: `generate_report`
+
+```python
+def generate_report(
+    results: RankingResults, 
+    session: SessionMemory
+) -> ReportOutput:
+    """
+    Generate a publication-ready markdown report from RankingResults.
+
+    Implementation: Report narrative and recommendations are generated by LLM
+    using session results and the writing contract below.
+
+    Audience-first, single-page progressive disclosure contract (Deep Research style):
+    - The entire report must render as ONE continuous page (single scroll) with
+      narrative text and figures interleaved.
+    - No pagination, no separate appendix pages, and no collapsible sections.
+    - Statistical rigor is preserved via inline micro-explanations and icon-triggered
+      tooltips/popovers (definitions, assumptions, caveats) that do NOT require
+      expanding hidden content.
+
+    Report layout (single-page, in reading order):
+    1) Executive Summary (non-technical, above the fold)
+       - Top-ranked item(s) and what "best" means in this context
+       - Plain-language uncertainty statement (what we can / cannot conclude)
+       - Key takeaways and actionable recommendations
+
+    2) Interleaved Results Narrative (technical-lite)
+       - Short paragraphs explaining the ranking story, immediately followed by
+         the relevant figure/table snippet
+       - Inline fields: rank, item, score (theta_hat), uncertainty (e.g., 95% bootstrap CI)
+       - Notes on ties / near-ties and practically meaningful gaps
+       - Inline "info" icons for: definitions (theta_hat, CI), interpretation rules,
+         and common pitfalls (e.g., CI overlap is not a formal test)
+
+    3) Targeted Comparisons (as-needed, still on the same page)
+       - Focused comparisons for stakeholder questions (e.g., A vs B)
+       - Clear decision rules and caveats (avoid overclaiming)
+       - Tooltip/popover micro-notes for formal vs informal evidence language
+
+    4) Methods, Assumptions, and Limitations (academic, concise, inline)
+       - A compact methods block written for scholars, placed near the first figure
+         that depends on it (not at the end)
+       - Mandatory items (kept brief): estimator definition, bootstrap CI recipe,
+         CI level, seed, B, filtering rules, data coverage, limitations
+
+    5) Reproducibility (inline, actionable)
+       - EngineConfig snapshot and run metadata (timestamps, versions if available)
+       - Paths to generated artifacts (tables/figures) and how to regenerate them
+       - If full technical detail is needed, link to deterministic artifacts
+         (e.g., JSON summaries, SVGs) rather than adding hidden sections.
+
+    Citable quoting (mainstream LLM client behavior):
+    - The rendered report must support "select -> click Quote -> insert into composer".
+    - Every citable unit (paragraph, bullet cluster, table snippet, figure caption)
+      MUST be wrapped with a stable block identifier in the markdown using raw HTML.
+
+      Required wrapper pattern (renderer-friendly):
+        <section data-omni-block-id="{block_id}" data-omni-kind="{kind}">
+          ...markdown content...
+        </section>
+
+      Notes:
+      - block_id MUST be stable within the report (deterministic given inputs).
+      - kind SHOULD be one of: "summary" | "result" | "comparison" | "method" |
+        "limitation" | "repro" | "figure" | "table".
+      - Do not hide information behind collapsible sections; tooltips/popovers are
+        allowed only for micro-explanations (HintSpec) and do not change the
+        single-page requirement.
+
+    Returns:
+        ReportOutput with:
+        - markdown: str (the report)
+        - key_findings: dict (machine-readable highlights for follow-up tools)
+        - artifacts: list (references to saved figures/tables, if produced)
+        - hints: list (inline micro-explanations for icon tooltips/popovers)
+        - citation_blocks: list (structured citable blocks for Quote UX)
+    """
+```
+
+#### Tool: `generate_visualizations`
+
+```python
+def generate_visualizations(
+    results: RankingResults, 
+    viz_types: List[str]
+) -> VisualizationOutput:
+    """
+    Create publication-ready, deterministic SVG figures from RankingResults.
+
+    Progressive disclosure goal (single-page):
+    - Figures must be readable in context, immediately where they are referenced.
+    - Each figure includes a short, plain-language caption plus a rigorous,
+      publication-style caption.
+    - Any technical definitions are delivered via inline icon tooltips/popovers,
+      not via separate pages or collapsible appendices.
+
+    Determinism:
+    - No LLM calls.
+    - Same inputs -> same SVG outputs (subject to matplotlib version).
+
+    Supported viz_types:
+    - "ranking_bar": Reader-friendly overview (sorted bars) with uncertainty whiskers
+    - "ci_forest": Methods-forward forest plot emphasizing confidence intervals
+
+    Parameters:
+        results: RankingResults from execute_spectral_ranking
+        viz_types: List of visualization types to generate
+
+    Output conventions (for accessibility and academic style):
+    - Use a colorblind-safe palette; never rely on color alone for meaning
+    - Use clear axis labels and units; define theta_hat and CI level in captions
+    - Include a short, plain-language subtitle or caption per figure
+    - Export as SVG for print-quality embedding in the report
+
+    Returns:
+        VisualizationOutput containing:
+        - plots: List[PlotSpec] where PlotSpec = {
+            type: str,           # viz_type name
+            data: dict,          # exact data used for plotting (for reproducibility)
+            config: dict,        # plot configuration (labels, CI level, palette, etc.)
+            svg_path: str,       # path to saved SVG file
+            block_id: str,       # stable report block_id for Quote UX (kind="figure")
+            caption_plain: str,  # short, non-technical caption for inline reading
+            caption_academic: str, # publication-style caption for scholarly readers
+            hint_ids: List[str]  # tooltip/popover hint references
+          }
+        - errors: List[str]      # any viz_types that failed to render
+
+    Storage:
+        Save plots under a session-scoped artifact directory to enable later
+        retrieval and inclusion in generate_report.
+    """
+```
+
+#### Tool: `answer_question`
+
+```python
+def answer_question(
+    question: str,
+    session: SessionMemory,
+    quotes: Optional[List["QuotePayload"]] = None
+) -> AnswerOutput:
+    """
+    Answers user follow-up questions using session context and spectral knowledge.
+    
+    This tool accesses session.current_results and session.data_summary to provide
+    context-aware answers without requiring full objects to be passed.
+
+    Quote-aware follow-ups (optional):
+    - If quotes are provided, prioritize answering the question with respect to the
+      quoted text and its referenced block_id(s), while still using session context
+      for numerical verification and caveats.
+    
+    Context Retrieval Strategy:
+    1. Result Cache: For ranking/score queries
+       - "Is Model A better than B?" -> Compare theta_hat and CIs; avoid treating CI overlap as a formal test
+       
+    2. Data State: For data property queries
+       - "How many comparisons?" -> Check session.data_summary
+       
+    3. Execution Trace: For process queries
+       - "Did it converge?" -> Check session.execution_trace
+    
+    Knowledge Base:
+    - Spectral ranking theory (CI interpretation, significance testing)
+    - Domain expertise embedded in system prompt
+    
+    Returns:
+        AnswerOutput containing answer, supporting evidence, and the report block_id(s)
+        used to answer (when available).
+    """
+```
+
+### Type Definitions
+
+All custom types used by OmniRank tools are defined below for implementation clarity:
+
+```python
+from dataclasses import dataclass, field
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Data Types
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class DataSummary:
+    """Lightweight summary of uploaded data file."""
+    columns: List[str]
+    sample_rows: List[Dict[str, Any]]  # First 10 rows as list of dicts
+    row_count: int
+    column_types: Dict[str, str]  # column_name -> "numeric" | "categorical" | "datetime"
+
+@dataclass
+class ReadDataFileResult:
+    """Structured result from read_data_file (robust error handling)."""
+    success: bool
+    data: Optional[DataSummary] = None
+    error: Optional[str] = None
+
+@dataclass
+class SemanticSchema:
+    """Inferred semantic metadata for R script execution."""
+    bigbetter: int  # 1 = higher is better, 0 = lower is better
+    ranking_items: List[str]  # Column names or item values to rank
+    indicator_col: Optional[str]  # Segmentation column (e.g., "benchmark")
+    indicator_values: List[str]  # Unique values in indicator_col
+
+@dataclass
+class SemanticSchemaResult:
+    """Combined result of format detection and semantic schema inference."""
+    success: bool
+    format: str  # "pointwise" | "pairwise" | "multiway"
+    format_evidence: str  # Explanation of format detection reasoning
+    schema: Optional[SemanticSchema]  # Inferred schema if successful
+    error: Optional[str] = None  # Error message if failed
+
+@dataclass
+class FormatValidationResult:
+    """Result of data format validation."""
+    is_ready: bool  # True if format is R-ready
+    fixable: bool  # True if issues can be fixed by preprocess_data
+    issues: List[str]  # Specific format problems found
+    suggested_fixes: List[str]  # Preprocessing operations needed
+
+@dataclass
+class QualityValidationResult:
+    """Result of data quality validation."""
+    is_valid: bool  # True if data meets statistical requirements
+    warnings: List[str]  # Non-blocking issues
+    errors: List[str]  # Blocking issues that prevent execution
+
+@dataclass
+class PreprocessResult:
+    """Result of data preprocessing transformation."""
+    preprocessed_csv_path: str
+    transformation_log: List[str]
+    row_count: int
+    dropped_rows: int
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Engine Types
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class EngineConfig:
+    """Configuration for spectral ranking R script execution."""
+    csv_path: str  # Path to preprocessed data file
+    bigbetter: int  # 1 (higher is better) or 0 (lower is better)
+    selected_items: Optional[List[str]] = None  # Filter for specific items
+    selected_indicator_values: Optional[List[str]] = None  # Filter for segments
+    B: int = 2000  # Bootstrap iterations
+    seed: int = 42  # Random seed for reproducibility
+    r_script_path: str = "src/spectral_ranking/spectral_ranking.R"  # Configurable path
+
+@dataclass
+class RankingResults:
+    """Results from spectral ranking computation."""
+    items: List[str]  # Item names in order
+    theta_hat: List[float]  # Estimated scores
+    ranks: List[int]  # Inferred ranks (1 = best if bigbetter=1)
+    ci_lower: List[float]  # 95% CI lower bounds
+    ci_upper: List[float]  # 95% CI upper bounds
+    indicator_value: Optional[str] = None  # Which segment this result is for
+
+@dataclass
+class ExecutionTrace:
+    """Debugging trace for R script execution."""
+    command: str  # Full CLI command executed
+    stdout: str  # R script stdout
+    stderr: str  # R script stderr
+    exit_code: int
+    duration_seconds: float
+    timestamp: datetime = field(default_factory=datetime.now)
+
+@dataclass
+class ExecutionResult:
+    """Combined output of spectral ranking engine execution."""
+    success: bool
+    results: Optional[RankingResults]
+    error: Optional[str]
+    trace: ExecutionTrace
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session Types
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class ToolCall:
+    """Record of a single tool invocation."""
+    tool_name: str
+    inputs: Dict[str, Any]
+    outputs: Dict[str, Any]
+    timestamp: datetime = field(default_factory=datetime.now)
+    success: bool = True
+    error: Optional[str] = None
+
 @dataclass
 class SessionMemory:
     """
-    Session-scoped memory for maintaining analysis context.
+    Session-scoped memory for maintaining analysis context across tool calls.
     """
-    user_intent_history: List[ParsedIntent]     # All parsed intents in session
-    data_state: DataState                        # Current data schema and validation
-    execution_trace: List[ExecutionRecord]       # Log of all engine invocations
-    result_cache: Dict[str, RankingResult]       # Cached computation results
+    # Data State
+    original_file_path: Optional[str] = None
+    current_file_path: Optional[str] = None  # May differ after preprocessing
+    data_summary: Optional[DataSummary] = None
+    inferred_schema: Optional[SemanticSchema] = None
+    format_validation_result: Optional[FormatValidationResult] = None
+    quality_validation_result: Optional[QualityValidationResult] = None
     
-    def get_relevant_context(self, instruction: str) -> Context:
-        """Retrieve context relevant to current instruction."""
-        pass
+    # Execution State
+    execution_trace: List[ExecutionTrace] = field(default_factory=list)
+    current_results: Optional[RankingResults] = None
     
-    def append_trace(self, params: EngineParams, observation: Observation):
-        """Log execution for error diagnosis."""
-        pass
-```
+    # Conversation State
+    user_queries: List[str] = field(default_factory=list)
+    tool_call_history: List[ToolCall] = field(default_factory=list)
 
-| Memory Component | Purpose | Example Use Case |
-|------------------|---------|------------------|
-| User Intent History | Enable follow-up queries | "now show confidence intervals" after ranking |
-| Data State | Avoid redundant preprocessing | Iterative analysis on same dataset |
-| Execution Trace | Support error diagnosis | Inspector reviews failed attempts |
-| Result Cache | Enable comparative queries | "compare with previous results" |
+# ─────────────────────────────────────────────────────────────────────────────
+# Output Types
+# ─────────────────────────────────────────────────────────────────────────────
 
-#### 2.3 Workflow Algorithm
-
-The workflow follows a fixed pipeline triggered by data upload:
-
-```
-Algorithm: OmniRank Workflow
-
-Require: Data Agent (Da), Engine Orchestrator (Eo), Analyst Agent (An), Session Memory (M)
-Require: user_data (d), max_attempts (T)
-
-// PHASE 1: Data Processing & Configuration
-1:  schema ← Da.infer_schema(d)                 ▷ Infer BigBetter, Items, Indicators
-2:  params ← Eo.configure(schema, user_input)   ▷ Interactive Verification
-3:  M.update_data_state(schema, params)
-
-// PHASE 2: Computation
-4:  n ← 0
-5:  result ← Eo.execute(params)                 ▷ spectral_ranking_step1.R
-
-// PHASE 3: Error Handling (Analyst diagnoses)
-5:  while result.status == ERROR and n < T do
-6:      n ← n + 1
-7:      error_type, suggestions ← An.diagnose(result.error, M.trace)
-8:      if error_type == DATA_ERROR then
-9:          processed_data, params ← Da.reanalyze(d, suggestions)
-10:     else
-11:         params ← Eo.revise_params(params, suggestions)
-12:     end if
-13:     result ← Eo.invoke_ranking_cli(params)
-14: end while
-15:
-16: if result.status == ERROR then
-17:     result ← human_intervention(params, M.trace)  ▷ Human-in-the-loop
-18: end if
-
-// PHASE 4: Output Generation
-19: report ← An.generate_report(result)
-20: visualizations ← An.generate_visualizations(result)
-21: M.cache_result(result)
-22: return {report, visualizations}
-
-// PHASE 5: Ongoing Q&A (triggered by user follow-up)
-// An.answer(query, M.context, spectral_knowledge)
-```
-
-**Workflow Phases:**
-
-| Phase | Component | Action |
-|-------|-----------|--------|
-| Data Processing | Data Agent | Infer schema, bigbetter, and standardize format |
-| Configuration | Engine Orchestrator | **Interactive User Configuration** & Validation |
-| Computation | Engine Orchestrator | Execute `spectral_ranking_step1.R` |
-| Error Handling | Analyst Agent | Diagnose errors, request corrections from Data Agent or Engine Orchestrator |
-| Output Generation | Analyst Agent | Generate report and visualizations |
-| Q&A | Analyst Agent | Answer user follow-up questions using memory + spectral knowledge |
-
-#### 2.4 Tool Ecosystem
-
-OmniRank integrates multiple tools beyond the core spectral engine to provide comprehensive analysis capabilities:
-
-| Tool | Function | Input | Output |
-|------|----------|-------|--------|
-| **Spectral Ranking Engine** | Core ranking computation | CSV comparison data | JSON with θ̂, ranks, CIs |
-| **Visualization Generator** | Publication-ready plots | Ranking results JSON | PNG/PDF/HTML figures |
-| **Report Generator** | Stakeholder communication | Analysis results | Markdown/PDF reports |
-
-```python
-class ToolEcosystem:
-    """
-    Registry of available tools for the Engine Orchestrator.
-    """
-    tools = {
-        "ranking_engine": {
-            "path": "src/spectral_ranking/spectral_ranking_step1.R",
-            "description": "Spectral ranking computation & bootstrap CI",
-            "input_format": "CSV",
-            "output_format": "JSON"
-        },
-        "visualization": {
-            "path": "src/tools/visualize.py",
-            "description": "Generate ranking visualizations",
-            "input_format": "JSON",
-            "output_format": "PNG/HTML"
-        },
-        "report_generator": {
-            "path": "src/tools/report.py",
-            "description": "Generate analysis reports",
-            "input_format": "JSON",
-            "output_format": "MD/PDF"
-        }
-    }
-```
-
----
-
-### 3. Core Components Detailed Design
-
-#### 3.1 Data Agent
-
-The Data Agent acts as the intelligent interface between user data and the spectral engine, executing three core functions: **Format Recognition & Standardization**, **Semantic Schema Inference**, and **Data Validation**.
-
-##### 3.1.1 Function 1: Format Recognition & Standardization
-
-```python
-class DataStandardizer:
-    """
-    Identifies and standardizes input data formats for the spectral engine.
-    """
-    
-    SUPPORTED_FORMATS = ["pointwise", "pairwise", "multiway"]
-    
-    def adjust_to_engine_schema(self, file_path: str) -> StandardizedPath:
-        """
-        Performs lightweight standardization to ensure compatibility with spectral_ranking_step1.R.
-        
-        Actions:
-        - Detect format (Pointwise vs Pairwise/Multiway)
-        - Ensure CSV/JSON structure meets R script requirements
-        - Standardize column delimiters and encoding
-        
-        Mapping Strategy:
-        | Input Format | Detected Characteristics | Engine Input Specification |
-        |--------------|--------------------------|----------------------------|
-        | **Pointwise** | Unstructured items & scores | Columns: `Item`, `Score` (numerical) |
-        | **Pairwise** | Two distinct item cols | Columns: `Item_1`, `Item_2`, `Winner` (or `Score_1` > `Score_2`) |
-        | **Multiway** | Rank-ordered columns | Columns: `Rank_1` (Winner), `Rank_2`, ... `Rank_k` |
-        """
-        pass
-```
-
-##### 3.1.2 Function 2: Semantic Schema Inference
-
-```python
 @dataclass
-class SemanticSchema:
-    bigbetter: int                # 1=descending (accuracy), 0=ascending (latency)
-    ranking_items: List[str]      # Entities to rank (e.g., "ChatGPT", "Claude")
-    indicator_col: Optional[str]  # Selected categorical dimension (e.g., "Task_Type")
-    indicator_values: List[str]   # Extracted unique segments (e.g., ["math", "code"])
-    inference_confidence: float   # Confidence score of inference
+class PlotSpec:
+    """Specification for a generated visualization."""
+    type: str  # viz_type name
+    data: Dict[str, Any]  # Data used for plotting
+    config: Dict[str, Any]  # Plot configuration
+    svg_path: str  # Path to saved SVG file
+    block_id: str = ""  # Stable report block_id for Quote UX (kind="figure")
+    caption_plain: str = ""  # Short, non-technical caption for inline reading
+    caption_academic: str = ""  # Publication-style caption for scholarly readers
+    hint_ids: List[str] = field(default_factory=list)  # Tooltip/popover hint references
 
-class SchemaInferer:
-    """
-    Infers semantic metadata to enable precise user control.
-    """
-    
-    def infer_schema(self, dataframe: pd.DataFrame, user_instruction: str) -> SemanticSchema:
-        """
-        Infers semantic roles of data columns using hierarchical heuristics:
-        
-        1. Ranking Items Identification:
-           - Scan for Categorical columns with high cardinality relative to row count.
-           - Check for entity-like naming (e.g., "Model", "System", "Agent", "Player").
-           - Returns: List of unique entity names found in these columns.
-           
-        2. Ranking Indicator Identification:
-           - Scan for Categorical columns with low cardinality.
-           - CRITICAL: Picks AT MOST ONE column.
-           - Returns: The column name (`indicator_col`) and its unique values (`indicator_values`).
-           
-        3. Preference Direction (bigbetter) Inference:
-           - **Priority 1: User Instruction** (Explicit overrides).
-           - **Priority 2: Semantic Analysis**:
-             - `bigbetter=1` keywords: "accuracy", "score", "reward", "win", "success".
-             - `bigbetter=0` keywords: "error", "loss", "latency", "time", "rank".
-           - **Priority 3: Distributional Analysis**:
-             - Detect unbounded postive distributions (often counts/scores -> 1).
-             - Detect 0-1 bounded distributions (probabilities/accuracies -> 1).
-        """
-        pass
-```
-
-##### 3.1.3 Function 3: Data Validation
-
-```python
-class DataValidator:
-    """
-    Performs targeted sanity checks.
-    """
-    
-    def validate(self, data: StandardizedData, n_items: int) -> List[Warning]:
-        """
-        Checks for critical issues and statistical feasibility.
-        
-        1. Sparsity Check (Statistical Warning):
-           - Formula: Warn if $M < n \log n$ (M=comparisons, n=items).
-           - Rationale: Below this threshold, spectral connectivity is theoretically unstable.
-           
-        2. Format Consistency (Critical Error):
-           - Check for mixed data types in Item columns.
-           - Check for undefined values (NaN/Null) in critical columns.
-           
-        3. Connectivity Check:
-           - Uses `networkx` to verify if the comparison graph is connected.
-           - WARNING: If disconnected, alerts user that rankings are relative to components.
-        """
-        pass
-```
-        """
-        pass
-```
-
-#### 3.2 Engine Orchestrator Agent
-
-The Engine Orchestrator is a **specialized LLM Agent** (not a deterministic script) responsible for scientifically rigorous decision-making. It serves as the "Principal Investigator," observing preliminary results and dynamically deciding the optimal analysis path based on statistical principles.
-
-##### 3.2.1 Function 1: Interactive Configuration Management
-
-```python
 @dataclass
-class UserControlParams:
-    """Parameters exposed for user adjustment in the UI."""
-    # Data Schema Controls
-    bigbetter: Optional[int] = None       # Overrides inferred direction
-    selected_items: Optional[List[str]] = None # Filter to subset of items
-    selected_indicator_values: Optional[List[str]] = None # Values within indicator_col to keep
-    
-    # Statistical Controls (Advanced)
-    bootstrap_iterations: int = 2000      # Default B=2000 for robust CIs
-    random_seed: int = 42                 # For reproducibility
-    
-class ConfigManager:
+class ArtifactRef:
+    """Reference to a deterministic artifact generated during analysis."""
+    kind: str  # e.g., "figure", "table", "json_summary"
+    path: str  # Filesystem path or storage key
+    title: str = ""  # Human-readable label
+    mime_type: str = "text/plain"  # e.g., "image/svg+xml"
+
+@dataclass
+class HintSpec:
     """
-    Synthesizes final execution parameters from Data Schema and User Controls.
+    Inline micro-explanation attached to an icon in the single-page report.
+    The renderer can map hint_id -> tooltip/popover content without hiding sections.
     """
-    
-    def synthesize_params(self, schema: SemanticSchema, user_config: UserControlParams, 
-                         file_path: str, output_dir: str) -> EngineParams:
-        """
-        Merges automatically inferred schema with user overrides.
-        
-        Logic:
-        1. Preference Direction: User Override > Inferred Schema > Default (1)
-        2. Item Filtering: Pass `selected_items` list to R script (if any)
-        3. Indicator Selection: Pass `selected_indicator` column name (if any)
-        4. Statistical Params: Use User Config values directly
-        """
-        return EngineParams(
-            csv_path=file_path,
-            bigbetter=user_config.bigbetter if user_config.bigbetter is not None else schema.bigbetter,
-            items_filter=user_config.selected_items,
-            indicator_col=user_config.selected_indicator,
-            B=user_config.bootstrap_iterations,
-            seed=user_config.random_seed,
-            output_dir=output_dir
-        )
+    hint_id: str  # Stable identifier referenced by hint_ids in PlotSpec / report markdown
+    title: str  # Short label shown in UI
+    body: str  # Tooltip/popover text (keep concise)
+    kind: str = "definition"  # "definition" | "assumption" | "caveat" | "method"
+    sources: List[str] = field(default_factory=list)  # Optional citations/links
 
-##### 3.2.2 Function 2: Engine Execution & Output Parsing
-
-The Engine Orchestrator manages the execution lifecycle of the spectral ranking computation, ensuring reliable execution and proper result handling.
-
-```python
-class EngineOrchestrator:
+@dataclass
+class CitationBlock:
     """
-    Deterministic component that manages spectral ranking execution.
+    A citable unit in the single-page report for Quote UX.
+    The UI may embed block_id into the DOM and also use this structured form.
     """
-    
-    def execute(self, params: EngineParams) -> RankingResult:
-        """
-        Executes the spectral ranking computation.
-        
-        Steps:
-        1. Validate parameters and prepare execution environment
-        2. Invoke spectral_ranking_step1.R with configured parameters
-        3. Parse JSON output and construct result object
-        4. Log execution trace for potential error diagnosis
-        """
-        # Validate and execute
-        self._validate_params(params)
-        result = self.r_executor.execute_and_parse(params)
-        
-        # Log for session memory
-        SessionMemory.log_trace(params, result)
-        
-        return result
-```
+    block_id: str  # Stable identifier (deterministic given inputs)
+    kind: str  # See data-omni-kind values in generate_report contract
+    markdown: str  # The markdown/HTML snippet for this block
+    text: str  # Plain-text version (for copying into the composer)
+    hint_ids: List[str] = field(default_factory=list)  # Inline hint references
+    artifact_paths: List[str] = field(default_factory=list)  # Related SVG/JSON paths
 
-##### 3.2.3 R Script Executor
-
-```python
-class RScriptExecutor:
+@dataclass
+class QuotePayload:
     """
-    Manages the lifecycle of the external R process and output parsing.
+    Payload inserted into the composer when the user clicks Quote on a selection.
+    This mirrors mainstream LLM client quote interactions.
     """
-    
-    R_SCRIPT_PATH = "src/spectral_ranking/spectral_ranking_step1.R"
-    
-    def execute_and_parse(self, params: EngineParams, timeout_sec: int = 300) -> RankingResult:
-        """
-        Executes the R script, captures output, and logs the execution trace.
-        
-        Steps:
-        1. **Execution**: Run R script in subprocess with timeout.
-           - Capture STDOUT (JSON) and STDERR (Logs).
-           
-        2. **Trace Logging**: Create `TraceEntry` with timestamp, params, and logs.
-           - Store in `SessionMemory.execution_trace` for potential Analyst diagnosis.
-           
-        3. **Result Parsing**: 
-           - If exit_code == 0: Robustly parse JSON from STDOUT, ignoring R startup warnings.
-           - If exit_code != 0: Raise `EngineExecutionError` containing STDERR log.
-        """
-        cmd = self._build_cmd(params)
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_sec)
-            
-            # Log trace regardless of success/failure
-            SessionMemory.log_trace(params, proc)
-            
-            if proc.returncode != 0:
-                raise EngineExecutionError(proc.stderr)
-                
-            return self._parse_json_robust(proc.stdout)
-            
-        except subprocess.TimeoutExpired:
-            SessionMemory.log_timeout(params)
-            raise EngineExecutionError("Execution timed out")
+    quoted_text: str  # What the user selected (plain text)
+    block_id: Optional[str] = None  # Nearest data-omni-block-id, if available
+    kind: Optional[str] = None  # Optional: copied from data-omni-kind
+    source: str = "report"  # "report" | "user_upload" | "external"
+
+@dataclass
+class VisualizationOutput:
+    """Output from generate_visualizations tool."""
+    plots: List[PlotSpec]
+    errors: List[str]  # Any viz_types that failed to render
+
+@dataclass
+class ReportOutput:
+    """Output from generate_report tool."""
+    markdown: str  # Single-page report with interleaved narrative + figure references
+    key_findings: Dict[str, Any]  # Machine-readable highlights for follow-up tools
+    artifacts: List[ArtifactRef] = field(default_factory=list)  # Deterministic outputs (SVG/JSON/etc.)
+    hints: List[HintSpec] = field(default_factory=list)  # Inline micro-explanations for icon tooltips
+    citation_blocks: List[CitationBlock] = field(default_factory=list)  # Quote-able blocks
+
+@dataclass
+class AnswerOutput:
+    """Output from answer_question tool."""
+    answer: str
+    supporting_evidence: List[str]
+    used_citation_block_ids: List[str] = field(default_factory=list)
+
+@dataclass
+class ConfirmationResult:
+    """Output from request_user_confirmation tool."""
+    confirmed: bool
+    confirmed_schema: SemanticSchema
+    user_modifications: List[str]
+    B: int = 2000  # User-confirmed bootstrap iterations
+    seed: int = 42  # User-confirmed random seed
 ```
 
-##### 3.2.3 The R Script
+## OmniRank Agent System Prompt
 
-The spectral ranking computation is implemented in a specialized R script:
-
-**`spectral_ranking_step1.R`**
-- **Role**: Spectral ranking estimation with bootstrap confidence intervals.
-- **Key Outputs**:
-  - `theta_hat`: Preference score estimates using $f(A_l)=|A_l|$.
-  - `rank`: Inferred rankings based on preference scores.
-  - `ci_two_sided`: Bootstrap confidence intervals for ranks.
-  - `spectral_gap`: Markov chain stability metric.
-
-**CLI Interface:**
-```bash
-Rscript src/spectral_ranking/spectral_ranking_step1.R \
-    --csv data/examples/example_data_pointwise.csv \
-    --bigbetter 1 \
-    --B 2000 \
-    --seed 42 \
-    --out results/output
-```
-
-**Output JSON Schema:**
-```json
-{
-    "job_id": "my_analysis",
-    "params": {
-        "bigbetter": true,
-        "B": 2000,
-        "seed": 42
-    },
-    "methods": [
-        {
-            "name": "model_1",
-            "theta_hat": 0.234,
-            "rank": 2,
-            "ci_two_sided": [1, 3],
-            "ci_left": 1,
-            "ci_uniform_left": 1
-        }
-    ],
-    "metadata": {
-        "n_samples": 165,
-        "k_methods": 6,
-        "runtime_sec": 3.45
-    }
-}
-```
-
-#### 3.3 Analyst Agent
-
-The Analyst Agent is the intelligent frontend of the system, responsible for synthesizing results, engaging with users, and handling exceptions. It implements three core functions: **Comprehensive Reporting & Visualization**, **Context-Aware Q&A**, and **ReAct-based Error Diagnosis**.
-
-##### 3.3.1 Function 1: Comprehensive Reporting & Visualization
-
-```python
-class AnalysisSynthesizer:
-    """
-    Transforms raw statistical results into human-readable insights.
-    """
-    
-    def generate_full_report(self, result: EngineResult, data_meta: DataSchema) -> AnalysisReport:
-        """
-        Coordinates the generation of textual and visual assets.
-        
-        1. **Visualization Generation**:
-           - **Rank Plot**: Comparison of parameter estimates ($\theta$) with CIs.
-           - **Heatmap**: Pairwise win-rate matrix to show dominance patterns.
-           - **Network Graph**: Topological view of the comparison graph (connectivity).
-           - **Score Distribution**: Bootstrap distribution of preferences.
-           
-        2. **Textual Report Generation**:
-           - **Executive Summary**: Key findings (Winner, critical gaps).
-           - **Methodology**: Explanation of spectral method & confidence settings.
-           - **Actionable Insights**: Generated by LLM analysis of the stats.
-        
-        Returns: A composite Report object containing Markdown text and Image paths.
-        """
-        pass
-```
-
-##### 3.3.2 Function 2: Context-Aware Q&A
-
-```python
-class QAManager:
-    """
-    Manages interactive dialogue using session context.
-    """
-    
-    def answer_query(self, query: str, session: SessionMemory) -> str:
-        """
-        Retrieves context and generates answer.
-        
-        Retrieval Strategy:
-        1. **Inspect Result Cache**: Does the query ask about specific rankings/scores in the current result?
-           - e.g., "Is Model A better than B?" -> Check CI overlap in `session.result`.
-           
-        2. **Inspect Data State**: Does it ask about data properties?
-           - e.g., "How many math comparisons?" -> Check `session.data_schema`.
-           
-        3. **Inspect Execution Trace**: Does it ask about the process?
-           - e.g., "Did it converge?" -> Check `session.execution_trace`.
-           
-        Action:
-        - Construct prompt with retrieved context + Spectral Theory Knowledge Base.
-        - Generate natural language response citing specific evidence.
-        """
-        pass
-```
-
-##### 3.3.3 Function 3: ReAct-based Error Diagnosis
-
-```python
-class DiagnosisAgent:
-    """
-    Implements the ReAct paradigm (Observe-Reason-Act) for self-correction.
-    """
-    
-    ERROR_PATTERNS = {
-        "DATA_ERROR": [r"invalid bigbetter", r"format mismatch", r"missing values"],
-        "EXECUTION_ERROR": [r"singular matrix", r"numerical overflow", r"timeout"]
-    }
-    
-    def diagnose_and_act(self, error: ExecutionError, trace: TraceEntry) -> CorrectionPlan:
-        """
-        Executes the ReAct Loop:
-        
-        1. **OBSERVE**: Read error message (`error.msg`) and execution log (`trace.stderr`).
-        
-        2. **REASON**: Classify error type.
-           - If pattern matches `DATA_ERROR` -> Issues originated upstream.
-           - If pattern matches `EXECUTION_ERROR` -> Issues in engine parameters.
-           
-        3. **ACT**: Formulate a Correction Plan.
-           - **Instruction**: Specific guidance for the target agent.
-           - **Target**: `DataAgent` (for re-analysis) or `EngineOrchestrator` (for re-config).
-           
-        Example:
-        - Error: "Singular Matrix"
-        - Reason: Data too sparse for standard inversion.
-        - Act: Instruct EngineOrchestrator to increase regularization or enable approximation.
-        """
-        pass
-```
-            )
-```
-
----
-
-### 4. Spectral Calculation Engine
-
-The Spectral Calculation Engine is the **mathematical core** of OmniRank, implementing the spectral ranking inference methodology from Fan et al. (2023).
-
-#### 4.1 Mathematical Foundation
-
-The engine implements the following key computations:
-
-##### 4.1.1 Transition Matrix Construction
-
-For comparison data $\{(c_l, A_l)\}_{l \in D}$:
-
-$$
-P_{ij} = \begin{cases}
-\frac{1}{d} \sum_{l \in W_j \cap L_i} \frac{1}{f(A_l)}, & \text{if } i \neq j \\
-1 - \sum_{k: k \neq i} P_{ik}, & \text{if } i = j
-\end{cases}
-$$
-
-where:
-- $W_j = \{l \in D | j \in A_l, c_l = j\}$ (comparisons where $j$ wins)
-- $L_i = \{l \in D | i \in A_l, c_l \neq i\}$ (comparisons where $i$ loses)
-- $f(A_l)$ is the weighting function
-
-##### 4.1.2 Spectral Estimator
-
-$$
-\tilde{\theta}_i := \log \hat{\pi}_i - \frac{1}{n} \sum_{k=1}^n \log \hat{\pi}_k
-$$
-
-where $\hat{\pi}$ is the stationary distribution of $P$.
-
-##### 4.1.3 Asymptotic Variance
-
-$$
-\text{Var}(J_i^* | G) = \frac{1}{d^2 \tau_i^2} \sum_{l \in D} \frac{\mathbf{1}(i \in A_l)}{f^2(A_l)} \left( \sum_{u \in A_l} e^{\theta^*_u} - e^{\theta^*_i} \right) e^{\theta^*_i}
-$$
-
-#### 4.2 Engine Implementation Details
-
-The engine is implemented as a specialized R script (`src/spectral_ranking/spectral_ranking_step1.R`). The internal logic follows this sequence:
-
-##### 4.2.1 `spectral_ranking_step1.R`
-1.  **Ingestion**: Reads CSV, detects format (Wide/Long), builds sparse adjacency matrix.
-2.  **Estimation**: 
-    -   Constructs transition matrix $P$ with $f(A_l) = |A_l|$.
-    -   Computes stationary distribution $\pi$ via `eigen()`.
-    -   Transforms to $\hat{\theta} = \log \pi - \text{mean}(\log \pi)$.
-3.  **Bootstrap**: Generates $B$ bootstrap replicates for confidence intervals.
-4.  **Output**: Returns rankings with confidence intervals in JSON format.
-
-This R-based implementation ensures numerical stability and leverages R's mature statistical libraries.
-
----
-
-### 5. User Interface Components
-
-#### 5.1 Natural Language Interface
-
-```python
-class NaturalLanguageInterface:
-    """
-    Processes natural language instructions for ranking analysis.
-    
-    Example queries:
-    - "Rank these 10 products based on the pairwise preference data I've uploaded"
-    - "Give me 95% confidence intervals for the rankings"
-    - "Test whether product A is in the top 3"
-    - "Compare the rankings from Q1 and Q2 surveys - have preferences changed?"
-    """
-    
-    def parse_instruction(self, instruction: str, 
-                          data_context: dict) -> ParsedInstruction:
-        """
-        Parses natural language instruction into structured task specification.
-        """
-        system_prompt = """
-        You are an expert in statistical ranking analysis. Parse the user's 
-        instruction into a structured task specification.
-        
-        Available task types:
-        - RANKING_ESTIMATION: Estimate preference scores
-        - CONFIDENCE_INTERVAL: Construct rank confidence intervals
-        - HYPOTHESIS_TESTING: Test ranking hypotheses (e.g. Top-K)
-        - TOP_K_IDENTIFICATION: Identify top-K items
-        """
-        
-        return self.llm.parse(system_prompt, instruction, data_context)
-```
-
-#### 5.2 Visualization Dashboard
-
-The visualization component provides interactive exploration of ranking results:
-
-- **Ranking Plot**: Items ordered by estimated preference scores with confidence intervals
-- **Transition Matrix Heatmap**: Visualization of the Markov chain structure
-- **Uncertainty Quantification**: Rank confidence interval display
-
----
-
-### 6. System Workflow Examples
-
-#### 6.1 Example: Sports Team Ranking
-
-```
-User Input:
-"I have match results from a soccer tournament. Each match has 2-4 teams 
-competing, and I want to rank all 20 teams with statistical confidence."
-
-[Data uploaded: tournament_results.csv]
-
-OmniRank Workflow:
-
-1. PLANNER AGENT:
-   - Classifies intent: RANKING_ESTIMATION + CONFIDENCE_INTERVAL
-   - Plans workflow with multiway comparison handling
-
-2. DATA AGENT:
-   - Parses CSV, identifies multiway comparison format
-   - Validates: 156 matches, 20 teams, edge sizes 2-4
-   - Constructs comparison hypergraph
-
-3. ENGINE ORCHESTRATOR:
-   - Configures spectral_ranking_step1.R parameters
-   - Executes spectral ranking computation
-   - Computes bootstrap confidence intervals
-
-4. SPECTRAL ENGINE:
-   - Executes spectral ranking computation
-   - Computes 95% confidence intervals
-
-5. INFERENCE AGENT:
-   Produces interpretation:
-   
-   "Ranking Analysis Results (20 teams, 156 matches):
-   
-   **Top 5 Teams:**
-   1. Team A (θ̂ = 1.82) - Rank CI: [1, 2]
-   2. Team B (θ̂ = 1.56) - Rank CI: [1, 3]
-   3. Team C (θ̂ = 1.34) - Rank CI: [2, 4]
-   4. Team D (θ̂ = 1.21) - Rank CI: [3, 5]
-   5. Team E (θ̂ = 0.98) - Rank CI: [4, 7]
-   
-   The narrow confidence intervals for top teams indicate 
-   strong statistical evidence for their relative positions.
-   Teams A and B have overlapping CIs, suggesting they may
-   be statistically indistinguishable at the 95% level."
-```
-
-
-
----
-
-### 8. Technical Specifications
-
-#### 8.1 LLM Requirements
-
-| Component | Recommended Model | Minimum Capability |
-|-----------|------------------|-------------------|
-| Data Agent | GPT-5-mini | Schema inference, semantic analysis |
-| Engine Orchestrator | N/A | Deterministic execution (no LLM required) |
-| Analyst Agent | GPT-5-mini | Report generation, Q&A, error diagnosis |
-
-#### 8.2 Computational Requirements
-
-| Task | Complexity | Typical Runtime |
-|------|-----------|----------------|
-| Spectral Estimation | O(n³) | < 1s for n < 1000 |
-| Bootstrap CI (B=2000) | O(B × n²) | < 30s for n < 500 |
-
-#### 8.3 System Dependencies
-
-**Backend (Python)**
-```
-Python >= 3.11
-FastAPI >= 0.110
-LangGraph >= 0.2
-Pydantic >= 2.0
-openai >= 1.0
-pandas >= 2.0
-networkx >= 3.0
-```
-
-**Frontend (Node.js)**
-```
-Node.js >= 20
-Next.js 15
-React 18
-TypeScript 5
-Tailwind CSS 3
-Recharts 2
-react-force-graph
-```
-
-**Spectral Engine (R)**
-```
-R >= 4.0
-```
-
-#### 8.4 Reproducibility Framework
-
-JASA-ACS requires rigorous reproducibility standards. OmniRank implements the following framework:
-
-##### 8.4.1 Version Control and Environment
-
-| Component | Specification |
-|-----------|---------------|
-| Code Repository | GitHub with tagged releases |
-| Python Environment | `requirements-lock.txt` with pinned versions |
-| R Environment | `renv.lock` for R dependency isolation |
-| Random Seeds | Configurable with default=42 for all stochastic operations |
-
-##### 8.4.2 Master Reproduction Script
-
-```bash
-# reproduce_all.sh - Master script for full reproduction
-#!/bin/bash
-set -e
-
-# Step 1: Environment Setup
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-lock.txt
-Rscript -e "renv::restore()"
-
-# Step 2: Run Synthetic Experiments (Section 4.1)
-python scripts/experiments/run_synthetic.py --seed 42 --output results/synthetic/
-
-# Step 3: Run Agent Capability Evaluation (Section 4.2)
-python scripts/experiments/run_agent_eval.py --output results/agent_eval/
-
-# Step 4: Run Case Studies (Section 5)
-python scripts/experiments/run_case_studies.py --output results/case_studies/
-
-# Step 5: Generate Figures and Tables
-python scripts/figures/generate_all.py --input results/ --output figures/
-
-echo "Reproduction complete. Results in results/ and figures/"
-```
-
-##### 8.4.3 Data Packaging
-
-| Data Type | Location | Description |
-|-----------|----------|-------------|
-| Example Datasets | `data/examples/` | Synthetic datasets for testing |
-| Case Study Data | `data/case_studies/` | Real-world datasets used in paper |
-| Data Dictionary | `data/DATA_DICTIONARY.md` | Column definitions and metadata |
-| Pseudo-data Generator | `scripts/generate_pseudo_data.py` | For sensitive data scenarios |
-
-##### 8.4.4 Output Verification
-
-```python
-# verify_reproduction.py - Verify results match published values
-import json
-import numpy as np
-
-def verify_equivalence(computed: dict, published: dict, tolerance: float = 1e-6) -> bool:
-    """Verify computed results match published results within tolerance."""
-    for key in published:
-        if isinstance(published[key], float):
-            if abs(computed[key] - published[key]) > tolerance:
-                return False
-    return True
-
-# Expected outputs from paper
-EXPECTED_RESULTS = {
-    "synthetic_spearman_rho": 0.985,
-    "format_detection_accuracy": 0.927,
-    "schema_inference_accuracy": 1.000
-}
-```
-
-##### 8.4.5 Author Contributions Checklist (ACC) Compliance
-
-OmniRank documentation addresses all JASA-ACS ACC requirements:
-
-| ACC Item | Status | Location |
-|----------|--------|----------|
-| Code availability | Provided | `src/`, GitHub repository |
-| Data availability | Provided | `data/`, with Data Dictionary |
-| Computational environment | Specified | `requirements-lock.txt`, `renv.lock` |
-| Random seed specification | Provided | Default seed=42, configurable |
-| Master reproduction script | Provided | `reproduce_all.sh` |
-| Output verification | Provided | `verify_reproduction.py` |
-
----
-
-### 9. Comparison with Related Systems
-
-| Feature | OmniRank | LAMBDA | GPT-4 ADA | ChemCrow |
-|---------|----------|--------|-----------|----------|
-| **Domain Focus** | Ranking Inference | General Data Analysis | General | Chemistry |
-| **Statistical Rigor** | ✓ Minimax optimal | ✓ Standard ML | ✗ Prone to errors | ✓ Domain-specific |
-| **Uncertainty Quantification** | ✓ Asymptotic + Bootstrap | ✗ Limited | ✗ None | ✗ Limited |
-| **Multi-Agent Architecture** | ✓ 3 specialized components | ✓ 2 agents | ✗ Single | ✓ Multiple tools |
-| **Self-Correction** | ✓ Inspector agent | ✓ Inspector agent | ✗ No | ✓ Iterative |
-| **Human-in-the-Loop** | ✓ Full support | ✓ Full support | ✗ No | ✓ Limited |
-| **Tool Ecosystem** | ✓ Modular | ✓ KV base | ✗ No | ✓ Tool-based |
-| **Code Export** | ✓ Python/R | ✓ IPython | ✓ Python | ✗ No |
-
----
-
-### 10. Conclusion
-
-The OmniRank LLM Agent System Architecture provides a **rigorous, accessible, and extensible** framework for spectral ranking inferences. Key architectural decisions include:
-
-1. **Decoupled Architecture**: Clear separation between LLM reasoning and mathematical computation ensures both accessibility and statistical rigor.
-
-2. **Modular Collaboration**: Specialized components handle distinct aspects of the analysis pipeline (Data, Engine, Analyst).
-
-3. **Self-Correction Mechanism**: The Inspector Agent provides robust error handling with human-in-the-loop fallback.
-
-4. **Tool Ecosystem**: Modular integration of ranking engine, visualization generator, and report generator enables comprehensive analysis workflows.
-
-5. **Comprehensive Uncertainty Quantification**: Full implementation of asymptotic variance estimation and bootstrap confidence intervals.
-
-This architecture successfully addresses the potential reviewer concern about "LLM Agent as a Wrapper" by demonstrating substantive agent participation in:
-- Complex intent parsing and workflow planning
-- Engine orchestration with parameter configuration
-- Error diagnosis and self-correction
-- Statistical result interpretation and communication
-
-The design aligns with the standards of top-tier statistical journals while making advanced spectral ranking methods accessible to non-statisticians through natural language interaction.
-
----
-
-### Architecture's References
-
-1. Fan, J., Lou, Z., Wang, W., Yu, M. (2023). Spectral Ranking Inferences Based on General Multiway Comparisons. *arXiv preprint arXiv:2308.02918*.
-
-2. Sun, M., Han, R., Jiang, B., Qi, H., Sun, D., Yuan, Y., Huang, J. (2024). LAMBDA: A Large Model Based Data Agent. *Journal of the American Statistical Association - Applications and Case Studies*.
-
-3. Yao, S., et al. (2023). ReAct: Synergizing Reasoning and Acting in Language Models. *ICLR*.
-
-4. Schick, T., et al. (2023). Toolformer: Language Models Can Teach Themselves to Use Tools. *NeurIPS*.
-
-## Methodology
-
-OmniRank employs a streamlined multi-agent architecture to perform spectral ranking inference. The system uses a fixed pipeline triggered by user data upload, with two specialized agents handling data processing and analysis, respectively.
-
-### 3.1 Overview
-
-OmniRank is structured around three core components: the **Data Agent**, **Engine Orchestrator**, and **Analyst Agent**. The Data Agent handles data preprocessing and parameter inference. The Engine Orchestrator invokes the spectral ranking computation. The Analyst Agent generates reports, visualizations, and handles user Q&A by combining ranking results with spectral ranking knowledge. Error diagnosis is also performed by the Analyst Agent.
-
-When users upload comparison data, the workflow proceeds as follows: The Data Agent preprocesses the data and infers the semantic schema (including `bigbetter`, items, and indicators). **Users then verify and refine these settings via the system's interactive configuration panel.** Upon confirmation, the Engine Orchestrator invokes `spectral_ranking_step1.R` to compute rankings. If errors occur, the Analyst Agent diagnoses the issue and requests corrections. Upon successful computation, the Analyst Agent generates reports, visualizations, and supports ongoing Q&A with users. The workflow is formalized in Algorithm 1.
-
-**Algorithm 1** OmniRank Workflow.
-
-**Require:** $Da$: Data Agent, $Eo$: Engine Orchestrator, $An$: Analyst Agent, $M$: Session Memory
-**Require:** $d$: Dataset provided by user, $T$: Maximum number of attempts
-
-// Phase 1: Data Processing & Configuration
-1: $schema \leftarrow Da$.infer\_schema($d$)  $\quad \triangleright$ Infer BigBetter, Items, Indicator
-2: $params \leftarrow Eo$.configure($schema$, $User\_Input$)  $\quad \triangleright$ Interactive user verification (Select indicator values)
-3: $M$.update_data_state($schema$, $params$)
-
-// Phase 2: Computation
-4: $n \leftarrow 0$
-5: $result \leftarrow Eo$.execute($params$)  $\quad \triangleright$ Execute spectral_ranking_step1.R
-
-// Phase 3: Error Handling (Analyst diagnoses)
-11: **while** $result = ERROR$ **and** $n < T$ **do**
-12:    $n \leftarrow n + 1$
-13:    $error\_type, suggestions \leftarrow An$.diagnose($result$.error, $M$.trace)
-14:    // ... [Error handling logic same as before] ...
-15:    $result \leftarrow Eo$.re\_execute($params$)
-16: **end while**
-
-// Phase 4: Output Generation
-// ... [Same as before] ...
-
-### 3.2 Data Agent
-    
-The Data Agent acts as the intelligent interface between user data and the spectral engine, performing two critical functions to ensure data readiness and semantic understanding.
-
-**Function 1: Format Recognition & Standardization & Validation.** The agent automatically identifies the structure of uploaded data (e.g., Pointwise, Pairwise, Multiway) and validates its suitability for spectral ranking. The recognition component adapts to diverse input structures, preserving original data fidelity while ensuring compatibility with the spectral engine (`spectral_ranking_step1.R`). The validation component performs targeted sanity checks:
-- **Sparsity Warnings**: Issued when comparison counts fall below the theoretical threshold $M < n \log n$, where $M$ denotes total pairwise comparisons and $n$ the number of items. This threshold, established by Fan et al. (2023), represents the minimum sample complexity required for consistent spectral estimation, analogous to the coupon collector bound.
-- **Connectivity Warnings**: Issued when the comparison graph is disjoint (verified using `networkx`), indicating that global rankings cannot be computed and results will only be meaningful within connected components.
-- **Critical Errors**: Issued when required ranking columns are missing or fewer than two items are present, blocking execution entirely.
-Data classified as `invalid` (e.g., insufficient numeric columns, all-text data) is rejected with explanatory feedback generated by the LLM in plain language. This tiered approach ensures users understand data limitations without blocking valid exploratory analysis.
-
-**Function 2: Semantic Schema Inference.** Beyond format recognition, the agent infers the semantic role of data components to facilitate flexible downstream analysis. This includes:
-- **Preference Direction (`bigbetter`)**: Inferring whether higher values indicate better performance (e.g., accuracy) or worse performance (e.g., latency) using both macro-level column naming patterns and micro-level value distributions.
-- **Ranking Items Identification**: Identifying the entities to be ranked (e.g., "ChatGPT", "Claude").
-- **Ranking Indicators Identification**: Identifying categorical dimensions (e.g., "Task"). CRITICAL: The agent extracts at most ONE indicator column to maintain analysis focus.
-- **Indicator Values Extraction**: Extracting unique semantic groups (e.g., "code", "math") within the selected indicator.
-This metadata enables the Engine Orchestrator to expose precise control parameters to the user, allowing for customized rankings based on specific items or indicator segments.
-
-### 3.3 Engine Orchestrator
-
-The Engine Orchestrator is a **deterministic system component** that manages the transition from data schema to statistical computation. It ensures execution reliability through interactive configuration and robust resource management.
-
-**Function 1: Interactive Configuration Management.** The orchestrator empowers users to fine-tune the analysis by exposing the metadata inferred by the Data Agent. Through an interactive control panel, users can:
-- **Parameter Adjustment**: Verify and modify the **Preference Direction** (`bigbetter`), select specific **Ranking Items** subsets, or choose distinct **Ranking Indicators** for analysis.
-- **Advanced Options**: Configure statistical parameters such as **Bootstrap Iterations** (default to 2000 for robust CIs) and **Random Seed** (default to 42 for reproducibility).
-This ensures that the final execution aligns precisely with user intent, even if the Data Agent's initial inferences require adjustment.
-
-**Function 2: Robust Engine Execution.** It encapsulates the spectral ranking logic, executing it within isolated processes:
-1. **Execution**: Invokes the spectral engine (`spectral_ranking_step1.R`) using uniform weighting ($f(A_l)=|A_l|$) to obtain consistent estimates.
-2. **Output Parsing**: Parses the JSON output from the R script and constructs the ranking result object with confidence intervals.
-3. **Trace Logging**: Records execution parameters and results in session memory for potential error diagnosis.
-This deterministic workflow ensures reliable and reproducible ranking computations.
-
-### 3.4 Analyst Agent
-
-The Analyst Agent is responsible for all post-computation tasks: report generation, visualization, user Q&A, and error diagnosis. Upon receiving ranking results from the Engine Orchestrator, the Analyst Agent performs two critical functions.
-
-**Function 1: Report & Visualization Generation.** The agent transforms raw ranking results into comprehensive, publication-ready outputs through two complementary processes:
-- **Report Synthesis**: Generates structured reports containing: executive summary highlighting key findings and top-ranked items, detailed rankings with confidence intervals and statistical significance indicators, methodology notes explaining the spectral approach, and actionable insights tailored to the data domain. Reports are rendered in both markdown (for quick review) and PDF formats (for formal documentation).
-- **Visualization Production**: Creates a suite of interactive and static visualizations including: (1) rank plots with confidence interval error bars showing uncertainty in rankings, (2) pairwise comparison heatmaps revealing win/loss patterns between items, and (3) preference score distributions displaying the estimated $\theta$ values.
-
-**Function 2: Interactive User Q&A.** The agent handles follow-up questions from users by combining session memory with external spectral ranking knowledge. The session memory architecture maintains three components within each analysis session:
-- **Data State**: Current data schema, validation results, and inferred parameters
-- **Execution Trace**: Log of all computation invocations for error diagnosis
-- **Conversation Context**: User intent history enabling follow-up queries
-
-This architecture enables natural conversational workflows—for example, after computing initial rankings, a user can simply ask "Is model A significantly better than model B?" without re-uploading data or restating the analysis context. The agent interprets such queries by retrieving relevant confidence intervals from the results and applying spectral ranking theory to provide statistically grounded answers.
-
-### 3.5 Agent System Prompts
-
-We present the system prompts design for the two reasoning agents: the **Data Agent** and the **Analyst Agent**. The Engine Orchestrator, being a deterministic component, does not utilize LLM prompts.
-
-Each agent incorporates a **Knowledge Layer** that embeds domain expertise directly into its system prompt, following OpenAI's recommended Structured System Instructions pattern. This enables expert-level theoretical grounding without requiring users to provide specialized knowledge. For example, the Analyst Agent's knowledge layer includes spectral ranking theory concepts such as confidence interval interpretation and the spectral estimation method.
-
-**Figure 2: Data Agent Prompt Strategy.**
-![Data Agent Prompt](https://placehold.co/600x400?text=Data+Agent+Prompt+Placeholder)
-
-**Figure 3: Engine Orchestrator Prompt Strategy.**
-![Engine Orchestrator Prompt](https://placehold.co/600x400?text=Engine+Orchestrator+Prompt+Placeholder)
-
-**Figure 4: Analyst Agent Prompt Strategy.**
-![Analyst Agent Prompt](https://placehold.co/600x400?text=Analyst+Prompt+Placeholder)
-
-### 3.6 User interface
-
-OmniRank provides an accessible, chat-based interface that guides users through a three-stage analysis workflow:
-
-1.  **Data Analysis**: Users upload raw datasets, and the Data Agent automatically infers the structure and semantic schema.
-2.  **Interactive Configuration**: The interface presents the inferred settings (e.g., preference direction, ranking items) in a visual control panel. Users confirm or adjust these settings, which are then validated and passed to the Engine Orchestrator for deterministic execution.
-3.  **Results & Exploration**: The Analyst Agent presents the final rankings, visualizations, and a natural language summary. Users can then ask follow-up questions (e.g., "Is the top model significantly better than the second?") to explore the results deeply without restarting the session.
-
-This design enables experts and non-experts alike to leverage spectral ranking methods with confidence and precision.
-
-To summarize, the Data Agent, Engine Orchestrator, and Analyst Agent collectively ensure the reliability and accessibility of OmniRank through a streamlined fixed pipeline. The modular architecture makes OmniRank flexible for diverse ranking applications across social and natural sciences.
-
-### 3.7 Spectral ranking inference engine
-
-In general, the spectral ranking approach transforms comparison data into a Markov chain over the $n$ items and leverages its stationary distribution to infer item scores. We assume there are $n$ items to be ranked, and the preference scores of a given group of $n$ items can be parameterized as $\boldsymbol{\theta}^* = (\theta_1^*, \ldots, \theta_n^*)^T$ such that for any choice set $A$ and item $i \in A$ we have:
-
-$$P(i \text{ wins among } A) = \frac{e^{\theta_i^*}}{\sum_{k \in A} e^{\theta_k^*}}$$
-
-For a general comparison model of the $n$ items, we are given a collection of comparisons and outcomes $\{(c_l, A_l)\}_{l \in D}$ where $c_l$ denotes the selected item over the choice set $A_l$. We construct a directed comparison graph where each item corresponds to a state, and define a transition matrix $P$ with entries:
-
-$$P_{ij} = \frac{1}{d} \sum_{l \in W_j \cap L_i} \frac{1}{f(A_l)}$$
-
-where $W_j = \{l \in D | j \in A_l, c_l = j\}$ and $L_i = \{l \in D | i \in A_l, c_l \neq i\}$ are index sets for comparisons where $j$ wins and $i$ loses, respectively. This matrix characterizes a Markov chain whose long-term visiting frequency reflects the underlying preference structure.
-
-The stationary distribution $\hat{\pi}$ of this chain—obtained as the leading eigenvector of $P^T$ associated with eigenvalue 1—serves as the spectral score for each item. Compared to likelihood-based models such as Bradley-Terry-Luce (BTL) or Plackett-Luce (PL), which require iterative optimization, spectral methods are computationally simpler: only a single eigen-decomposition is needed, with $O(n^3)$ complexity.
-
-The spectral scores are transformed into estimated preference parameters via:
-
-$$\tilde{\theta}_i = \log \hat{\pi}_i - \frac{1}{n} \sum_{k=1}^{n} \log \hat{\pi}_k$$
-
-Finally, the inferred ranking is produced by sorting $\tilde{\theta}_i$ in descending order. For uncertainty quantification, we employ the Gaussian multiplier bootstrap method to construct confidence intervals for ranks, as detailed in Fan et al. (2023).
+**Single-Source Constraint**: All prompts used by the OmniRank agent system MUST reside exclusively in ONE file. No prompts shall be scattered across multiple modules, configs, or inline strings. This ensures maintainability, version control clarity, and consistent prompt governance.

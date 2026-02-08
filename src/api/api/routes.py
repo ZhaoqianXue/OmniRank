@@ -453,7 +453,7 @@ async def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     
     The Engine Orchestrator will:
     1. Preprocess data based on user configuration
-    2. Execute spectral_ranking_step1.R with bootstrap confidence intervals
+    2. Execute spectral_ranking.R with bootstrap confidence intervals
     3. Return ranking results with uncertainty quantification
     """
     store = get_session_store()

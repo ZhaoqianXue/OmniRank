@@ -90,7 +90,7 @@ Remove all Step 2 related content from the OmniRank project while retaining only
 - Remove: Decision logic for Step 2   
 - Remove: execute_step2() method calls
 - Remove: should_run_step2() function usage
-- Simplify: Execute only Step 1 (spectral_ranking_step1.R)
+- Simplify: Execute only Step 1 (spectral_ranking.R)
 
 ### Architecture Description Changes
 - Remove: "Two-Step Spectral Method" descriptions
