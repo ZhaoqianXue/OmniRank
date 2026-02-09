@@ -31,6 +31,7 @@ downloads/
 output/
 results/
 Spectral_Ranking/
+Ranking/
 
 # Large data files
 *.csv.bak

@@ -235,18 +235,19 @@ If file path is not explicitly specified, default to:
 
 ## Read-Only Reference Directory
 
-**IMPORTANT**: The `Spectral_Ranking` folder is **READ-ONLY** and serves **ONLY** as references.
+**IMPORTANT**: The `Spectral_Ranking` and `Ranking` folders are **READ-ONLY** and serve **ONLY** as references.
 
 ### Rules:
-- **DO NOT** modify any files within the `Spectral_Ranking` folder
-- **DO NOT** use any code from this folder directly in the project
-- **ONLY** read and reference files in this folder to understand spectral ranking implementations, simulations, and real-world data applications.
-- All files in this folder are for reference purposes only
+- **DO NOT** modify any files within these folders
+- **DO NOT** use any code from these folders directly in the project
+- **ONLY** read and reference files in these folders to understand spectral ranking implementations, simulations, and real-world data applications.
+- All files in these folders are for reference purposes only
 
 ### Purpose:
 - **Spectral_Ranking**: Contains reference implementations, simulations, and real-data applications of spectral ranking methods.
+- **Ranking**: Reference implementation of the Robust Ranking Framework (https://github.com/ZhaoqianXue/Ranking).
 
-Use this solely as a learning resource, not as a codebase to modify or extend.
+Use these solely as learning resources, not as codebases to modify or extend.
 
 ## Automatic Skill Integration
 
