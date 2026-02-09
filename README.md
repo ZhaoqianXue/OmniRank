@@ -91,6 +91,37 @@ npm run lint
 npm run build
 ```
 
+## Deploy To Render
+
+Render Blueprint is defined in `render.yaml` at repo root.
+
+- `omnirank-backend`:
+  - Runtime: Docker (`Dockerfile.backend`)
+  - Health check: `/health`
+  - Persistent disk mounted at `/opt/render/project/src/runtime_data`
+  - Session workspace path set with `OMNIRANK_SESSION_DIR=/opt/render/project/src/runtime_data/sessions`
+- `omnirank-frontend`:
+  - Runtime: Node
+  - Root directory: `src/web`
+  - Build: `npm ci && npm run build`
+  - Start: `npm run start -- -H 0.0.0.0 -p $PORT`
+
+Required env vars on Render:
+
+- Backend:
+  - `OPENAI_API_KEY` (secret)
+  - `OPENAI_MODEL` (default in blueprint: `gpt-5-mini`)
+  - `CORS_ORIGINS` (comma-separated frontend origins)
+- Frontend:
+  - `NEXT_PUBLIC_API_URL` (public HTTPS URL of backend service)
+
+Deploy steps:
+
+1. Push this repository to GitHub/GitLab.
+2. In Render, create a new Blueprint service from the repo.
+3. Confirm service names/regions/plans from `render.yaml`.
+4. Set secret values (at minimum `OPENAI_API_KEY`), then deploy.
+
 ## Notes
 
 - `Spectral_Ranking/` is read-only reference material and is not part of runtime code.

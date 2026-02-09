@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import traceback
 from contextlib import asynccontextmanager
 
@@ -19,6 +20,18 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+DEFAULT_CORS_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
+
+
+def _load_cors_origins() -> list[str]:
+    """Parse CORS origins from env var or fallback to local defaults."""
+    raw = os.getenv("CORS_ORIGINS", "")
+    if not raw.strip():
+        return list(DEFAULT_CORS_ORIGINS)
+    origins = [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
+    # Preserve insertion order while removing duplicates.
+    return list(dict.fromkeys(origins)) or list(DEFAULT_CORS_ORIGINS)
 
 
 @asynccontextmanager
@@ -38,7 +51,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=_load_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 import time
 import uuid
@@ -29,6 +30,7 @@ from .schemas import (
 
 
 SAFE_FILENAME_PATTERN = re.compile(r"[^A-Za-z0-9._-]")
+SESSION_DIR_ENV_KEY = "OMNIRANK_SESSION_DIR"
 
 
 def _now_iso() -> str:
@@ -163,7 +165,15 @@ class SessionStore:
 
     def __init__(self, temp_dir: Optional[Path] = None):
         self._sessions: dict[str, SessionMemory] = {}
-        self._temp_dir = temp_dir or Path(tempfile.gettempdir()) / "omnirank_sessions"
+        if temp_dir is not None:
+            self._temp_dir = temp_dir
+        else:
+            configured_root = os.getenv(SESSION_DIR_ENV_KEY, "").strip()
+            self._temp_dir = (
+                Path(configured_root).expanduser()
+                if configured_root
+                else Path(tempfile.gettempdir()) / "omnirank_sessions"
+            )
         self._temp_dir.mkdir(parents=True, exist_ok=True)
 
     def create_session(self) -> SessionMemory:

@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: omnirank-backend
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerContext: .
+    dockerfilePath: Dockerfile.backend
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
+      - key: CORS_ORIGINS
+        value: https://omnirank-frontend.onrender.com,http://localhost:3000,http://127.0.0.1:3000
+      - key: OMNIRANK_SESSION_DIR
+        value: /opt/render/project/src/runtime_data/sessions
+    disk:
+      name: runtime-data
+      mountPath: /opt/render/project/src/runtime_data
+      sizeGB: 1
+
+  - type: web
+    name: omnirank-frontend
+    runtime: node
+    plan: starter
+    region: oregon
+    rootDir: src/web
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -H 0.0.0.0 -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: NEXT_PUBLIC_API_URL
+        value: https://omnirank-backend.onrender.com

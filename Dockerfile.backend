@@ -1,0 +1,29 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install system-level dependencies and R runtime required by spectral_ranking.R.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    r-base r-base-dev build-essential gfortran \
+    libcurl4-openssl-dev libssl-dev libxml2-dev \
+    libblas-dev liblapack-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install required R packages used by src/spectral_ranking/spectral_ranking.R.
+RUN R -e "install.packages(c('readr','dplyr','jsonlite'), repos='https://cloud.r-project.org')"
+
+WORKDIR /opt/render/project/src
+
+# Install backend Python dependencies first for better layer caching.
+COPY src/api/requirements.txt ./src/api/requirements.txt
+RUN pip install --no-cache-dir -r src/api/requirements.txt
+
+# Copy runtime source code and built-in example datasets.
+COPY src ./src
+COPY shared ./shared
+COPY data ./data
+
+EXPOSE 10000
+
+CMD ["sh", "-c", "uvicorn main:app --app-dir src/api --host 0.0.0.0 --port ${PORT:-10000}"]
