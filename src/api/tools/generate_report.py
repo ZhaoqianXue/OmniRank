@@ -46,9 +46,16 @@ def _stable_block_id(prefix: str, payload: Any) -> str:
 def _escape_table_cell(value: Any) -> str:
     """Escape markdown table cell content (pipes and newlines)."""
     text = str(value)
+    # Escape HTML-sensitive chars so untrusted item names cannot render raw tags.
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     text = text.replace("|", "\\|")
     text = text.replace("\n", " ")
     return text
+
+
+def _sanitize_inline_text(value: str) -> str:
+    """Escape HTML-sensitive characters for inline markdown text."""
+    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _top_item(results: RankingResults) -> tuple[str, float, int]:
@@ -334,6 +341,7 @@ def _build_llm_narrative(
     # ── Methods ──────────────────────────────────────────────────────────
     B = session_meta.get("B", 2000)
     seed = session_meta.get("seed", 42)
+    input_path = _sanitize_inline_text(str(session_meta.get("current_file_path") or "N/A"))
     methods = (
         "### Estimation Procedure\n"
         "- **Spectral estimator**: Build a comparison graph, construct a Markov chain, and estimate latent preference scores from its stationary distribution.\n"
@@ -343,6 +351,7 @@ def _build_llm_narrative(
         "- **Interval type**: 95% bootstrap confidence intervals for rank uncertainty.\n"
         "- **Bootstrap engine**: Gaussian multiplier bootstrap (Fan et al., 2023).\n\n"
         "### Run Configuration\n"
+        f"- **Input file**: `{input_path}`\n"
         f"- **Bootstrap iterations (B)**: {B}\n"
         f"- **Random seed**: {seed}"
     )
@@ -498,10 +507,13 @@ def generate_report(
     markdown content so that CommonMark parsers render headings, bold,
     bullets, tables, etc. correctly inside sections.
     """
-    narrative = _build_llm_narrative(results, session_meta)
-    top_item, top_score, top_rank = _top_item(results)
-    analysis = _analyze_ranking(results)
-    ranking_table = _render_ranking_table(results)
+    render_results = results.model_copy(deep=True)
+    render_results.items = [_sanitize_inline_text(item) for item in results.items]
+
+    narrative = _build_llm_narrative(render_results, session_meta)
+    top_item, top_score, top_rank = _top_item(render_results)
+    analysis = _analyze_ranking(render_results)
+    ranking_table = _render_ranking_table(render_results)
 
     # ── Block IDs ────────────────────────────────────────────────────────
     summary_bid = _stable_block_id(
@@ -560,7 +572,7 @@ def generate_report(
         "table",
         ranking_table,
     )
-    ranking_interpretation_md = _build_ranking_interpretation(results, analysis)
+    ranking_interpretation_md = _build_ranking_interpretation(render_results, analysis)
     result_detail_md = _section(
         result_detail_bid,
         "result",

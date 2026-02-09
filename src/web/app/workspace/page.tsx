@@ -305,7 +305,7 @@ export default function Home() {
                   />
                 </CardContent>
 
-                {/* Smart Chat Input with Quick Start */}
+                {/* Smart Chat Input with Suggest Question */}
                 <div className="p-2 border-t border-border/40">
                   <ChatInput
                     onSend={handleSendMessage}
@@ -313,6 +313,10 @@ export default function Home() {
                     placeholder="Type your message..."
                     quoteDrafts={quoteDrafts}
                     onQuoteDraftsChange={setQuoteDrafts}
+                    recentMessages={state.messages
+                      .filter((message) => message.content.trim().length > 0)
+                      .slice(-8)
+                      .map((message) => ({ role: message.role, content: message.content }))}
                     status={state.status}
                     schema={state.schema}
                     results={state.results}

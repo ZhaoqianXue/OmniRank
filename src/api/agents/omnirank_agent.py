@@ -340,11 +340,43 @@ class OmniRankAgent:
             report=report,
         )
 
+    @staticmethod
+    def _build_question_session_context(session: SessionMemory) -> dict[str, Any]:
+        """Build lightweight session context for stage-agnostic Q&A."""
+        context: dict[str, Any] = {
+            "status": session.status.value,
+            "filename": session.filename,
+        }
+        if session.inferred_schema is not None:
+            context["schema"] = session.inferred_schema.model_dump()
+        elif session.confirmed_schema is not None:
+            context["schema"] = session.confirmed_schema.model_dump()
+
+        if session.format_validation_result is not None:
+            context["format_issues"] = list(session.format_validation_result.issues)
+
+        if session.quality_validation_result is not None:
+            context["quality_warnings"] = list(session.quality_validation_result.warnings)
+            context["quality_errors"] = list(session.quality_validation_result.errors)
+
+        if session.config is not None:
+            context["config"] = {
+                "B": session.config.B,
+                "seed": session.config.seed,
+                "selected_items_count": len(session.config.selected_items or []),
+            }
+
+        if session.current_results is not None:
+            context["has_results"] = True
+            context["n_items"] = len(session.current_results.items)
+            order = sorted(range(len(session.current_results.ranks)), key=lambda i: session.current_results.ranks[i])
+            context["top_items"] = [session.current_results.items[idx] for idx in order[:3]]
+        else:
+            context["has_results"] = False
+        return context
+
     def answer(self, session: SessionMemory, question: str, quotes: list[QuotePayload] | None = None) -> AnswerOutput:
         """Answer follow-up question with quote-aware support."""
-        if session.current_results is None:
-            raise RuntimeError("No ranking results available for question answering.")
-
         citation_lookup = {}
         if session.report_output is not None:
             citation_lookup = {
@@ -360,6 +392,7 @@ class OmniRankAgent:
             results=session.current_results,
             citation_blocks=citation_lookup,
             quotes=quotes or [],
+            session_context=self._build_question_session_context(session),
         )
 
         return answer

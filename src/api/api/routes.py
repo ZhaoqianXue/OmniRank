@@ -34,6 +34,7 @@ from core.schemas import (
     UploadResponse,
 )
 from core.session_memory import get_session_store
+from tools.answer_question import answer_question as answer_question_tool
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["omnirank"])
@@ -343,6 +344,31 @@ async def ask_question(session_id: str, request: QuestionRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     store.update_session(session)
+    return QuestionResponse(answer=answer)
+
+
+@router.post("/question", response_model=QuestionResponse)
+async def ask_question_global(request: QuestionRequest):
+    """Answer question with optional session context; supports no-session chat."""
+    if request.session_id:
+        store = get_session_store()
+        session = store.get_session(request.session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        try:
+            answer = agent.answer(session=session, question=request.question, quotes=request.quotes)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        store.update_session(session)
+        return QuestionResponse(answer=answer)
+
+    answer = answer_question_tool(
+        question=request.question,
+        results=None,
+        citation_blocks={},
+        quotes=request.quotes,
+        session_context={"status": "idle", "has_results": False},
+    )
     return QuestionResponse(answer=answer)
 
 

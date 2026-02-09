@@ -385,6 +385,7 @@ class RunJobStatusResponse(BaseModel):
 class QuestionRequest(BaseModel):
     """Question request payload."""
 
+    session_id: Optional[str] = None
     question: str
     quotes: list[QuotePayload] = Field(default_factory=list)
 

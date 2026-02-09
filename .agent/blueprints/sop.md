@@ -171,6 +171,48 @@ Phase 3: Output Generation
            │
            ▼
     answer_question(question, session)   [User Q&A Loop - multiple iterations]
+
+Q&A Availability (cross-phase):
+- Users can ask OmniRank Agent questions at **any time**, not only after report generation.
+- Before ranking is completed, `answer_question` must answer with stage-aware guidance and method context.
+- After ranking is completed, `answer_question` must use result-level evidence (theta_hat, integer CIs, citation blocks).
+- Composer-level `Suggest Question` prompts must be generated from the **user's perspective** (likely next user question), not assistant instructions.
+- For latency-sensitive UX, `Suggest Question` uses local deterministic templates (hardcoded, context-aware) rather than round-trip LLM calls.
+
+Suggest Question Product Logic (PM requirements):
+- Objective: maximize next-step clarity and reduce user cognitive load in chat.
+- Constraint: always return exactly **2** candidate questions.
+- UX principle: candidate questions must be actionable, concise, and decision-oriented (avoid meta prompts like "do you want me to...").
+
+Scenario routing (priority order):
+1. **Quoted context present**:
+   - Priority question should interpret the quoted claim for decision-making.
+   - Secondary question should focus on uncertainty/risk (CI caveat or evidence consistency).
+   - If multiple quotes exist, one question should ask to reconcile conflicts across quotes.
+2. **Session status = error**:
+   - Question 1: root cause + fastest fix.
+   - Question 2: what can still be trusted/asked while blocked.
+3. **Session status = analyzing**:
+   - Question 1: what to inspect first once results arrive.
+   - Question 2: how CI overlap will affect decision threshold.
+4. **Post-schema (configuring)**:
+   - Questions should de-risk run configuration (direction, indicator usage, validation checks).
+   - If `indicator_col` exists, one question must address segmented vs overall ranking strategy.
+5. **Post-analysis (completed)**:
+   - Question 1 should be top-vs-runner-up robustness under integer CI interpretation.
+   - Question 2 should identify practical tie/tier decisions.
+6. **Pre-upload / idle**:
+   - Questions should focus on data readiness and method assumptions before running.
+
+Draft-aware refinement:
+- If user has partially typed input, use it as the first candidate seed.
+- Convert draft into a high-value analytical question (comparison / uncertainty / method / setup / error-fix intent).
+- Never output the raw unfinished fragment unchanged unless it is already a clear question.
+
+Quality guardrails:
+- Use only user-perspective phrasing.
+- Avoid duplicate semantics across the two suggestions.
+- Prefer concrete nouns from current context (top item names, indicator name, quote excerpt) over generic wording.
 ```
 
 ## OmniRank Agent Tools Design
@@ -252,7 +294,7 @@ Following Context Engineering best practices from Anthropic and Manus:
   - Purpose: Answer user follow-up questions
   - Input: `question: str, session: SessionMemory, quotes: Optional[List[QuotePayload]]`
   - Output: `{answer: str, supporting_evidence: List[str], used_citation_block_ids: List[str]}`
-  - Note: Uses session.current_results and session.data_summary for context-aware answers
+  - Note: Must work in **all session stages**; uses session.current_results when available, otherwise uses session/data state + literature context (`.agent/literature/spectral_ranking_inferences.md`)
 
 ### Data Tools Details
 
@@ -739,8 +781,11 @@ def answer_question(
     """
     Answers user follow-up questions using session context and spectral knowledge.
     
-    This tool accesses session.current_results and session.data_summary to provide
-    context-aware answers without requiring full objects to be passed.
+    This tool MUST be callable in any stage. It accesses:
+    - session.current_results (if available) for item-level rank/CI answers
+    - session.data_summary / schema / status for pre-run stage-aware answers
+    - .agent/literature/spectral_ranking_inferences.md for theory-grounded context
+      and reference links (when method/statistical explanation is requested).
 
     Quote-aware follow-ups (optional):
     - If quotes are provided, prioritize answering the question with respect to the
@@ -749,13 +794,16 @@ def answer_question(
     
     Context Retrieval Strategy:
     1. Result Cache: For ranking/score queries
-       - "Is Model A better than B?" -> Compare theta_hat and CIs; avoid treating CI overlap as a formal test
+       - "Is Model A better than B?" -> Compare theta_hat and integer CIs; avoid treating CI overlap as a formal test
        
     2. Data State: For data property queries
        - "How many comparisons?" -> Check session.data_summary
        
     3. Execution Trace: For process queries
        - "Did it converge?" -> Check session.execution_trace
+
+    4. Literature Context: For methodological/statistical interpretation
+       - Cite correct paper title + URL from spectral_ranking_inferences references when needed
     
     Knowledge Base:
     - Spectral ranking theory (CI interpretation, significance testing)

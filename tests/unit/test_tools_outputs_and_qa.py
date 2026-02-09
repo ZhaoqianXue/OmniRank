@@ -87,6 +87,46 @@ def test_answer_question_without_quotes():
     assert len(answer.used_citation_block_ids) == 0
 
 
+def test_answer_question_works_before_analysis_results_are_ready():
+    answer = answer_question(
+        question="Can I ask a methodological question before running ranking?",
+        results=None,
+        citation_blocks={},
+        quotes=[],
+        session_context={"status": "uploaded", "has_results": False},
+    )
+
+    assert "Conclusion:" in answer.answer
+    assert "Session status: uploaded." in answer.answer
+
+
+def test_answer_question_integerizes_ci_from_llm_output(monkeypatch):
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "Model A is ahead with CI [1.0, 6.0].",
+                "evidence": ["Model A: CI=[1.0, 6.0]", "Model B: CI=[2.0, 7.0]"],
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    results = _sample_results()
+    answer = answer_question(
+        question="Compare A and B",
+        results=results,
+        citation_blocks={},
+        quotes=[],
+    )
+
+    assert "[1, 6]" in answer.answer
+    assert "[1.0, 6.0]" not in answer.answer
+
+
 def test_answer_question_with_quotes_uses_block_ids():
     results = _sample_results()
     quote_block_id = "summary-abc"

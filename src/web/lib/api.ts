@@ -270,14 +270,15 @@ export async function getRunJobStatus(sessionId: string, jobId: string): Promise
 }
 
 export async function askQuestion(
-  sessionId: string,
+  sessionId: string | null,
   question: string,
   quotes: QuotePayload[] = []
 ): Promise<QuestionResponse> {
-  const response = await fetchApi(`/api/sessions/${sessionId}/question`, {
+  const path = sessionId ? `/api/sessions/${sessionId}/question` : "/api/question";
+  const response = await fetchApi(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, quotes }),
+    body: JSON.stringify({ session_id: sessionId ?? undefined, question, quotes }),
   });
   return parseResponse<QuestionResponse>(response, "Failed to answer question");
 }

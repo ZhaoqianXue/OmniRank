@@ -284,6 +284,7 @@ export interface RunJobStatusResponse {
 }
 
 export interface QuestionRequest {
+  session_id?: string;
   question: string;
   quotes?: QuotePayload[];
 }

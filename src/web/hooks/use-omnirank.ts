@@ -445,9 +445,8 @@ export function useOmniRank() {
           type: "analysis-complete",
           analysisCompleteData: {
             suggestedQuestions: [
-              "What is the top-ranked item and how certain is it?",
-              "Which items are statistically close?",
-              "What do the confidence intervals imply?",
+              "What is the key takeaway from this ranking?",
+              "Which items are likely in the same uncertainty tier?",
             ],
           },
         });
@@ -464,13 +463,6 @@ export function useOmniRank() {
   const sendMessage = useCallback(
     async (message: string, quotes: QuotePayload[] = []) => {
       addMessage("user", message, undefined, { quotes });
-
-      if (!state.sessionId || state.status !== "completed") {
-        const fallback =
-          "Run the full analysis first. After completion I can answer quote-aware questions using report blocks and ranking results.";
-        addMessage("assistant", fallback, "analyst");
-        return;
-      }
 
       const thinkingMessage = addMessage("assistant", "", "analyst", {
         type: "assistant-thinking",
@@ -495,7 +487,7 @@ export function useOmniRank() {
         return;
       }
     },
-    [addMessage, patchMessage, state.sessionId, state.status]
+    [addMessage, patchMessage, state.sessionId]
   );
 
   const cancelData = useCallback(() => {
