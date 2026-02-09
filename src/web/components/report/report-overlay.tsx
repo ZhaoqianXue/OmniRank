@@ -192,7 +192,7 @@ export function ReportOverlay({
           <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-card/90 border-b border-border/40 z-10">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Single-Page Report</h2>
+              <h2 className="text-lg font-semibold">OmniRank Report</h2>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleExportPdf}>

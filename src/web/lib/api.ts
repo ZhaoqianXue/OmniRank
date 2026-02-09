@@ -14,6 +14,8 @@ import type {
   QuotePayload,
   QuestionResponse,
   ReportOutput,
+  RunJobStatusResponse,
+  RunStartResponse,
   RunResponse,
   SemanticSchema,
   SessionSnapshotResponse,
@@ -32,6 +34,8 @@ export type {
   QuotePayload,
   QuestionResponse,
   ReportOutput,
+  RunJobStatusResponse,
+  RunStartResponse,
   RunResponse,
   SemanticSchema,
   SessionSnapshotResponse,
@@ -246,6 +250,23 @@ export async function runSession(
   return parseResponse<RunResponse>(response, "Failed to run analysis");
 }
 
+export async function startRunSession(
+  sessionId: string,
+  payload: { selected_items?: string[]; selected_indicator_values?: string[] }
+): Promise<RunStartResponse> {
+  const response = await fetchApi(`/api/sessions/${sessionId}/run/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse<RunStartResponse>(response, "Failed to start analysis job");
+}
+
+export async function getRunJobStatus(sessionId: string, jobId: string): Promise<RunJobStatusResponse> {
+  const response = await fetchApi(`/api/sessions/${sessionId}/run/${jobId}`, {});
+  return parseResponse<RunJobStatusResponse>(response, "Failed to fetch analysis job status");
+}
+
 export async function askQuestion(
   sessionId: string,
   question: string,
@@ -355,4 +376,3 @@ export function normalizeRunResponse(run: RunResponse): {
     plots: run.visualizations?.plots ?? [],
   };
 }
-

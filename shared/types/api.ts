@@ -264,6 +264,25 @@ export interface RunResponse {
   error?: string;
 }
 
+export type RunJobStatus = "queued" | "running" | "completed" | "failed";
+
+export interface RunStartResponse {
+  job_id: string;
+  status: RunJobStatus;
+  progress: number;
+  message: string;
+}
+
+export interface RunJobStatusResponse {
+  job_id: string;
+  session_id: string;
+  status: RunJobStatus;
+  progress: number;
+  message: string;
+  result?: RunResponse;
+  error?: string;
+}
+
 export interface QuestionRequest {
   question: string;
   quotes?: QuotePayload[];

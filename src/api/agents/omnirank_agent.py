@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from dotenv import load_dotenv
 
@@ -243,20 +243,34 @@ class OmniRankAgent:
 
         return confirmation
 
-    def run(self, session: SessionMemory, selected_items: list[str] | None, selected_indicator_values: list[str] | None) -> RunResponse:
+    def run(
+        self,
+        session: SessionMemory,
+        selected_items: list[str] | None,
+        selected_indicator_values: list[str] | None,
+        progress_callback: Callable[[float, str], None] | None = None,
+    ) -> RunResponse:
         """Execute engine + visualization + report generation."""
+        def emit_progress(progress: float, message: str) -> None:
+            if progress_callback is None:
+                return
+            bounded_progress = min(1.0, max(0.0, float(progress)))
+            progress_callback(bounded_progress, message)
+
         if session.status not in {SessionStatus.CONFIRMED, SessionStatus.COMPLETED}:
             return RunResponse(success=False, error=f"Session is not runnable in state {session.status.value}.")
         if session.config is None:
             return RunResponse(success=False, error="Missing confirmed engine config.")
 
         session.status = SessionStatus.RUNNING
+        emit_progress(0.05, "Preparing spectral ranking execution...")
         session.config.selected_items = selected_items if selected_items else session.config.selected_items
         session.config.selected_indicator_values = (
             selected_indicator_values if selected_indicator_values else session.config.selected_indicator_values
         )
 
         work_dir = os.path.dirname(session.current_file_path or session.original_file_path or "")
+        emit_progress(0.2, "Executing spectral ranking engine...")
         execution = self._call_tool(
             "run",
             session,
@@ -274,6 +288,7 @@ class OmniRankAgent:
         session.current_results = execution.results
 
         artifact_dir = os.path.join(work_dir, "artifacts")
+        emit_progress(0.7, "Generating visualizations...")
         viz_output = self._call_tool(
             "run",
             session,
@@ -284,6 +299,7 @@ class OmniRankAgent:
         )
         session.visualization_output = viz_output
 
+        emit_progress(0.85, "Generating report...")
         report = self._call_tool(
             "run",
             session,
@@ -311,8 +327,10 @@ class OmniRankAgent:
                 mime_type=artifact.mime_type,
             )
 
+        emit_progress(0.95, "Finalizing artifacts...")
         session.status = SessionStatus.COMPLETED
         session.error = None
+        emit_progress(1.0, "Ranking completed.")
 
         return RunResponse(
             success=True,

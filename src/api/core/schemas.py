@@ -352,6 +352,36 @@ class RunResponse(BaseModel):
     error: Optional[str] = None
 
 
+class RunJobStatus(str, Enum):
+    """Async run job lifecycle states."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class RunStartResponse(BaseModel):
+    """Async run start response payload."""
+
+    job_id: str
+    status: RunJobStatus
+    progress: float = Field(default=0.0, ge=0.0, le=1.0)
+    message: str
+
+
+class RunJobStatusResponse(BaseModel):
+    """Async run job status payload."""
+
+    job_id: str
+    session_id: str
+    status: RunJobStatus
+    progress: float = Field(default=0.0, ge=0.0, le=1.0)
+    message: str
+    result: Optional[RunResponse] = None
+    error: Optional[str] = None
+
+
 class QuestionRequest(BaseModel):
     """Question request payload."""
 

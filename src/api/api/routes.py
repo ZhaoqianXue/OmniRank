@@ -6,7 +6,11 @@ import csv
 import io
 import logging
 import mimetypes
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Lock
+from typing import Any
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -20,8 +24,11 @@ from core.schemas import (
     InferResponse,
     QuestionResponse,
     QuestionRequest,
+    RunJobStatus,
+    RunJobStatusResponse,
     RunRequest,
     RunResponse,
+    RunStartResponse,
     SessionStatus,
     SessionSnapshotResponse,
     UploadResponse,
@@ -40,6 +47,98 @@ EXAMPLE_DATASETS: dict[str, str] = {
 }
 
 agent = OmniRankAgent()
+run_executor = ThreadPoolExecutor(max_workers=2)
+_run_jobs_lock = Lock()
+_run_jobs: dict[str, dict[str, Any]] = {}
+_ACTIVE_RUN_JOB_STATUSES = {RunJobStatus.QUEUED, RunJobStatus.RUNNING}
+
+
+def _set_run_job_state(job_id: str, **updates: Any) -> None:
+    with _run_jobs_lock:
+        if job_id not in _run_jobs:
+            return
+        _run_jobs[job_id].update(updates)
+
+
+def _get_run_job_state(job_id: str) -> dict[str, Any] | None:
+    with _run_jobs_lock:
+        current = _run_jobs.get(job_id)
+        if current is None:
+            return None
+        return dict(current)
+
+
+def _has_active_run_job(session_id: str) -> bool:
+    with _run_jobs_lock:
+        return any(
+            job["session_id"] == session_id and job["status"] in _ACTIVE_RUN_JOB_STATUSES
+            for job in _run_jobs.values()
+        )
+
+
+def _run_session_job(session_id: str, job_id: str, request: RunRequest) -> None:
+    store = get_session_store()
+    session = store.get_session(session_id)
+    if session is None:
+        _set_run_job_state(
+            job_id,
+            status=RunJobStatus.FAILED,
+            progress=1.0,
+            message="Run failed: session not found.",
+            error="Session not found",
+        )
+        return
+
+    def update_progress(progress: float, message: str) -> None:
+        _set_run_job_state(
+            job_id,
+            status=RunJobStatus.RUNNING,
+            progress=min(1.0, max(0.0, float(progress))),
+            message=message,
+            error=None,
+        )
+        store.update_session(session)
+
+    try:
+        update_progress(0.01, "Preparing run task...")
+        response = agent.run(
+            session=session,
+            selected_items=request.selected_items,
+            selected_indicator_values=request.selected_indicator_values,
+            progress_callback=update_progress,
+        )
+        store.update_session(session)
+
+        if response.success:
+            _set_run_job_state(
+                job_id,
+                status=RunJobStatus.COMPLETED,
+                progress=1.0,
+                message="Ranking completed.",
+                result=response,
+                error=None,
+            )
+            return
+
+        _set_run_job_state(
+            job_id,
+            status=RunJobStatus.FAILED,
+            progress=1.0,
+            message=response.error or "Run failed.",
+            error=response.error or "Run failed",
+            result=response,
+        )
+    except Exception as exc:  # noqa: BLE001
+        session.status = SessionStatus.ERROR
+        session.error = str(exc)
+        store.update_session(session)
+        _set_run_job_state(
+            job_id,
+            status=RunJobStatus.FAILED,
+            progress=1.0,
+            message=f"Run failed: {exc}",
+            error=str(exc),
+        )
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -180,6 +279,54 @@ async def run_session(session_id: str, request: RunRequest):
     if not response.success:
         raise HTTPException(status_code=400, detail=response.error or "Run failed")
     return response
+
+
+@router.post("/sessions/{session_id}/run/start", response_model=RunStartResponse)
+async def start_run_session(session_id: str, request: RunRequest):
+    """Start run in a background worker and return job id for polling."""
+    store = get_session_store()
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.status not in {SessionStatus.CONFIRMED, SessionStatus.COMPLETED}:
+        raise HTTPException(status_code=400, detail=f"Session is not runnable in state {session.status.value}.")
+
+    if _has_active_run_job(session_id):
+        raise HTTPException(status_code=409, detail="A run job is already in progress for this session.")
+
+    job_id = str(uuid.uuid4())
+    with _run_jobs_lock:
+        _run_jobs[job_id] = {
+            "job_id": job_id,
+            "session_id": session_id,
+            "status": RunJobStatus.QUEUED,
+            "progress": 0.0,
+            "message": "Run job queued.",
+            "result": None,
+            "error": None,
+        }
+
+    run_executor.submit(_run_session_job, session_id, job_id, request)
+    return RunStartResponse(job_id=job_id, status=RunJobStatus.QUEUED, progress=0.0, message="Run job queued.")
+
+
+@router.get("/sessions/{session_id}/run/{job_id}", response_model=RunJobStatusResponse)
+async def get_run_status(session_id: str, job_id: str):
+    """Get async run job status and optional final result."""
+    job = _get_run_job_state(job_id)
+    if job is None or job.get("session_id") != session_id:
+        raise HTTPException(status_code=404, detail="Run job not found")
+
+    return RunJobStatusResponse(
+        job_id=job["job_id"],
+        session_id=job["session_id"],
+        status=job["status"],
+        progress=job["progress"],
+        message=job["message"],
+        result=job.get("result"),
+        error=job.get("error"),
+    )
 
 
 @router.post("/sessions/{session_id}/question", response_model=QuestionResponse)

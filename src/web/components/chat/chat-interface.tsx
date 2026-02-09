@@ -2,10 +2,11 @@
 
 import { useRef, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, User } from "lucide-react";
+import { User } from "lucide-react";
 import { Fragment } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { RankingPreviewBubble } from "./ranking-preview-bubble";
 import { DataAgentWorkingBubble } from "./data-agent-working-bubble";
 import { AnalysisCompleteBubble } from "./analysis-complete-bubble";
@@ -34,7 +35,12 @@ const MessageIcon = memo(function MessageIcon({ role }: { role: ChatMessage["rol
 
   return (
     <div className="flex-shrink-0 w-8 h-8 rounded-full border border-primary/40 bg-primary/10 text-primary flex items-center justify-center shadow-sm">
-      <Bot className="h-5 w-5 text-primary" />
+      <MaterialSymbol 
+        icon="robot_2" 
+        className="select-none text-primary" 
+        style={{ fontSize: '20px' }}
+        aria-hidden="true"
+      />
     </div>
   );
 });
@@ -193,17 +199,19 @@ export function ChatInterface({
   onToggleReport,
   className,
 }: ChatInterfaceProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    const rafId = window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ block: "end" });
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
   }, [messages]);
 
   return (
-    <ScrollArea ref={scrollRef} className={cn("", className)}>
+    <ScrollArea className={cn("", className)}>
       <div className="space-y-2 px-2 py-2">
         <AnimatePresence initial={false}>
           {messages.map((message) => (
@@ -219,6 +227,7 @@ export function ChatInterface({
             />
           ))}
         </AnimatePresence>
+        <div ref={messagesEndRef} aria-hidden="true" className="h-px" />
       </div>
     </ScrollArea>
   );

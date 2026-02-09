@@ -8,10 +8,11 @@ import {
   EXAMPLE_DATASETS,
   getSessionSnapshot,
   getDataPreview,
+  getRunJobStatus,
   inferSession,
   loadExampleData as apiLoadExampleData,
   normalizeRunResponse,
-  runSession,
+  startRunSession,
   toValidationWarnings,
   uploadFile,
   type AnalysisConfig,
@@ -24,6 +25,7 @@ import {
   type QuotePayload,
   type RankingResults,
   type ReportOutput,
+  type RunResponse,
   type SemanticSchema,
   type ValidationWarning,
 } from "@/lib/api";
@@ -124,6 +126,8 @@ const initialState: OmniRankState = {
 };
 
 const STEP_TRANSITION_DELAY_MS = 220;
+const RUN_JOB_POLL_INTERVAL_MS = 600;
+const RUN_JOB_TIMEOUT_MS = 10 * 60 * 1000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function useOmniRank() {
@@ -338,8 +342,8 @@ export function useOmniRank() {
       setState((prev) => ({
         ...prev,
         status: "analyzing",
-        progress: 0.7,
-        progressMessage: "Confirming schema and running engine...",
+        progress: 0.05,
+        progressMessage: "Confirming schema...",
         config,
         error: null,
       }));
@@ -368,12 +372,47 @@ export function useOmniRank() {
           seed: config.random_seed,
         });
 
-        setState((prev) => ({ ...prev, progress: 0.82, progressMessage: "Executing spectral ranking..." }));
+        setState((prev) => ({ ...prev, progress: 0.1, progressMessage: "Submitting analysis job..." }));
 
-        const run = await runSession(state.sessionId, {
+        const runStart = await startRunSession(state.sessionId, {
           selected_items: selectedItems,
           selected_indicator_values: effectiveIndicatorCol ? selectedIndicators : undefined,
         });
+        setState((prev) => ({
+          ...prev,
+          progress: Math.max(prev.progress, runStart.progress),
+          progressMessage: runStart.message || "Analysis job queued...",
+        }));
+
+        let run: RunResponse | null = null;
+        const pollStartedAt = Date.now();
+
+        while (Date.now() - pollStartedAt < RUN_JOB_TIMEOUT_MS) {
+          const runStatus = await getRunJobStatus(state.sessionId, runStart.job_id);
+
+          setState((prev) => ({
+            ...prev,
+            progress: Math.max(prev.progress, runStatus.progress),
+            progressMessage: runStatus.message || prev.progressMessage,
+          }));
+
+          if (runStatus.status === "completed") {
+            run = runStatus.result ?? null;
+            break;
+          }
+          if (runStatus.status === "failed") {
+            throw new Error(runStatus.error || runStatus.message || "Analysis failed");
+          }
+
+          await sleep(RUN_JOB_POLL_INTERVAL_MS);
+        }
+
+        if (!run) {
+          throw new Error("Analysis timed out while waiting for completion.");
+        }
+        if (!run.success) {
+          throw new Error(run.error || "Analysis failed");
+        }
 
         const normalized = normalizeRunResponse(run);
         const snapshot = await getSessionSnapshot(state.sessionId);

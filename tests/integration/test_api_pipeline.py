@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi.testclient import TestClient
 
-from core.schemas import ExecutionResult, ExecutionTrace, RankingResults
+from api import routes as api_routes
+from core.schemas import ExecutionResult, ExecutionTrace, RankingResults, RunResponse, SessionStatus
 from main import app
 
 
@@ -159,3 +162,59 @@ def test_pairwise_long_upload_infer_requires_confirmation():
     body = infer.json()
     assert body["success"] is True
     assert body["requires_confirmation"] is True
+
+
+def test_async_run_start_and_status(monkeypatch):
+    def fake_async_run(session, selected_items, selected_indicator_values, progress_callback=None):  # noqa: ANN001
+        session.status = SessionStatus.RUNNING
+        if progress_callback:
+            progress_callback(0.2, "Executing spectral ranking engine...")
+            progress_callback(0.8, "Generating report...")
+            progress_callback(1.0, "Ranking completed.")
+        session.status = SessionStatus.COMPLETED
+        return RunResponse(success=True)
+
+    monkeypatch.setattr(api_routes.agent, "run", fake_async_run)
+    client = TestClient(app)
+
+    upload = client.post("/api/upload/example/pointwise")
+    assert upload.status_code == 200
+    session_id = upload.json()["session_id"]
+
+    infer = client.post(f"/api/sessions/{session_id}/infer", json={"user_hints": None})
+    assert infer.status_code == 200
+    schema = infer.json()["schema_result"]["schema"]
+
+    confirm = client.post(
+        f"/api/sessions/{session_id}/confirm",
+        json={
+            "confirmed": True,
+            "confirmed_schema": schema,
+            "user_modifications": [],
+            "B": 2000,
+            "seed": 42,
+        },
+    )
+    assert confirm.status_code == 200
+
+    start = client.post(
+        f"/api/sessions/{session_id}/run/start",
+        json={"selected_items": None, "selected_indicator_values": None},
+    )
+    assert start.status_code == 200
+    job_id = start.json()["job_id"]
+    assert start.json()["status"] == "queued"
+
+    latest_status = None
+    for _ in range(20):
+        status_resp = client.get(f"/api/sessions/{session_id}/run/{job_id}")
+        assert status_resp.status_code == 200
+        latest_status = status_resp.json()
+        if latest_status["status"] == "completed":
+            break
+        time.sleep(0.05)
+
+    assert latest_status is not None
+    assert latest_status["status"] == "completed"
+    assert latest_status["progress"] == 1.0
+    assert latest_status["result"]["success"] is True
