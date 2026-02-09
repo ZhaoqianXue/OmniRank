@@ -212,7 +212,7 @@ export function RankingPreviewBubble({
     <>
       <TooltipProvider delayDuration={120}>
         <div className={cn(
-          "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full",
+          "bg-background border border-border/60 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full",
           className
         )}>
           {/* Header */}
@@ -242,9 +242,7 @@ export function RankingPreviewBubble({
                 label="Data Format"
                 valueHelpText="How this dataset encodes comparisons: pointwise scores, pairwise matchups, or multiway rankings."
               >
-                <span className={cn(
-                  detectedFormat === "pairwise" ? "text-blue-600 dark:text-blue-400" : "text-green-600 dark:text-green-400"
-                )}>
+                <span className="text-primary">
                   {detectedFormat || "inferred"}
                 </span>
               </DisplayRow>
@@ -308,7 +306,7 @@ export function RankingPreviewBubble({
               <Button
                 onClick={onToggleReport}
                 variant="outline"
-                className="w-full"
+                className="w-full hover:text-foreground"
                 size="lg"
               >
                 {isReportVisible ? (
@@ -330,7 +328,7 @@ export function RankingPreviewBubble({
                   onClick={handleStartAnalysis}
                   disabled={isAnalyzing || selectedItems.length < 2}
                   variant="outline"
-                  className="w-full"
+                  className="w-full hover:text-foreground"
                   size="lg"
                 >
                   {isAnalyzing ? (

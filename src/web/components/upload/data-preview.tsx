@@ -50,7 +50,7 @@ export function DataPreviewComponent({
 
   if (isLoading) {
     return (
-      <Card className={cn("", className)}>
+      <Card className={cn("bg-background", className)}>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Table2 className="h-4 w-4" />
@@ -70,7 +70,7 @@ export function DataPreviewComponent({
 
   if (!preview) {
     return (
-      <Card className={cn("", className)}>
+      <Card className={cn("bg-background", className)}>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Table2 className="h-4 w-4" />
@@ -87,7 +87,7 @@ export function DataPreviewComponent({
   }
 
   return (
-    <Card className={cn("flex flex-col", className)}>
+    <Card className={cn("flex flex-col bg-background", className)}>
       <CardHeader className="pb-0 shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -102,10 +102,10 @@ export function DataPreviewComponent({
       <CardContent className="flex-1 flex flex-col min-h-0 pt-0">
         {/* Example data description */}
         {exampleInfo && (
-          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 mb-3 shrink-0 -mt-4">
+          <div className="p-3 rounded-lg bg-primary/10 border border-primary/25 mb-3 shrink-0 -mt-4">
             <div className="flex gap-2">
-              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1.5">
+              <Info className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-foreground/85 space-y-1.5">
                 {/* Parse description: split by • and display as structured list */}
                 {(() => {
                   const parts = exampleInfo.description.split(" • ");
@@ -118,7 +118,7 @@ export function DataPreviewComponent({
                         <ul className="space-y-0.5 ml-0">
                           {details.map((detail, i) => (
                             <li key={i} className="flex items-start gap-1.5">
-                              <span className="text-blue-500 mt-px">•</span>
+                              <span className="text-primary mt-px">•</span>
                               <span>{detail}</span>
                             </li>
                           ))}
@@ -133,7 +133,7 @@ export function DataPreviewComponent({
         )}
 
         {/* Data table preview - fills remaining space */}
-        <ScrollArea className="flex-1 min-h-0 rounded-md border">
+        <ScrollArea className="flex-1 min-h-0 rounded-md border bg-background">
           <div className="min-w-max">
             <table className="w-full text-xs">
               <thead className="bg-muted sticky top-0 z-10">
@@ -141,7 +141,7 @@ export function DataPreviewComponent({
                   {preview.columns.map((col, i) => (
                     <th
                       key={i}
-                      className="px-3 py-2 text-left font-medium text-muted-foreground border-b whitespace-nowrap bg-muted"
+                      className="px-3 py-2 text-left font-bold text-muted-foreground border-b whitespace-nowrap bg-muted"
                     >
                       {col}
                     </th>

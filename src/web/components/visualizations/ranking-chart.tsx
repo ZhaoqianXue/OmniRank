@@ -21,13 +21,12 @@ interface RankingChartProps {
   className?: string;
 }
 
-// Color scale from cyan (best) to purple (worst)
+// Color scale from light violet (best) to deep violet (worst)
 const getColor = (rank: number, total: number) => {
   const ratio = (rank - 1) / Math.max(1, total - 1);
-  // Cyan: #00f0ff -> Purple: #8b5cf6
-  const r = Math.round(0 + ratio * (139 - 0));
-  const g = Math.round(240 + ratio * (92 - 240));
-  const b = Math.round(255 + ratio * (246 - 255));
+  const r = Math.round(197 + ratio * (105 - 197));
+  const g = Math.round(186 + ratio * (86 - 186));
+  const b = Math.round(246 + ratio * (171 - 246));
   return `rgb(${r}, ${g}, ${b})`;
 };
 

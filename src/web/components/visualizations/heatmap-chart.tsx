@@ -13,20 +13,20 @@ interface HeatmapChartProps {
 // Color interpolation for heatmap
 const getHeatmapColor = (value: number) => {
   // value: 0 (lose) -> 0.5 (tie) -> 1 (win)
-  // Color scale: Purple (lose) -> Gray (tie) -> Cyan (win)
+  // Color scale: slate (lose) -> deep card tone (tie) -> highlight violet (win)
   if (value < 0.5) {
-    // Purple to gray
+    // Slate to deep card tone
     const ratio = value * 2;
-    const r = Math.round(139 + ratio * (128 - 139));
-    const g = Math.round(92 + ratio * (128 - 92));
-    const b = Math.round(246 + ratio * (128 - 246));
+    const r = Math.round(84 + ratio * (35 - 84));
+    const g = Math.round(95 + ratio * (47 - 95));
+    const b = Math.round(133 + ratio * (78 - 133));
     return `rgb(${r}, ${g}, ${b})`;
   } else {
-    // Gray to cyan
+    // Deep card tone to highlight violet
     const ratio = (value - 0.5) * 2;
-    const r = Math.round(128 + ratio * (0 - 128));
-    const g = Math.round(128 + ratio * (240 - 128));
-    const b = Math.round(128 + ratio * (255 - 128));
+    const r = Math.round(35 + ratio * (152 - 35));
+    const g = Math.round(47 + ratio * (132 - 47));
+    const b = Math.round(78 + ratio * (229 - 78));
     return `rgb(${r}, ${g}, ${b})`;
   }
 };

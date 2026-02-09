@@ -185,11 +185,11 @@ export function ReportOverlay({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className={cn(
-            "absolute inset-0 z-50 bg-background/95 backdrop-blur-sm rounded-lg overflow-hidden",
+            "absolute inset-0 z-50 bg-card/95 backdrop-blur-sm rounded-lg overflow-hidden",
             className
           )}
         >
-          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-background/90 border-b border-border/40 z-10">
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-card/90 border-b border-border/40 z-10">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Single-Page Report</h2>

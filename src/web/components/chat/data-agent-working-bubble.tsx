@@ -19,7 +19,7 @@ export function DataAgentWorkingBubble({
 
   return (
     <div className={cn(
-      "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full px-4 py-3",
+      "bg-background border border-border/60 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full px-4 py-3",
       className
     )}>
       {/* Header */}
@@ -39,16 +39,13 @@ export function DataAgentWorkingBubble({
           return (
             <div key={index} className="flex items-center gap-2">
               {isCompleted ? (
-                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <Check className="h-4 w-4 text-primary flex-shrink-0" />
               ) : isActive ? (
                 <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
               ) : (
                 <Circle className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
               )}
-              <span className={cn(
-                "text-sm",
-                isCompleted || isActive ? "text-foreground" : "text-muted-foreground"
-              )}>
+              <span className="text-sm text-muted-foreground">
                 {step}
               </span>
             </div>

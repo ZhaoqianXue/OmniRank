@@ -26,17 +26,16 @@ interface NetworkGraphProps {
 // Color scale based on rank
 const getNodeColor = (rank: number, total: number) => {
   const ratio = (rank - 1) / Math.max(1, total - 1);
-  // Cyan: #00f0ff -> Purple: #8b5cf6
-  const r = Math.round(0 + ratio * (139 - 0));
-  const g = Math.round(240 + ratio * (92 - 240));
-  const b = Math.round(255 + ratio * (246 - 255));
+  const r = Math.round(197 + ratio * (105 - 197));
+  const g = Math.round(186 + ratio * (86 - 186));
+  const b = Math.round(246 + ratio * (171 - 246));
   return `rgb(${r}, ${g}, ${b})`;
 };
 
 // Link color based on win rate
 const getLinkColor = (winRate: number) => {
   const alpha = Math.abs(winRate - 0.5) * 2;
-  return `rgba(0, 240, 255, ${0.1 + alpha * 0.4})`;
+  return `rgba(152, 132, 229, ${0.1 + alpha * 0.4})`;
 };
 
 export function NetworkGraph({ results, className }: NetworkGraphProps) {
@@ -139,7 +138,7 @@ export function NetworkGraph({ results, className }: NetworkGraphProps) {
 
     // Draw rank badge
     ctx.font = `bold ${fontSize}px sans-serif`;
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = "#0b101e";
     ctx.fillText(`#${node.rank}`, node.x, node.y);
   };
 

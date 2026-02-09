@@ -83,19 +83,19 @@ export function FileUpload({
         <div className={cn(
           "flex items-center gap-3 px-4 py-3 rounded-lg border",
           isUploading 
-            ? "bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border-blue-500/30"
-            : "bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/30"
+            ? "bg-gradient-to-r from-primary/10 to-primary/20 border-primary/35"
+            : "bg-gradient-to-r from-primary/15 to-primary/10 border-primary/40"
         )}>
           <div className={cn(
             "flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center",
-            isUploading ? "bg-blue-500/20" : "bg-green-500/20"
+            "bg-primary/20"
           )}>
             {isUploading ? (
-              <Loader2 className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-spin" />
+              <Loader2 className="h-4 w-4 text-primary animate-spin" />
             ) : isExample ? (
-              <Database className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <Database className="h-4 w-4 text-primary" />
             ) : (
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <CheckCircle2 className="h-4 w-4 text-primary" />
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -133,7 +133,7 @@ export function FileUpload({
           "relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg transition-all cursor-pointer",
           isDragActive && "border-primary bg-primary/5",
           isUploading && "cursor-wait opacity-70",
-          isUploaded && "border-green-500/50 bg-green-500/5",
+          isUploaded && "border-primary/50 bg-primary/5",
           error && "border-destructive/50 bg-destructive/5",
           !isDragActive && !isUploaded && !error && "border-border hover:border-primary/50 hover:bg-primary/5"
         )}
@@ -161,8 +161,8 @@ export function FileUpload({
               exit={{ opacity: 0, scale: 0.9 }}
               className="text-center"
             >
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-500/10 mb-4">
-                <CheckCircle2 className="h-6 w-6 text-green-500" />
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
+                <CheckCircle2 className="h-6 w-6 text-primary" />
               </div>
               <div className="flex items-center gap-2 justify-center mb-2">
                 <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />

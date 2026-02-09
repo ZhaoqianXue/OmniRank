@@ -24,16 +24,16 @@ export const AnalysisCompleteBubble = memo(function AnalysisCompleteBubble({
   return (
     <div
       className={cn(
-        "relative max-w-[90%] px-4 py-4 rounded-2xl shadow-sm border text-sm bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200/50 dark:border-green-800/50 rounded-bl-sm",
+        "relative max-w-[90%] px-4 py-4 rounded-2xl shadow-sm border text-sm bg-background border-primary/30 rounded-bl-sm",
         className
       )}
     >
       {/* Success header */}
       <div className="flex items-center gap-2 mb-3">
-        <div className="p-1.5 rounded-full bg-green-100 dark:bg-green-900/50">
-          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+        <div className="p-1.5 rounded-full bg-primary/20">
+          <CheckCircle className="h-4 w-4 text-primary" />
         </div>
-        <span className="font-semibold text-green-700 dark:text-green-300">
+        <span className="font-semibold text-primary">
           Analysis Complete!
         </span>
       </div>
@@ -61,7 +61,7 @@ export const AnalysisCompleteBubble = memo(function AnalysisCompleteBubble({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full justify-start h-auto py-2 px-3 text-left text-xs font-normal bg-white dark:bg-zinc-900 hover:bg-green-50 dark:hover:bg-green-950/50 border-green-200/50 dark:border-green-800/30 hover:border-green-300 dark:hover:border-green-700"
+                  className="w-full justify-start h-auto py-2 px-3 text-left text-xs font-normal bg-background hover:bg-primary/10 hover:text-foreground border-primary/25 hover:border-primary/40"
                   onClick={() => onAskQuestion?.(question)}
                 >
                   <span className="text-primary mr-2">→</span>

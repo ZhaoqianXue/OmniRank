@@ -83,10 +83,10 @@ export function ExampleDataSelector({
             >
               <div
                 className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
-                  isLoading && "border-primary bg-primary/5",
+                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all bg-background",
+                  isLoading && "border-primary bg-background",
                   isDisabled && !isLoading && "opacity-50 cursor-not-allowed",
-                  !isDisabled && !isLoading && "hover:border-primary/50 hover:bg-muted/50"
+                  !isDisabled && !isLoading && "hover:border-primary/50 hover:bg-background"
                 )}
                 onClick={() => handleSelect(example.id)}
               >

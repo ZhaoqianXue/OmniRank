@@ -42,10 +42,10 @@ export function ErrorDisplay({
       title: "text-yellow-600 dark:text-yellow-400",
     },
     info: {
-      bg: "bg-blue-500/10",
-      border: "border-blue-500/30",
-      icon: "text-blue-500",
-      title: "text-blue-600 dark:text-blue-400",
+      bg: "bg-primary/10",
+      border: "border-primary/30",
+      icon: "text-primary",
+      title: "text-primary",
     },
   };
 

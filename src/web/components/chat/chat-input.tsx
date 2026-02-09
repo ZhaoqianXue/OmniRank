@@ -189,19 +189,19 @@ export function ChatInput({
       {showQuickStart && quickStartQuestions.length > 0 && (
         <div
           data-quick-start-panel
-          className="absolute bottom-full left-0 right-0 mb-2 bg-card border border-border rounded-lg shadow-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-200"
+          className="absolute bottom-full left-0 right-0 mb-2 bg-background border border-border rounded-lg shadow-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-200"
         >
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-muted/30">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-background">
             <Zap className="h-3.5 w-3.5 text-primary" />
             <span className="text-xs font-medium text-muted-foreground">Quick Start</span>
           </div>
-          <div className="p-1.5">
+          <div className="p-1.5 bg-background">
             {quickStartQuestions.map((question, index) => (
               <button
                 key={index}
                 onClick={() => handleQuickQuestion(question)}
                 disabled={isSending || disabled}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm rounded-md hover:bg-muted/50 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm rounded-md bg-background hover:bg-background transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                 <span className="line-clamp-1">{question}</span>

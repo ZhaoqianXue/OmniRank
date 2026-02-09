@@ -26,15 +26,15 @@ interface ChatInterfaceProps {
 const MessageIcon = memo(function MessageIcon({ role }: { role: ChatMessage["role"] }) {
   if (role === "user") {
     return (
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#0F172A] text-white flex items-center justify-center shadow-sm">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full border border-primary/40 bg-primary text-primary-foreground flex items-center justify-center shadow-sm">
         <User className="h-5 w-5" />
       </div>
     );
   }
 
   return (
-    <div className="flex-shrink-0 w-8 h-8 rounded-full border-2 border-[#0F172A] bg-white text-[#0F172A] flex items-center justify-center shadow-sm">
-      <Bot className="h-5 w-5" />
+    <div className="flex-shrink-0 w-8 h-8 rounded-full border border-primary/40 bg-primary/10 text-primary flex items-center justify-center shadow-sm">
+      <Bot className="h-5 w-5 text-primary" />
     </div>
   );
 });
@@ -155,9 +155,9 @@ const ChatMessageItem = memo(function ChatMessageItem({
       <div className={cn(
         "relative max-w-[90%] px-4 py-3 rounded-2xl shadow-sm border text-sm",
         isUser
-          ? "bg-white dark:bg-zinc-800 border-border/50 text-foreground rounded-br-sm"
-          : "bg-white dark:bg-zinc-800 border-border/50 text-foreground rounded-bl-sm",
-        isSystem && "bg-yellow-500/5 border-yellow-500/20"
+          ? "bg-primary/10 border-primary/25 text-foreground rounded-br-sm"
+          : "bg-background border-border/60 text-foreground rounded-bl-sm",
+        isSystem && "border-yellow-500/20"
       )}>
         <div className={cn(
           "prose prose-sm dark:prose-invert max-w-none break-words",
