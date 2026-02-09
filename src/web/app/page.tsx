@@ -224,16 +224,16 @@ export default function LandingPage() {
               transition={{ duration: 0.7, ease: "easeOut" }}
               className="w-full translate-y-5 md:translate-y-7"
             >
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/35 bg-card/70 px-4 py-1.5 text-base uppercase tracking-[0.22em] text-primary">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/35 bg-card/70 px-4 py-1.5 text-sm uppercase tracking-[0.22em] text-primary">
                 <Database className="h-3.5 w-3.5" />
                 Agentic Ranking Platform
               </div>
 
-              <h1 className="text-balance text-6xl font-bold leading-tight md:text-8xl">
+              <h1 className="text-balance text-5xl font-bold leading-tight md:text-7xl">
                 Omni<span className="text-primary">Rank</span>
               </h1>
 
-              <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
+              <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground md:text-lg">
                 LLM Agent base ranking platform with reliable results.
               </p>
 
@@ -242,7 +242,7 @@ export default function LandingPage() {
                   href="/workspace"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-lg font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   <ArrowRight className="h-4 w-4" />
                   Online Workspace
@@ -251,7 +251,7 @@ export default function LandingPage() {
                   href="/workspace"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-lg font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   <Trophy className="h-4 w-4" />
                   LLM Leaderboard
@@ -263,7 +263,7 @@ export default function LandingPage() {
                   href="https://arxiv.org"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-base text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <FileText className="h-3.5 w-3.5" />
                   Preprint
@@ -272,7 +272,7 @@ export default function LandingPage() {
                   href="https://github.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-base text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <Github className="h-3.5 w-3.5" />
                   GitHub
