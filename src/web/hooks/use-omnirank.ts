@@ -447,6 +447,8 @@ export function useOmniRank() {
             suggestedQuestions: [
               "What is the key takeaway from this ranking?",
               "Which items are likely in the same uncertainty tier?",
+              "How robust is the top-vs-runner-up ordering under CI overlap?",
+              "What is the highest-priority action I should take from this result?",
             ],
           },
         });

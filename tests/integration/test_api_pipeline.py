@@ -54,7 +54,8 @@ def test_full_pipeline_upload_infer_confirm_run_question(monkeypatch):
         json={"question": "What can I ask before ranking is complete?", "quotes": []},
     )
     assert qa_early.status_code == 200
-    assert "Conclusion:" in qa_early.json()["answer"]["answer"]
+    assert qa_early.json()["answer"]["answer"]
+    assert "Conclusion:" not in qa_early.json()["answer"]["answer"]
 
     infer = client.post(f"/api/sessions/{session_id}/infer", json={"user_hints": None})
     assert infer.status_code == 200
@@ -160,7 +161,8 @@ def test_global_question_without_session():
         json={"question": "What is spectral ranking in OmniRank?", "quotes": []},
     )
     assert response.status_code == 200
-    assert "Conclusion:" in response.json()["answer"]["answer"]
+    assert response.json()["answer"]["answer"]
+    assert "Conclusion:" not in response.json()["answer"]["answer"]
 
 
 def test_pairwise_long_upload_infer_requires_confirmation():

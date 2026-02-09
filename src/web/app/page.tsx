@@ -7,7 +7,6 @@ import {
   BarChart3,
   Brain,
   CirclePlay,
-  Database,
   FileSpreadsheet,
   FileText,
   Github,
@@ -96,17 +95,29 @@ export default function LandingPage() {
               transition={{ duration: 0.7, ease: "easeOut" }}
               className="w-full translate-y-5 md:translate-y-7"
             >
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/35 bg-card/70 px-4 py-1.5 text-sm uppercase tracking-[0.22em] text-primary">
-                <Database className="h-3.5 w-3.5" />
-                Agentic Ranking Platform
-              </div>
-
               <h1 className="text-balance text-5xl font-bold leading-tight md:text-7xl">
                 Omni<span className="text-primary">Rank</span>
               </h1>
 
-              <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground md:text-lg">
-                LLM Agent base ranking platform with reliable results.
+              <p className="mx-auto mt-4 w-fit max-w-none whitespace-nowrap text-center font-[family-name:var(--font-space-mono)] text-sm text-muted-foreground md:text-base">
+                An agentic AI platform for{" "}
+                <a
+                  href="https://doi.org/10.1287/opre.2023.0439"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline underline-offset-2 hover:text-primary/80"
+                >
+                  Spectral Ranking
+                </a>{" "}
+                Analysis Developed by{" "}
+                <a
+                  href="https://jin93.github.io/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline underline-offset-2 hover:text-primary/80"
+                >
+                  Jin Jin Lab
+                </a>
               </p>
 
               <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
@@ -132,7 +143,7 @@ export default function LandingPage() {
 
               <div className="mx-auto mt-4 flex w-full max-w-3xl flex-wrap justify-center gap-2">
                 <a
-                  href="https://arxiv.org"
+                  href="https://arxiv.org/html/2308.02918"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -255,7 +266,7 @@ export default function LandingPage() {
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/7/7c/Shield_of_the_University_of_Pennsylvania.svg"
                 alt="UPenn"
-                className="mr-4 h-7 w-auto shrink-0 sm:mr-5 sm:h-8"
+                className="mr-4 h-6 w-auto shrink-0 sm:mr-5 sm:h-7"
               />
               <Link href="/" target="_blank" rel="noopener noreferrer" className="text-xl font-semibold tracking-wide text-foreground">
                 Omni<span className="text-primary">Rank</span>
@@ -263,7 +274,7 @@ export default function LandingPage() {
               <img
                 src="https://static.cdnlogo.com/logos/w/18/washington-university-in-st-louis.svg"
                 alt="WUSTL"
-                className="ml-1 h-10 w-auto shrink-0 sm:ml-2 sm:h-11"
+                className="ml-1 h-8 w-auto shrink-0 sm:ml-2 sm:h-9"
               />
             </div>
             <p>© 2026 Jin Jin Lab. All rights reserved.</p>

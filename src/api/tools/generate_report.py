@@ -349,7 +349,9 @@ def _build_llm_narrative(
         f"- **Analysis scope**: **{len(results.items)} items** included in this run.\n\n"
         "### Uncertainty Quantification\n"
         "- **Interval type**: 95% bootstrap confidence intervals for rank uncertainty.\n"
-        "- **Bootstrap engine**: Gaussian multiplier bootstrap (Fan et al., 2023).\n\n"
+        "- **Bootstrap engine**: Gaussian multiplier bootstrap "
+        "(Spectral Ranking Inferences based on General Multiway Comparisons, "
+        "https://arxiv.org/html/2308.02918).\n\n"
         "### Run Configuration\n"
         f"- **Input file**: `{input_path}`\n"
         f"- **Bootstrap iterations (B)**: {B}\n"
@@ -437,7 +439,9 @@ _HINTS: list[HintSpec] = [
         hint_id="hint-ci",
         title="95% Bootstrap Confidence Interval",
         body=(
-            "Computed via Gaussian multiplier bootstrap (Fan et al., 2023). "
+            "Computed via Gaussian multiplier bootstrap "
+            "(Spectral Ranking Inferences based on General Multiway Comparisons, "
+            "https://arxiv.org/html/2308.02918). "
             "The interval width reflects estimation precision; wider "
             "intervals suggest greater uncertainty."
         ),

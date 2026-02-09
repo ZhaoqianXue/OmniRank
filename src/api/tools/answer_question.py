@@ -14,21 +14,63 @@ from core.schemas import AnswerOutput, QuotePayload, RankingResults
 CI_CAVEAT = "CI overlap is not a formal hypothesis test; interpret overlap as uncertainty context only."
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 LITERATURE_PATH = PROJECT_ROOT / ".agent" / "literature" / "spectral_ranking_inferences.md"
+METHOD_REFERENCE_TITLE = "Spectral Ranking Inferences based on General Multiway Comparisons"
+METHOD_REFERENCE_URL = "https://arxiv.org/html/2308.02918"
 
 _NUMERIC_BRACKET_PAIR_PATTERN = re.compile(r"\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]")
+_NON_ANSWER_LINE_PATTERN = re.compile(r"(?i)`?used_citation_block_ids`?[^\n]*")
+_CJK_CHAR_PATTERN = re.compile(r"[\u4e00-\u9fff]")
+
+_CONCISE_KEYWORDS = (
+    "concise",
+    "brief",
+    "short answer",
+    "keep it short",
+    "keep it concise",
+    "one-line",
+    "one line",
+)
+_ONE_SENTENCE_KEYWORDS = ("one sentence", "single sentence")
+
+_METHOD_KEYWORDS = (
+    "method",
+    "methodology",
+    "theory",
+    "theoretical",
+    "spectral",
+    "bootstrap",
+    "gaussian multiplier",
+    "estimator",
+    "assumption",
+    "asymptotic",
+    "inference",
+    "confidence interval",
+    "ci overlap",
+    "uncertainty quantification",
+)
+_METHOD_DEPTH_KEYWORDS = (
+    "detail",
+    "detailed",
+    "deep",
+    "derive",
+    "derivation",
+    "proof",
+    "theoretical",
+    "assumption",
+    "why",
+    "how exactly",
+    "asymptotic",
+    "consistency",
+    "convergence",
+    "variance",
+    "distribution",
+)
+_METHOD_REFERENCE_TRIGGERS = ("reference", "paper", "citation", "arxiv", "source", "literature")
 
 _DEFAULT_LITERATURE_REFERENCES: list[dict[str, str]] = [
     {
-        "title": "Fan et al. (2022b) Ranking inferences based on the top choice of multiway comparisons",
-        "url": "https://arxiv.org/abs/2211.11957",
-    },
-    {
-        "title": "Gao et al. (2021) Uncertainty quantification in the Bradley-Terry-Luce model",
-        "url": "https://arxiv.org/abs/2110.03874",
-    },
-    {
-        "title": "Fan et al. (2022a) Uncertainty quantification of MLE for entity ranking with covariates",
-        "url": "https://arxiv.org/abs/2212.09961",
+        "title": METHOD_REFERENCE_TITLE,
+        "url": METHOD_REFERENCE_URL,
     },
 ]
 
@@ -48,6 +90,53 @@ def _reference_markdown(reference: dict[str, str]) -> str:
     return f"[{reference['title']}]({reference['url']})"
 
 
+def _contains_cjk(text: str) -> bool:
+    return bool(_CJK_CHAR_PATTERN.search(text))
+
+
+def _wants_concise(question: str) -> bool:
+    lower_q = question.lower()
+    return any(keyword in lower_q for keyword in _CONCISE_KEYWORDS)
+
+
+def _wants_one_sentence(question: str) -> bool:
+    lower_q = question.lower()
+    return any(keyword in lower_q for keyword in _ONE_SENTENCE_KEYWORDS)
+
+
+def _sanitize_text_field(text: str) -> str:
+    cleaned = _NON_ANSWER_LINE_PATTERN.sub("", text or "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def _first_sentence(text: str) -> str:
+    cleaned = _sanitize_text_field(text)
+    if not cleaned:
+        return ""
+    match = re.search(r"[.!?]", cleaned)
+    if not match:
+        return cleaned
+    return cleaned[: match.end()].strip()
+
+
+def _dedupe_nonempty(items: list[str], max_items: int) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for raw in items:
+        normalized = _sanitize_text_field(raw)
+        if not normalized:
+            continue
+        fingerprint = normalized.lower()
+        if fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        deduped.append(normalized)
+        if len(deduped) >= max_items:
+            break
+    return deduped
+
+
 def _extract_section(text: str, start_marker: str, end_marker: str) -> str:
     start = text.find(start_marker)
     if start < 0:
@@ -57,46 +146,6 @@ def _extract_section(text: str, start_marker: str, end_marker: str) -> str:
     if end < 0:
         end = len(text)
     return text[start:end].strip()
-
-
-def _parse_references_from_literature(text: str) -> list[dict[str, str]]:
-    refs: list[dict[str, str]] = []
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("*"):
-            continue
-        link_match = re.search(r"\[(https?://[^\]]+)\]\((https?://[^)]+)\)", stripped)
-        if not link_match:
-            continue
-        url = link_match.group(2).strip()
-        if not url:
-            continue
-        title_part = stripped.lstrip("*").strip()
-        title_part = title_part.split("[", 1)[0].strip().rstrip(",.")
-        title_part = re.sub(r"\s+Preprint.*$", "", title_part).strip(" ,.")
-        if not title_part:
-            continue
-        refs.append({"title": title_part, "url": url})
-
-    unique_refs: list[dict[str, str]] = []
-    seen_urls: set[str] = set()
-    for ref in refs:
-        if ref["url"] in seen_urls:
-            continue
-        seen_urls.add(ref["url"])
-        unique_refs.append(ref)
-    return unique_refs
-
-
-def _prioritize_references(refs: list[dict[str, str]]) -> list[dict[str, str]]:
-    ranking_keywords = ("ranking", "spectral", "bradley-terry", "plackett", "entity ranking")
-
-    def _score(ref: dict[str, str]) -> tuple[int, str]:
-        title = ref.get("title", "").lower()
-        is_ranking_related = any(keyword in title for keyword in ranking_keywords)
-        return (0 if is_ranking_related else 1, title)
-
-    return sorted(refs, key=_score)
 
 
 @lru_cache(maxsize=1)
@@ -114,16 +163,6 @@ def _load_literature_context() -> dict[str, Any]:
     if len(compact_abstract) > 900:
         compact_abstract = compact_abstract[:900].rstrip() + "..."
 
-    parsed_refs = _parse_references_from_literature(content)
-    if parsed_refs:
-        references = _prioritize_references(parsed_refs)
-        known_urls = {ref["url"] for ref in references}
-        for default_ref in _DEFAULT_LITERATURE_REFERENCES:
-            if default_ref["url"] not in known_urls:
-                references.append(default_ref)
-    else:
-        references = list(_DEFAULT_LITERATURE_REFERENCES)
-
     key_points = [
         "Supports fixed and random comparison graphs, including heterogeneous multiway comparisons.",
         "Two-step spectral weighting can asymptotically match MLE efficiency under proper weighting.",
@@ -135,7 +174,16 @@ def _load_literature_context() -> dict[str, Any]:
         "source_path": str(LITERATURE_PATH),
         "summary": compact_abstract,
         "key_points": key_points,
-        "references": references[:8],
+        "references": list(_DEFAULT_LITERATURE_REFERENCES),
+    }
+
+
+def _empty_literature_context() -> dict[str, Any]:
+    return {
+        "source_path": str(LITERATURE_PATH),
+        "summary": "",
+        "key_points": [],
+        "references": [],
     }
 
 
@@ -167,22 +215,13 @@ def _normalize_reference_list(raw: Any, known_refs: list[dict[str, str]]) -> lis
     return normalized[:2]
 
 
-def _question_needs_reference(question: str, results: RankingResults | None) -> bool:
+def _question_needs_reference(question: str) -> bool:
+    """Enable external paper context only for deep method questions."""
     lower_q = question.lower()
-    keywords = [
-        "method",
-        "theory",
-        "spectral",
-        "bootstrap",
-        "ci",
-        "confidence interval",
-        "why",
-        "原理",
-        "方法",
-        "置信区间",
-        "文献",
-    ]
-    return results is None or any(keyword in lower_q for keyword in keywords)
+    has_method_topic = any(keyword in lower_q for keyword in _METHOD_KEYWORDS)
+    has_depth_signal = any(keyword in lower_q for keyword in _METHOD_DEPTH_KEYWORDS)
+    explicit_reference_request = any(keyword in lower_q for keyword in _METHOD_REFERENCE_TRIGGERS)
+    return has_method_topic and (has_depth_signal or explicit_reference_request)
 
 
 def _build_quote_context(
@@ -217,21 +256,25 @@ def _format_structured_answer(
     references: list[str] | None = None,
     note: str | None = None,
     quote_context: str | None = None,
+    max_evidence: int = 3,
+    max_references: int = 2,
 ) -> str:
-    lines: list[str] = [f"Conclusion: {_integerize_ci_text(conclusion.strip())}"]
-    evidence_lines = [_integerize_ci_text(entry.strip()) for entry in (evidence or []) if entry and entry.strip()]
-    reference_lines = [entry.strip() for entry in (references or []) if entry and entry.strip()]
+    conclusion_line = _sanitize_text_field(conclusion)
+    lines: list[str] = [_integerize_ci_text(conclusion_line)]
+    evidence_lines = _dedupe_nonempty(evidence or [], max_items=max(0, max_evidence))
+    evidence_lines = [_integerize_ci_text(entry) for entry in evidence_lines]
+    reference_lines = _dedupe_nonempty(references or [], max_items=max(0, max_references))
 
-    if evidence_lines:
+    if max_evidence > 0 and evidence_lines:
         lines.append("Evidence:")
-        lines.extend(f"- {entry}" for entry in evidence_lines[:3])
-    if reference_lines:
+        lines.extend(f"- {entry}" for entry in evidence_lines[:max_evidence])
+    if max_references > 0 and reference_lines:
         lines.append("References:")
-        lines.extend(f"- {entry}" for entry in reference_lines[:2])
+        lines.extend(f"- {entry}" for entry in reference_lines[:max_references])
     if note:
-        lines.append(f"Note: {_integerize_ci_text(note.strip())}")
+        lines.append(f"Note: {_integerize_ci_text(_sanitize_text_field(note))}")
     if quote_context:
-        lines.append(f"Quote context considered: {_integerize_ci_text(quote_context.strip())}")
+        lines.append(f"Quote context considered: {_integerize_ci_text(_sanitize_text_field(quote_context))}")
     return "\n".join(lines)
 
 
@@ -328,9 +371,6 @@ def _fallback_without_results(
         "confidence interval",
         "method",
         "theory",
-        "原理",
-        "方法",
-        "置信区间",
     ]
     asks_method = any(keyword in lower_q for keyword in methodology_keywords)
 
@@ -354,7 +394,7 @@ def _fallback_without_results(
         ]
 
     references: list[str] = []
-    if _question_needs_reference(question, None):
+    if _question_needs_reference(question):
         refs = literature_context.get("references") or []
         if refs:
             references = [_reference_markdown(refs[0])]
@@ -424,7 +464,7 @@ def _fallback_with_results(
             )
 
     references: list[str] = []
-    if _question_needs_reference(question, results):
+    if _question_needs_reference(question):
         refs = literature_context.get("references") or []
         if refs:
             references = [_reference_markdown(refs[0])]
@@ -452,7 +492,7 @@ def _fallback_answer(
 ) -> AnswerOutput:
     """Deterministic fallback answer when LLM is unavailable or fails."""
     quote_context, used_ids = _build_quote_context(quotes, citation_blocks)
-    literature_context = _load_literature_context()
+    literature_context = _load_literature_context() if _question_needs_reference(question) else _empty_literature_context()
     if results is None:
         return _fallback_without_results(
             question=question,
@@ -483,6 +523,8 @@ def answer_question(
         return _fallback_answer(question, results, citation_blocks, quotes, session_context)
 
     known_ids = set(citation_blocks.keys())
+    wants_concise = _wants_concise(question)
+    wants_one_sentence = _wants_one_sentence(question)
     quote_context, quoted_ids = _build_quote_context(quotes, citation_blocks)
 
     quoted_blocks = []
@@ -506,14 +548,18 @@ def answer_question(
                 }
             )
 
-    literature_context = _load_literature_context()
+    needs_reference = _question_needs_reference(question)
+    literature_context = _load_literature_context() if needs_reference else _empty_literature_context()
     payload = {
         "question": question,
         "response_style": {
             "format": "short structured answer",
-            "max_sections": 4,
+            "language": "en",
+            "concise": wants_concise,
+            "one_sentence": wants_one_sentence,
+            "max_sections": 2 if wants_one_sentence else (3 if wants_concise else 4),
             "max_bullets_per_section": 3,
-            "target_length_words": 140,
+            "target_length_words": 60 if wants_one_sentence else (90 if wants_concise else 140),
         },
         "results": (
             {
@@ -535,7 +581,7 @@ def answer_question(
 
     try:
         llm_output = client.generate_json("answer_question", payload=payload, max_completion_tokens=640)
-        conclusion = str(llm_output.get("conclusion") or llm_output.get("answer") or "").strip()
+        conclusion = _sanitize_text_field(str(llm_output.get("conclusion") or llm_output.get("answer") or ""))
         if not conclusion:
             raise LLMCallError("Answer payload is empty.")
 
@@ -543,7 +589,7 @@ def answer_question(
         if not isinstance(evidence_raw, list):
             evidence_raw = llm_output.get("supporting_evidence")
         supporting_evidence = [str(entry).strip() for entry in evidence_raw] if isinstance(evidence_raw, list) else []
-        supporting_evidence = [entry for entry in supporting_evidence if entry][:3]
+        supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=3)
         if not supporting_evidence:
             if results is None:
                 supporting_evidence = _session_evidence(session_context) or [
@@ -553,30 +599,47 @@ def answer_question(
                 supporting_evidence = ["Derived from ranking scores and confidence intervals."]
 
         note_value = llm_output.get("note")
-        note = str(note_value).strip() if isinstance(note_value, str) and note_value.strip() else None
+        note = _sanitize_text_field(str(note_value)) if isinstance(note_value, str) and note_value.strip() else None
 
-        used_ids_raw = llm_output.get("used_citation_block_ids")
-        used_ids: list[str] = []
-        if isinstance(used_ids_raw, list):
-            used_ids = [str(entry) for entry in used_ids_raw if str(entry) in known_ids]
-
-        for quote_id in quoted_ids:
-            if quote_id not in used_ids:
-                used_ids.append(quote_id)
+        # Keep citation trace strict: only quote-provided ids are returned.
+        used_ids = [quote_id for quote_id in quoted_ids if quote_id in known_ids]
 
         references = _normalize_reference_list(llm_output.get("references"), literature_context.get("references") or [])
-        if _question_needs_reference(question, results) and not references:
+        if not needs_reference:
+            references = []
+        elif not references:
             ref_candidates = literature_context.get("references") or []
             if ref_candidates:
                 references = [_reference_markdown(ref_candidates[0])]
+
+        if wants_one_sentence:
+            conclusion = _first_sentence(conclusion)
+            supporting_evidence = []
+            references = []
+            note = None
+            quote_context_local = None
+            max_evidence = 0
+            max_references = 0
+        else:
+            quote_context_local = quote_context
+            max_evidence = 1 if wants_concise else 3
+            max_references = 1 if (wants_concise and references) else 2
+            if wants_concise and note is not None:
+                note = _first_sentence(note)
 
         answer_text = _format_structured_answer(
             conclusion=conclusion,
             evidence=supporting_evidence,
             references=references,
             note=note,
-            quote_context=quote_context,
+            quote_context=quote_context_local,
+            max_evidence=max_evidence,
+            max_references=max_references,
         )
+
+        # English-only output policy.
+        if _contains_cjk(answer_text):
+            return _fallback_answer(question, results, citation_blocks, quotes, session_context)
 
         return AnswerOutput(
             answer=answer_text,

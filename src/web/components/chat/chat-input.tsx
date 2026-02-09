@@ -11,6 +11,7 @@ import type { AnalysisStatus } from "@/hooks/use-omnirank";
 // Analysis stage for suggest-question generation fallback
 type AnalysisStage = "pre-upload" | "post-schema" | "post-analysis";
 type SuggestIntent = "comparison" | "uncertainty" | "method" | "data-prep" | "error-fix" | "general";
+const MAX_SUGGEST_QUESTIONS = 4;
 
 interface SuggestMessage {
   role: "user" | "assistant" | "system";
@@ -35,12 +36,12 @@ function normalizeQuestion(question: string): string {
   const cleaned = question.trim().replace(/\s+/g, " ");
   if (!cleaned) return "";
 
-  let normalized = cleaned.replace(/(?:\.{3}|…)\s*$/u, "").replace(/[.!。！]+$/u, "");
+  const normalized = cleaned.replace(/(?:\.{3}|…)\s*$/u, "").replace(/[.!]+$/u, "");
   if (!normalized) return "";
-  return normalized.endsWith("?") || normalized.endsWith("？") ? normalized : `${normalized}?`;
+  return normalized.endsWith("?") ? normalized : `${normalized}?`;
 }
 
-function pickUniqueQuestions(candidates: string[], limit = 2): string[] {
+function pickUniqueQuestions(candidates: string[], limit = MAX_SUGGEST_QUESTIONS): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const candidate of candidates) {
@@ -61,19 +62,19 @@ function pickUniqueQuestions(candidates: string[], limit = 2): string[] {
 function inferIntent(raw: string): SuggestIntent {
   const text = raw.toLowerCase();
   if (!text.trim()) return "general";
-  if (text.includes("compare") || text.includes("vs") || text.includes("better than") || text.includes("对比")) {
+  if (text.includes("compare") || text.includes("vs") || text.includes("better than")) {
     return "comparison";
   }
-  if (text.includes("ci") || text.includes("confidence") || text.includes("uncert") || text.includes("置信区间")) {
+  if (text.includes("ci") || text.includes("confidence") || text.includes("uncert")) {
     return "uncertainty";
   }
-  if (text.includes("method") || text.includes("bootstrap") || text.includes("spectral") || text.includes("原理")) {
+  if (text.includes("method") || text.includes("bootstrap") || text.includes("spectral")) {
     return "method";
   }
-  if (text.includes("schema") || text.includes("format") || text.includes("upload") || text.includes("列")) {
+  if (text.includes("schema") || text.includes("format") || text.includes("upload")) {
     return "data-prep";
   }
-  if (text.includes("error") || text.includes("failed") || text.includes("invalid") || text.includes("报错")) {
+  if (text.includes("error") || text.includes("failed") || text.includes("invalid")) {
     return "error-fix";
   }
   return "general";
@@ -87,7 +88,7 @@ function draftDrivenQuestion(
 ): string {
   const trimmed = draft.trim();
   if (!trimmed) return "";
-  if (trimmed.includes("?") || trimmed.includes("？")) return trimmed;
+  if (trimmed.includes("?")) return trimmed;
 
   switch (intent) {
     case "comparison":
@@ -144,28 +145,36 @@ function getHardcodedSuggestQuestions(
     } else {
       candidates.push("What uncertainty caveat should I attach when citing this quote");
     }
-    return pickUniqueQuestions(candidates, 2);
+    candidates.push("What is the next action I should take based on this quote");
+    candidates.push("Which assumption in this quote is most fragile");
+    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
   }
 
   if (status === "error") {
     candidates.push("What caused the current error and what exact step should I fix first");
     candidates.push("Which questions can still be answered reliably despite this error");
-    return pickUniqueQuestions(candidates, 2);
+    candidates.push("What minimum data or config change is needed before rerunning");
+    candidates.push("What should I verify first to avoid repeating this failure");
+    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
   }
 
   if (status === "analyzing") {
     candidates.push("When this run finishes, which two items should I compare first");
     candidates.push("How will CI overlap affect my decision once results are ready");
-    return pickUniqueQuestions(candidates, 2);
+    candidates.push("What result pattern would indicate the ranking is unstable");
+    candidates.push("Which report section should I read first for a fast decision");
+    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
   }
 
   if (stage === "post-analysis" && results?.items?.length) {
     candidates.push(`Is ${topItem || "the top item"} truly above ${secondItem || "the runner-up"} after integer CI overlap`);
     candidates.push("Which items should I treat as the same practical tier");
+    candidates.push("What additional comparisons would most reduce current uncertainty");
+    candidates.push("What is the main decision risk if I only use rank order and ignore CI width");
     if (intent === "method") {
       candidates.push("Can you explain the bootstrap CI method and cite the key paper");
     }
-    return pickUniqueQuestions(candidates, 2);
+    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
   }
 
   if (stage === "post-schema") {
@@ -175,13 +184,18 @@ function getHardcodedSuggestQuestions(
       candidates.push("How should I set ranking direction before running analysis");
     }
     candidates.push("What should I verify before I click Start Ranking");
-    return pickUniqueQuestions(candidates, 2);
+    candidates.push("What output artifacts will I get after the run");
+    candidates.push("What run settings most affect uncertainty and reproducibility");
+    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
   }
 
   if (stage === "pre-upload") {
+    candidates.push("What is OmniRank and what can it do for my ranking task");
     candidates.push("What data format should I prepare for reliable ranking inference");
     candidates.push("Before upload, what assumptions should I verify about my comparisons");
-    return pickUniqueQuestions(candidates, 2);
+    candidates.push("How should I choose metrics so CI-based interpretation is meaningful");
+    candidates.push("What is the fastest way to sanity-check my CSV before upload");
+    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
   }
 
   if (lastUserMessage) {
@@ -189,7 +203,9 @@ function getHardcodedSuggestQuestions(
   }
   candidates.push("What should I ask next for my current analysis stage");
   candidates.push("What decision risk should I clarify before moving forward");
-  return pickUniqueQuestions(candidates, 2);
+  candidates.push("What method caveat should I keep in mind before acting on this result");
+  candidates.push("How can I turn the current output into a concrete next step");
+  return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
 }
 
 export function ChatInput({
@@ -351,7 +367,7 @@ export function ChatInput({
             <span className="text-xs font-medium text-muted-foreground">Suggest Question</span>
           </div>
           <div className="p-1.5 bg-background">
-            {suggestQuestionsList.slice(0, 2).map((question, index) => (
+            {suggestQuestionsList.slice(0, MAX_SUGGEST_QUESTIONS).map((question, index) => (
               <button
                 key={index}
                 onClick={() => handleQuickQuestion(question)}

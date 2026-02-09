@@ -183,17 +183,17 @@ const ChatMessageItem = memo(function ChatMessageItem({
       >
         <MessageIcon role="assistant" />
         <div className="relative max-w-[90%] px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm border text-sm bg-background border-border/60 text-foreground">
-          <div className="flex items-center gap-1.5 py-1" aria-label="Agent is thinking">
+          <div className="flex items-center gap-1 py-0.5" aria-label="Agent is thinking">
             <span
-              className="h-2 w-2 rounded-full bg-primary/70 animate-bounce"
+              className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce"
               style={{ animationDelay: "0ms" }}
             />
             <span
-              className="h-2 w-2 rounded-full bg-primary/70 animate-bounce"
+              className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce"
               style={{ animationDelay: "120ms" }}
             />
             <span
-              className="h-2 w-2 rounded-full bg-primary/70 animate-bounce"
+              className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce"
               style={{ animationDelay: "240ms" }}
             />
           </div>

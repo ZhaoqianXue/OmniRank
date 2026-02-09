@@ -176,12 +176,14 @@ Q&A Availability (cross-phase):
 - Users can ask OmniRank Agent questions at **any time**, not only after report generation.
 - Before ranking is completed, `answer_question` must answer with stage-aware guidance and method context.
 - After ranking is completed, `answer_question` must use result-level evidence (theta_hat, integer CIs, citation blocks).
+- External literature lookup is **not** part of the default Q&A path; it is triggered only for deep method-detail requests and must use the single allowlisted paper URL.
+- When external literature is triggered, prefer cached context first and avoid repeated network calls within the same session.
 - Composer-level `Suggest Question` prompts must be generated from the **user's perspective** (likely next user question), not assistant instructions.
 - For latency-sensitive UX, `Suggest Question` uses local deterministic templates (hardcoded, context-aware) rather than round-trip LLM calls.
 
 Suggest Question Product Logic (PM requirements):
 - Objective: maximize next-step clarity and reduce user cognitive load in chat.
-- Constraint: always return exactly **2** candidate questions.
+- Constraint: always return exactly **4** candidate questions.
 - UX principle: candidate questions must be actionable, concise, and decision-oriented (avoid meta prompts like "do you want me to...").
 
 Scenario routing (priority order):
@@ -203,6 +205,7 @@ Scenario routing (priority order):
    - Question 2 should identify practical tie/tier decisions.
 6. **Pre-upload / idle**:
    - Questions should focus on data readiness and method assumptions before running.
+   - At least one question should provide product orientation (e.g., "What is OmniRank?").
 
 Draft-aware refinement:
 - If user has partially typed input, use it as the first candidate seed.
@@ -211,7 +214,7 @@ Draft-aware refinement:
 
 Quality guardrails:
 - Use only user-perspective phrasing.
-- Avoid duplicate semantics across the two suggestions.
+- Avoid duplicate semantics across the four suggestions.
 - Prefer concrete nouns from current context (top item names, indicator name, quote excerpt) over generic wording.
 ```
 
@@ -294,7 +297,7 @@ Following Context Engineering best practices from Anthropic and Manus:
   - Purpose: Answer user follow-up questions
   - Input: `question: str, session: SessionMemory, quotes: Optional[List[QuotePayload]]`
   - Output: `{answer: str, supporting_evidence: List[str], used_citation_block_ids: List[str]}`
-  - Note: Must work in **all session stages**; uses session.current_results when available, otherwise uses session/data state + literature context (`.agent/literature/spectral_ranking_inferences.md`)
+  - Note: Must work in **all session stages**; default to session-first evidence (`results/session/quotes`). External literature retrieval is strictly gated to deep method-detail questions and only from the single approved paper (`https://arxiv.org/html/2308.02918`).
 
 ### Data Tools Details
 
@@ -779,20 +782,22 @@ def answer_question(
     quotes: Optional[List["QuotePayload"]] = None
 ) -> AnswerOutput:
     """
-    Answers user follow-up questions using session context and spectral knowledge.
+    Answers user follow-up questions using session-first evidence and controlled
+    method knowledge retrieval.
     
     This tool MUST be callable in any stage. It accesses:
     - session.current_results (if available) for item-level rank/CI answers
     - session.data_summary / schema / status for pre-run stage-aware answers
-    - .agent/literature/spectral_ranking_inferences.md for theory-grounded context
-      and reference links (when method/statistical explanation is requested).
+    - session/report quote blocks for quote-grounded interpretation
+    - method reference context only when deep method-detail retrieval is triggered
+      (see retrieval policy below).
 
     Quote-aware follow-ups (optional):
     - If quotes are provided, prioritize answering the question with respect to the
       quoted text and its referenced block_id(s), while still using session context
       for numerical verification and caveats.
     
-    Context Retrieval Strategy:
+    Context Retrieval Strategy (priority order):
     1. Result Cache: For ranking/score queries
        - "Is Model A better than B?" -> Compare theta_hat and integer CIs; avoid treating CI overlap as a formal test
        
@@ -802,11 +807,36 @@ def answer_question(
     3. Execution Trace: For process queries
        - "Did it converge?" -> Check session.execution_trace
 
-    4. Literature Context: For methodological/statistical interpretation
-       - Cite correct paper title + URL from spectral_ranking_inferences references when needed
+    4. External Method Context (gated): For deep method-detail questions only
+       - Never fetch external sources for ordinary ranking/comparison/status Q&A.
+       - Trigger conditions should include method-topic intent plus depth signals
+         (e.g., assumptions, derivation, asymptotics, proof-level explanation),
+         or explicit source/citation requests.
+
+    External Retrieval Policy (allowlist + caching):
+    - Approved source (single allowlist):
+      "Spectral Ranking Inferences based on General Multiway Comparisons"
+      URL: https://arxiv.org/html/2308.02918
+    - Retrieval flow:
+      a) Check in-memory/session cache for previously prepared method context
+      b) Check local file cache `.agent/literature/spectral_ranking_inferences.md`
+      c) Only if still missing and trigger=true, perform a bounded network read
+         from the approved URL and extract only method-relevant snippets
+    - Cache update:
+      Store normalized snippets for reuse during the same session to reduce
+      latency and token overhead.
+    - Failure handling:
+      If online retrieval fails, answer with available internal context, state
+      that source retrieval was unavailable, and do not fabricate quotes.
+
+    Citation Policy:
+    - For non-method or shallow method questions: no external reference block.
+    - For deep method questions with reference usage: include at most one
+      citation, and it must match the exact title + URL above.
+    - Do not cite any other paper in this tool.
     
     Knowledge Base:
-    - Spectral ranking theory (CI interpretation, significance testing)
+    - Spectral ranking theory (CI interpretation, significance testing caveats)
     - Domain expertise embedded in system prompt
     
     Returns:

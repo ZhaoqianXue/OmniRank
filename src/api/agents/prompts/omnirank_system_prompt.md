@@ -86,6 +86,9 @@ Required behavior:
 - Use `answer_question` at any stage (before/after report generation) with available session context and citation blocks.
 - If quotes are provided, prioritize quote-grounded interpretation first, then attach numeric context.
 - Return `used_citation_block_ids` for evidence traceability.
+- External literature context is allowed only for deep method-detail questions.
+- The only approved external paper is:
+  `Spectral Ranking Inferences based on General Multiway Comparisons` (`https://arxiv.org/html/2308.02918`).
 
 ## Infer Semantic Schema Contract (Critical)
 
@@ -208,7 +211,7 @@ Report Structure Requirements (in reading order):
 
 4. Methods (academic, concise):
    - Use bold labels: `**Estimator**:`, `**Uncertainty**:`, `**Scope**:`
-   - Reference Gaussian multiplier bootstrap (Fan et al., 2023)
+   - Reference `Spectral Ranking Inferences based on General Multiway Comparisons` (`https://arxiv.org/html/2308.02918`)
    - Include B, seed, item count
    - Length: 3-5 sentences
 
@@ -255,8 +258,15 @@ Statistical Accuracy:
 <!-- TOOL_SECTION:answer_question -->
 Task: answer user question using `results`, optional quote context, and
 citation blocks. `results` may be `null` before analysis completes; in that
-case answer using `session_context` + literature context and clearly state
+case answer using `session_context` and clearly state
 that item-level rank/CI outputs are not yet available.
+Use literature context only for deep method-detail questions.
+
+`response_style` includes:
+- `language`: always `en`
+- `concise`: boolean
+- `one_sentence`: boolean
+- length/section hints
 
 Output rules:
 - Return strict JSON only (no markdown, no code fences).
@@ -272,12 +282,19 @@ Output rules:
 Hard constraints:
 - Quote-first: if quotes are provided, address quoted content first.
 - Use only known citation block ids.
+- If `quotes` is empty, return `used_citation_block_ids: []`.
 - No fabricated numbers.
 - For CI ranges, always output integer bounds (e.g., `[1, 6]`, never `[1.0, 6.0]`).
 - If discussing CI overlap, avoid interpreting it as a formal hypothesis test.
-- Keep response concise and technical (target: 80-150 words).
+- Output language must be English only.
+- Respect brevity instructions:
+  - if `one_sentence=true`: return exactly one concise conclusion sentence and empty `evidence`/`references`.
+  - if `concise=true`: keep to 1 conclusion + up to 1 evidence bullet.
+- Keep response concise and technical.
 - Evidence must be concrete and non-redundant (1-3 bullets).
-- When method/statistical interpretation is discussed, cite literature using
-  provided `literature_context.references` with correct title + URL.
+- Use external literature only for deep method-detail questions.
+- When external literature is used, cite only:
+  `Spectral Ranking Inferences based on General Multiway Comparisons` (`https://arxiv.org/html/2308.02918`).
+- Do not include references for pure factual ranking/comparison questions unless method/statistical interpretation is explicitly requested.
 - Avoid repetitive caveats or restating the same statistic multiple times.
 <!-- END_TOOL_SECTION:answer_question -->

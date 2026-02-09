@@ -96,7 +96,7 @@ def test_answer_question_works_before_analysis_results_are_ready():
         session_context={"status": "uploaded", "has_results": False},
     )
 
-    assert "Conclusion:" in answer.answer
+    assert "Conclusion:" not in answer.answer
     assert "Session status: uploaded." in answer.answer
 
 
@@ -139,3 +139,153 @@ def test_answer_question_with_quotes_uses_block_ids():
 
     assert quote_block_id in answer.used_citation_block_ids
     assert "Quote context considered" in answer.answer
+
+
+def test_answer_question_drops_spurious_used_ids_without_quotes(monkeypatch):
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "A is first.",
+                "evidence": ["A has rank 1."],
+                "used_citation_block_ids": ["summary-abc"],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="What is the top item?",
+        results=_sample_results(),
+        citation_blocks={"summary-abc": "Some block"},
+        quotes=[],
+    )
+
+    assert answer.used_citation_block_ids == []
+
+
+def test_answer_question_omits_unnecessary_references_for_plain_ranking(monkeypatch):
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "A is first.",
+                "evidence": ["A has rank 1."],
+                "references": [
+                    {
+                        "title": "Spectral Ranking Inferences based on General Multiway Comparisons",
+                        "url": "https://arxiv.org/html/2308.02918",
+                    }
+                ],
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="Who is first?",
+        results=_sample_results(),
+        citation_blocks={},
+        quotes=[],
+    )
+
+    assert "References:" not in answer.answer
+
+
+def test_answer_question_respects_one_sentence_mode(monkeypatch):
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "A wins. Additional sentence should be trimmed.",
+                "evidence": ["A rank=1", "B rank=2"],
+                "references": [
+                    {
+                        "title": "Spectral Ranking Inferences based on General Multiway Comparisons",
+                        "url": "https://arxiv.org/html/2308.02918",
+                    }
+                ],
+                "note": "This is extra note that should be removed.",
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="One sentence only: who wins?",
+        results=_sample_results(),
+        citation_blocks={},
+        quotes=[],
+    )
+
+    assert answer.answer.startswith("A wins.")
+    assert "Conclusion:" not in answer.answer
+    assert "Evidence:" not in answer.answer
+    assert "References:" not in answer.answer
+    assert "Note:" not in answer.answer
+
+
+def test_answer_question_shallow_method_does_not_attach_external_reference(monkeypatch):
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "OmniRank uses spectral ranking with bootstrap uncertainty.",
+                "evidence": ["Method overview only."],
+                "references": [
+                    {
+                        "title": "Spectral Ranking Inferences based on General Multiway Comparisons",
+                        "url": "https://arxiv.org/html/2308.02918",
+                    }
+                ],
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="What method is used?",
+        results=_sample_results(),
+        citation_blocks={},
+        quotes=[],
+    )
+
+    assert "References:" not in answer.answer
+
+
+def test_answer_question_deep_method_backfills_whitelisted_reference(monkeypatch):
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "Detailed theoretical explanation of assumptions and asymptotics.",
+                "evidence": ["Discusses identifiability and uncertainty quantification."],
+                "references": [],
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="Provide a detailed theoretical explanation of the method and include the source paper.",
+        results=_sample_results(),
+        citation_blocks={},
+        quotes=[],
+    )
+
+    assert "References:" in answer.answer
+    assert "https://arxiv.org/html/2308.02918" in answer.answer
