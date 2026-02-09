@@ -44,8 +44,9 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: number;
+  quotes?: QuotePayload[];
   agent?: "data" | "orchestrator" | "analyst";
-  type?: "text" | "data-agent-working" | "ranking-config" | "analysis-complete";
+  type?: "text" | "assistant-thinking" | "data-agent-working" | "ranking-config" | "analysis-complete";
   configData?: {
       schema: SemanticSchema;
       warnings: ValidationWarning[];
@@ -143,6 +144,7 @@ export function useOmniRank() {
         configData?: ChatMessage["configData"];
         workingData?: ChatMessage["workingData"];
         analysisCompleteData?: ChatMessage["analysisCompleteData"];
+        quotes?: QuotePayload[];
       }
     ) => {
       const message: ChatMessage = {
@@ -150,6 +152,7 @@ export function useOmniRank() {
         role,
         content,
         timestamp: Date.now(),
+        quotes: options?.quotes,
         agent,
         type: options?.type,
         configData: options?.configData,
@@ -161,6 +164,15 @@ export function useOmniRank() {
     },
     []
   );
+
+  const patchMessage = useCallback((messageId: string, patch: Partial<ChatMessage>) => {
+    setState((prev) => ({
+      ...prev,
+      messages: prev.messages.map((message) =>
+        message.id === messageId ? { ...message, ...patch } : message
+      ),
+    }));
+  }, []);
 
   const updateWorkingMessageProgress = useCallback((messageId: string, completedSteps: number) => {
     setState((prev) => ({
@@ -348,7 +360,7 @@ export function useOmniRank() {
         error: null,
       }));
 
-      addMessage("user", "Starting analysis with confirmed schema and parameters...");
+      addMessage("user", "Start Ranking...");
 
       const selectedItems = config.selected_items || state.schema.ranking_items;
       const effectiveIndicatorCol =
@@ -451,7 +463,7 @@ export function useOmniRank() {
 
   const sendMessage = useCallback(
     async (message: string, quotes: QuotePayload[] = []) => {
-      addMessage("user", message);
+      addMessage("user", message, undefined, { quotes });
 
       if (!state.sessionId || state.status !== "completed") {
         const fallback =
@@ -460,16 +472,30 @@ export function useOmniRank() {
         return;
       }
 
+      const thinkingMessage = addMessage("assistant", "", "analyst", {
+        type: "assistant-thinking",
+      });
+
       try {
         const response = await askQuestion(state.sessionId, message, quotes);
-        addMessage("assistant", response.answer.answer, "analyst");
+        patchMessage(thinkingMessage.id, {
+          content: response.answer.answer,
+          role: "assistant",
+          agent: "analyst",
+          type: "text",
+        });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Failed to answer question";
-        addMessage("system", `Error: ${errorMessage}`);
+        patchMessage(thinkingMessage.id, {
+          content: `Error: ${errorMessage}`,
+          role: "system",
+          agent: undefined,
+          type: "text",
+        });
         return;
       }
     },
-    [addMessage, state.sessionId, state.status]
+    [addMessage, patchMessage, state.sessionId, state.status]
   );
 
   const cancelData = useCallback(() => {

@@ -83,4 +83,3 @@ def test_online_generate_report_and_answer_question():
 
     assert answer.answer
     assert summary_block.block_id in answer.used_citation_block_ids
-    assert "CI overlap is not a formal hypothesis test" in answer.answer

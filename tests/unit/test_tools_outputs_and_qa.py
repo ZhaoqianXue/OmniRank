@@ -57,12 +57,19 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
         plots=[plot],
     )
 
+    assert "# OmniRank Report" in report.markdown
     assert "<section data-omni-block-id=" in report.markdown
     assert 'data-omni-kind="summary"' in report.markdown
     assert 'data-omni-kind="table"' in report.markdown
     assert 'data-omni-kind="method"' in report.markdown
     assert 'data-omni-kind="limitation"' in report.markdown
-    assert 'data-omni-kind="repro"' in report.markdown
+    assert 'data-omni-kind="repro"' not in report.markdown
+    assert "### Full Ranking Table" not in report.markdown
+    assert "CI Width" not in report.markdown
+    assert "Gap to #1" not in report.markdown
+    assert report.markdown.find("## Ranking Results") < report.markdown.find("| Rank | Item | Confidence Interval | Score (θ̂) |")
+    assert report.markdown.find("| Rank | Item | Confidence Interval | Score (θ̂) |") < report.markdown.find("### Executive Summary")
+    assert "| 1 | A | [1, 2] | 0.6000 |" in report.markdown
     assert len(report.citation_blocks) > 0
     assert len(report.hints) > 0
 

@@ -35,6 +35,8 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: unknow
   if (!active || !payload || !payload.length) return null;
 
   const data = (payload[0] as { payload: RankingItem }).payload;
+  const ciLeft = Math.round(data.ci_two_sided[0]);
+  const ciRight = Math.round(data.ci_two_sided[1]);
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -50,7 +52,7 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: unknow
           Score: <span className="text-foreground font-mono">{data.theta_hat.toFixed(4)}</span>
         </p>
         <p className="text-muted-foreground">
-          CI: <span className="text-foreground font-mono">[{data.ci_two_sided[0]}, {data.ci_two_sided[1]}]</span>
+          Confidence Interval: <span className="text-foreground font-mono">[{ciLeft}, {ciRight}]</span>
         </p>
       </div>
     </motion.div>

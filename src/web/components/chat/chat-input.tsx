@@ -1,21 +1,23 @@
 "use client";
 
 import { useState, useRef, useMemo, KeyboardEvent } from "react";
-import { Send, Loader2, Zap, ChevronRight } from "lucide-react";
+import { Send, Loader2, Zap, ChevronRight, MessageSquareQuote, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { RankingResults, SemanticSchema } from "@/lib/api";
+import type { QuotePayload, RankingResults, SemanticSchema } from "@/lib/api";
 import type { AnalysisStatus } from "@/hooks/use-omnirank";
 
 // Analysis stage for quick start questions
 type AnalysisStage = "pre-upload" | "post-schema" | "post-analysis";
 
 interface ChatInputProps {
-  onSend: (message: string) => Promise<void>;
+  onSend: (message: string, quotes?: QuotePayload[]) => Promise<void>;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  quoteDrafts?: QuotePayload[];
+  onQuoteDraftsChange?: (quotes: QuotePayload[]) => void;
   // Context for generating quick start questions
   status?: AnalysisStatus;
   schema?: SemanticSchema | null;
@@ -92,6 +94,8 @@ export function ChatInput({
   disabled = false,
   placeholder = "Type your message...",
   className,
+  quoteDrafts = [],
+  onQuoteDraftsChange,
   status,
   schema,
   results,
@@ -116,14 +120,25 @@ export function ChatInput({
     return getQuickStartQuestions(stage, schema, results);
   }, [stage, schema, results]);
 
+  const removeQuote = (index: number) => {
+    if (!onQuoteDraftsChange) return;
+    onQuoteDraftsChange(quoteDrafts.filter((_, i) => i !== index));
+  };
+
+  const clearQuotes = () => {
+    onQuoteDraftsChange?.([]);
+  };
+
   const handleSend = async () => {
     const trimmed = message.trim();
-    if (!trimmed || isSending || disabled) return;
+    if ((!trimmed && quoteDrafts.length === 0) || isSending || disabled) return;
 
+    const quotesToSend = [...quoteDrafts];
     setIsSending(true);
     setShowQuickStart(false);
+    clearQuotes();
     try {
-      await onSend(trimmed);
+      await onSend(trimmed || "Please answer based on the quoted report excerpt.", quotesToSend);
       setMessage("");
       // Reset textarea height
       if (textareaRef.current) {
@@ -137,10 +152,12 @@ export function ChatInput({
   const handleQuickQuestion = async (question: string) => {
     if (isSending || disabled) return;
 
+    const quotesToSend = [...quoteDrafts];
     setShowQuickStart(false);
     setIsSending(true);
+    clearQuotes();
     try {
-      await onSend(question);
+      await onSend(question, quotesToSend);
     } finally {
       setIsSending(false);
     }
@@ -168,7 +185,7 @@ export function ChatInput({
 
   const handleFocus = () => {
     // Show quick start when input is focused and empty
-    if (!message.trim()) {
+    if (!message.trim() && quoteDrafts.length === 0) {
       setShowQuickStart(true);
     }
   };
@@ -185,6 +202,44 @@ export function ChatInput({
 
   return (
     <div className={cn("relative", className)}>
+      {quoteDrafts.length > 0 && (
+        <div className="mb-2 space-y-2 rounded-lg border border-primary/25 bg-primary/[0.06] p-2.5">
+          {quoteDrafts.map((quote, index) => (
+            <div
+              key={`${quote.block_id || "quote"}-${index}`}
+              className="flex items-start gap-2 rounded-md border border-primary/20 bg-background/80 px-2.5 py-2"
+            >
+              <MessageSquareQuote className="h-3.5 w-3.5 mt-0.5 text-primary/80 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-primary/80 mb-0.5">Quoted from report</p>
+                <p className="text-xs text-foreground/85 line-clamp-2 break-words">
+                  &ldquo;{quote.quoted_text}&rdquo;
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeQuote(index)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Remove quote"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+          {quoteDrafts.length > 1 && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={clearQuotes}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear all quotes
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Quick Start Panel */}
       {showQuickStart && quickStartQuestions.length > 0 && (
         <div
@@ -234,7 +289,7 @@ export function ChatInput({
         />
         <Button
           onClick={handleSend}
-          disabled={!message.trim() || disabled || isSending}
+          disabled={(!message.trim() && quoteDrafts.length === 0) || disabled || isSending}
           size="icon"
           className="h-10 w-10 shrink-0"
         >

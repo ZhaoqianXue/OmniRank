@@ -4,10 +4,7 @@ import { useMemo, useRef, useState, type ComponentPropsWithoutRef, type ReactNod
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BookOpen,
-  ChevronDown,
-  ChevronUp,
   Download,
-  FileText,
   Info,
   MessageSquareQuote,
   X,
@@ -18,12 +15,6 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   artifactUrl,
@@ -51,7 +42,7 @@ interface ReportOverlayProps {
   schema: SemanticSchema | null;
   config: AnalysisConfig | null;
   onClose: () => void;
-  onSendMessage?: (message: string, quotes?: QuotePayload[]) => void | Promise<void>;
+  onQuoteToInput?: (quote: QuotePayload) => void;
   className?: string;
 }
 
@@ -91,7 +82,8 @@ const SECTION_STYLES: Record<string, string> = {
     "relative bg-primary/[0.04] border border-primary/20 rounded-xl p-6 my-6 shadow-[0_0_24px_-6px_rgba(152,132,229,0.12)]",
   result: "my-6",
   table: "my-6",
-  figure: "rounded-xl border border-border/40 bg-card/40 p-4 my-6",
+  figure:
+    "rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.06] via-card/80 to-card/40 p-5 my-7 shadow-[0_16px_40px_-24px_rgba(0,0,0,0.35)] [&>p:first-of-type]:text-[11px] [&>p:first-of-type]:uppercase [&>p:first-of-type]:tracking-wide [&>p:first-of-type]:text-primary/80 [&>p:first-of-type]:font-semibold [&>p:last-of-type]:text-xs [&>p:last-of-type]:text-muted-foreground [&>p:last-of-type]:leading-relaxed",
   comparison:
     "bg-muted/20 border border-border/40 rounded-lg p-5 my-6",
   method: "my-6",
@@ -107,6 +99,7 @@ const SECTION_STYLES: Record<string, string> = {
 function buildMarkdownComponents(
   artifactPathToUrl: Map<string, string>,
   figureUrls: Map<string, string>,
+  reportMetaBadges?: ReactNode,
 ): Components {
   return {
     /* ── Sections (kind-aware styling) ─────────────────────────────────── */
@@ -130,9 +123,14 @@ function buildMarkdownComponents(
 
     /* ── Headings ──────────────────────────────────────────────────────── */
     h1: ({ children }) => (
-      <h1 className="text-2xl font-bold pb-4 mb-2 border-b border-primary/30">
-        <span className="gradient-text">{children}</span>
-      </h1>
+      <header className="pb-4 mb-2 border-b border-primary/30 flex flex-wrap items-start justify-between gap-3">
+        <h1 className="text-2xl font-bold leading-tight">
+          <span className="gradient-text">{children}</span>
+        </h1>
+        {reportMetaBadges ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">{reportMetaBadges}</div>
+        ) : null}
+      </header>
     ),
     h2: ({ children }) => (
       <h2 className="text-lg font-semibold text-foreground mt-0 mb-3 flex items-center gap-2">
@@ -148,26 +146,26 @@ function buildMarkdownComponents(
 
     /* ── Tables ────────────────────────────────────────────────────────── */
     table: ({ children }) => (
-      <div className="overflow-x-auto rounded-lg border border-border/40 my-4">
-        <table className="w-full text-sm border-collapse">{children}</table>
+      <div className="overflow-x-auto rounded-md border bg-background my-4">
+        <div className="min-w-max">
+          <table className="w-full text-xs">{children}</table>
+        </div>
       </div>
     ),
     thead: ({ children }) => (
-      <thead className="bg-primary/[0.06] border-b border-border/40">{children}</thead>
+      <thead className="bg-muted sticky top-0 z-10">{children}</thead>
     ),
     th: ({ children }) => (
-      <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-primary uppercase tracking-wider whitespace-nowrap">
+      <th className="px-3 py-2 text-left font-bold text-muted-foreground border-b whitespace-nowrap bg-muted">
         {children}
       </th>
     ),
-    tbody: ({ children }) => (
-      <tbody className="divide-y divide-border/20">{children}</tbody>
-    ),
+    tbody: ({ children }) => <tbody>{children}</tbody>,
     tr: ({ children }) => (
-      <tr className="hover:bg-muted/20 transition-colors">{children}</tr>
+      <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors">{children}</tr>
     ),
     td: ({ children }) => (
-      <td className="px-4 py-2 text-sm whitespace-nowrap">{children}</td>
+      <td className="px-3 py-1.5 whitespace-nowrap">{children}</td>
     ),
 
     /* ── Horizontal rule (section divider) ─────────────────────────────── */
@@ -223,12 +221,11 @@ function buildMarkdownComponents(
         artifactPathToUrl.get(filename) ||
         Array.from(figureUrls.entries()).find(([, url]) => source.includes(url))?.[1] ||
         source;
-      /* eslint-disable-next-line @next/next/no-img-element */
       return (
         <img
           src={normalizedSrc}
           alt={alt || "report figure"}
-          className="w-full rounded-lg border border-border/30 my-2"
+          className="w-full rounded-xl border border-border/30 bg-background/90 p-2 my-2 shadow-md"
         />
       );
     },
@@ -240,42 +237,33 @@ function buildMarkdownComponents(
 /* -------------------------------------------------------------------------- */
 
 function GlossaryPanel({ hints }: { hints: HintSpec[] }) {
-  const [open, setOpen] = useState(false);
-
   if (!hints || hints.length === 0) return null;
 
   return (
     <div className="mt-8 border border-border/30 rounded-lg overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-foreground/80 hover:bg-muted/20 transition-colors"
-      >
+      <div className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-foreground/80 bg-muted/10">
         <span className="flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary/70" />
           Terms and Definitions
         </span>
-        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
-      {open && (
-        <div className="px-4 pb-4 grid gap-3 sm:grid-cols-2">
-          {hints.map((hint) => (
-            <div
-              key={hint.hint_id}
-              className="rounded-lg border border-border/20 bg-muted/10 p-3"
-            >
-              <div className="flex items-center gap-1.5 mb-1">
-                <Info className="h-3.5 w-3.5 text-primary/60" />
-                <span className="text-xs font-semibold text-foreground/80">{hint.title}</span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-auto">
-                  {hint.kind}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{hint.body}</p>
+      </div>
+      <div className="px-4 pb-4 grid gap-3 sm:grid-cols-2">
+        {hints.map((hint) => (
+          <div
+            key={hint.hint_id}
+            className="rounded-lg border border-border/20 bg-muted/10 p-3"
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <Info className="h-3.5 w-3.5 text-primary/60" />
+              <span className="text-xs font-semibold text-foreground/80">{hint.title}</span>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-auto">
+                {hint.kind}
+              </Badge>
             </div>
-          ))}
-        </div>
-      )}
+            <p className="text-xs text-muted-foreground leading-relaxed">{hint.body}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -294,7 +282,7 @@ export function ReportOverlay({
   schema,
   config,
   onClose,
-  onSendMessage,
+  onQuoteToInput,
   className,
 }: ReportOverlayProps) {
   const contentRef = useRef<HTMLDivElement>(null);
@@ -335,11 +323,46 @@ export function ReportOverlay({
     return map;
   }, [artifacts, reportOutput?.artifacts, sessionId]);
 
-  /* ── Markdown components (memoised) ──────────────────────────────────── */
+  const reportMetaBadges = useMemo(
+    () => (
+      <>
+        {schema && (
+          <Badge variant="secondary" className="text-xs gap-1">
+            {schema.ranking_items.length} items
+          </Badge>
+        )}
+        {config && (
+          <>
+            <Badge variant="outline" className="text-xs gap-1 font-mono">
+              B={config.bootstrap_iterations ?? 2000}
+            </Badge>
+            <Badge variant="outline" className="text-xs gap-1 font-mono">
+              seed={config.random_seed ?? 42}
+            </Badge>
+          </>
+        )}
+      </>
+    ),
+    [config, schema],
+  );
+
+  /* ── Markdown components ─────────────────────────────────────────────── */
 
   const mdComponents = useMemo(
-    () => buildMarkdownComponents(artifactPathToUrl, figureUrls),
-    [artifactPathToUrl, figureUrls],
+    () => buildMarkdownComponents(artifactPathToUrl, figureUrls, reportMetaBadges),
+    [artifactPathToUrl, figureUrls, reportMetaBadges],
+  );
+  const renderedMarkdown = useMemo(
+    () => (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, reportSanitizeSchema]]}
+        components={mdComponents}
+      >
+        {markdown}
+      </ReactMarkdown>
+    ),
+    [markdown, mdComponents],
   );
 
   /* ── Handlers ────────────────────────────────────────────────────────── */
@@ -366,25 +389,34 @@ export function ReportOverlay({
     }
     const el = anchor instanceof Element ? anchor : (anchor.parentElement as Element | null);
     const section = el?.closest("section[data-omni-block-id]");
-    setQuoteDraft({
+    const nextDraft: QuoteDraft = {
       text,
       blockId: section?.getAttribute("data-omni-block-id") || undefined,
       kind: section?.getAttribute("data-omni-kind") || undefined,
       x: rect.left + rect.width / 2,
       y: rect.top - 8,
+    };
+    setQuoteDraft((prev) => {
+      if (
+        prev &&
+        prev.text === nextDraft.text &&
+        prev.blockId === nextDraft.blockId &&
+        prev.kind === nextDraft.kind
+      ) {
+        return prev;
+      }
+      return nextDraft;
     });
   };
 
-  const handleQuote = async () => {
-    if (!quoteDraft || !onSendMessage) return;
-    await onSendMessage("Please answer based on this quoted report excerpt.", [
-      {
-        quoted_text: quoteDraft.text,
-        block_id: quoteDraft.blockId,
-        kind: quoteDraft.kind,
-        source: "report",
-      },
-    ]);
+  const handleQuote = () => {
+    if (!quoteDraft || !onQuoteToInput) return;
+    onQuoteToInput({
+      quoted_text: quoteDraft.text,
+      block_id: quoteDraft.blockId,
+      kind: quoteDraft.kind,
+      source: "report",
+    });
     window.getSelection()?.removeAllRanges();
     setQuoteDraft(null);
   };
@@ -408,64 +440,32 @@ export function ReportOverlay({
         >
           {/* ── Header bar ────────────────────────────────────────────── */}
           <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-card/90 border-b border-border/40 z-10">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">OmniRank Report</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportPdf}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPdf}
+              className="h-8 rounded-full border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:border-primary/50 shadow-sm"
+            >
                 <Download className="h-4 w-4 mr-1.5" />
                 Export PDF
-              </Button>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClose}
+              className="rounded-full border border-border/60 bg-background/80 hover:bg-muted/70 hover:border-border/90"
+              aria-label="Close report"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
 
           {/* ── Scrollable content ────────────────────────────────────── */}
           <div className="absolute inset-0 top-14 overflow-auto" onMouseUp={handleMouseUp}>
             <div ref={contentRef} className="max-w-4xl mx-auto p-6 pb-24">
-              {/* Meta badges */}
-              <div className="flex flex-wrap items-center gap-2 mb-6">
-                {schema && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant="secondary" className="text-xs gap-1">
-                          {schema.ranking_items.length} items
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>Number of items in the ranking</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-                {config && (
-                  <>
-                    <Badge variant="outline" className="text-xs gap-1 font-mono">
-                      B={config.bootstrap_iterations ?? 2000}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs gap-1 font-mono">
-                      seed={config.random_seed ?? 42}
-                    </Badge>
-                  </>
-                )}
-                {typeof reportOutput?.key_findings?.n_clusters === "number" && (
-                  <Badge variant="secondary" className="text-xs gap-1">
-                    {String(reportOutput.key_findings.n_clusters)} tier(s)
-                  </Badge>
-                )}
-              </div>
-
               {/* ── Markdown report ──────────────────────────────────── */}
               <div className="report-content">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw, [rehypeSanitize, reportSanitizeSchema]]}
-                  components={mdComponents}
-                >
-                  {markdown}
-                </ReactMarkdown>
+                {renderedMarkdown}
               </div>
 
               {/* ── Glossary / Hints ─────────────────────────────────── */}

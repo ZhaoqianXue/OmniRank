@@ -269,6 +269,11 @@ Hard constraints:
 - Quote-first: if quotes are provided, address quoted content first.
 - Use only known citation block ids.
 - No fabricated numbers.
-- Explicitly avoid interpreting CI overlap as a formal hypothesis test.
-- Keep response direct and technical.
+- If discussing CI overlap, avoid interpreting it as a formal hypothesis test.
+- Keep response concise and technical (target: 3-6 short sentences).
+- Prefer light structure in `answer`:
+  - `Conclusion: ...`
+  - `Evidence:` with 1-3 bullets
+  - optional `Note: ...` only when needed
+- Avoid repetitive caveats or restating the same statistic multiple times.
 <!-- END_TOOL_SECTION:answer_question -->

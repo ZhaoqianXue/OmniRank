@@ -16,10 +16,12 @@ import { ErrorDisplay } from "@/components/ui/error-display";
 import { ReportOverlay } from "@/components/report";
 import { useOmniRank } from "@/hooks/use-omnirank";
 import { cn } from "@/lib/utils";
+import type { QuotePayload } from "@/lib/api";
 
 export default function Home() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [quoteDrafts, setQuoteDrafts] = useState<QuotePayload[]>([]);
 
   const {
     state,
@@ -63,12 +65,34 @@ export default function Home() {
     }
 
     if (menuId === "new-chat") {
+      setQuoteDrafts([]);
       reset();
     }
   };
 
   const handleLoginToggle = () => {
     setIsLoggedIn((prev) => !prev);
+  };
+
+  const handleSendMessage = async (message: string, quotes: QuotePayload[] = []) => {
+    const effectiveQuotes = quotes.length > 0 ? quotes : quoteDrafts;
+    if (effectiveQuotes.length > 0) {
+      setQuoteDrafts([]);
+    }
+    await sendMessage(message, effectiveQuotes);
+  };
+
+  const handleQuoteToInput = (quote: QuotePayload) => {
+    setQuoteDrafts((prev) => {
+      const exists = prev.some(
+        (q) =>
+          q.quoted_text === quote.quoted_text &&
+          q.block_id === quote.block_id &&
+          q.kind === quote.kind
+      );
+      if (exists) return prev;
+      return [...prev, quote];
+    });
   };
 
   return (
@@ -182,7 +206,7 @@ export default function Home() {
                     schema={state.schema}
                     config={state.config}
                     onClose={hideReport}
-                    onSendMessage={sendMessage}
+                    onQuoteToInput={handleQuoteToInput}
                   />
                 )}
 
@@ -262,7 +286,7 @@ export default function Home() {
                 {/* Chat Header */}
                 <div className="flex items-center justify-center py-2 px-3 border-b border-border/40 min-h-[48px] shrink-0">
                   <div className="text-sm font-bold flex items-center justify-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
                     OmniRank Agent
                   </div>
                 </div>
@@ -272,7 +296,7 @@ export default function Home() {
                   <ChatInterface
                     messages={state.messages}
                     onStartAnalysis={startAnalysis}
-                    onSendMessage={sendMessage}
+                    onSendMessage={(message) => handleSendMessage(message)}
                     isAnalyzing={isAnalyzing}
                     isCompleted={!!showResults}
                     isReportVisible={state.isReportVisible}
@@ -284,9 +308,11 @@ export default function Home() {
                 {/* Smart Chat Input with Quick Start */}
                 <div className="p-2 border-t border-border/40">
                   <ChatInput
-                    onSend={sendMessage}
+                    onSend={handleSendMessage}
                     disabled={false}
                     placeholder="Type your message..."
+                    quoteDrafts={quoteDrafts}
+                    onQuoteDraftsChange={setQuoteDrafts}
                     status={state.status}
                     schema={state.schema}
                     results={state.results}

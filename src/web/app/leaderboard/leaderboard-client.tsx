@@ -626,11 +626,14 @@ function RankingTable({
       .slice()
       .sort((a, b) => a.rank - b.rank)
       .map((method) => {
+        const ci95Left = Math.round(method.ci_two_sided[0]);
+        const ci95Right = Math.round(method.ci_two_sided[1]);
+        const uniformCiLeft = Math.round(method.ci_uniform_left);
         const values: Record<string, number | string> = {
           rank: method.rank,
           theta_hat: method.theta_hat.toFixed(4),
-          ci_95: `[${method.ci_two_sided[0]}, ${method.ci_two_sided[1]}]`,
-          ci_uniform: `≤${method.ci_uniform_left}`,
+          ci_95: `[${ci95Left}, ${ci95Right}]`,
+          ci_uniform: `≤${uniformCiLeft}`,
           avg_rank: avgRankMap.get(method.name) ?? "N/A",
         };
 
@@ -1953,7 +1956,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                           <Card className="gap-2 border-border/60 bg-card/60 py-4">
                             <CardHeader className="px-4 pb-0">
                               <CardDescription>95% CI</CardDescription>
-                              <CardTitle className="text-2xl">[{customSummary.ciTwoSided[0]}, {customSummary.ciTwoSided[1]}]</CardTitle>
+                              <CardTitle className="text-2xl">[{Math.round(customSummary.ciTwoSided[0])}, {Math.round(customSummary.ciTwoSided[1])}]</CardTitle>
                             </CardHeader>
                           </Card>
                         </div>

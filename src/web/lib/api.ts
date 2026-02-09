@@ -338,12 +338,13 @@ export function normalizeRunResponse(run: RunResponse): {
 
   const raw = run.execution.results;
   const items: RankingItem[] = raw.items.map((name, index) => ({
+    // Keep CI bounds as integers for consistent UI interpretation.
+    ci_lower: Math.round(raw.ci_lower[index]),
+    ci_upper: Math.round(raw.ci_upper[index]),
     name,
     theta_hat: raw.theta_hat[index],
     rank: raw.ranks[index],
-    ci_lower: raw.ci_lower[index],
-    ci_upper: raw.ci_upper[index],
-    ci_two_sided: [raw.ci_lower[index], raw.ci_upper[index]],
+    ci_two_sided: [Math.round(raw.ci_lower[index]), Math.round(raw.ci_upper[index])],
   }));
 
   const rawMetadata = raw.metadata;

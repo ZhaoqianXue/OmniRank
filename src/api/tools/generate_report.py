@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any
 
 from core.llm_client import LLMCallError, get_llm_client
@@ -72,6 +73,31 @@ def _section(block_id: str, kind: str, body: str) -> str:
         f"\n{body}\n\n"
         f"</section>"
     )
+
+
+_CI_PAIR_PATTERNS = [
+    re.compile(r"((?:95%\s*)?CI(?:\s*[:=])?\s*\[)\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(\])", re.IGNORECASE),
+    re.compile(r"(confidence intervals?(?:\s*[:=])?\s*\[)\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(\])", re.IGNORECASE),
+]
+
+
+def _ci_int(value: float) -> int:
+    return int(round(float(value)))
+
+
+def _ci_pair(lo: float, hi: float) -> str:
+    return f"[{_ci_int(lo)}, {_ci_int(hi)}]"
+
+
+def _integerize_ci_text(text: str) -> str:
+    def _replace(match: re.Match[str]) -> str:
+        prefix, lo, hi, suffix = match.groups()
+        return f"{prefix}{_ci_int(float(lo))}, {_ci_int(float(hi))}{suffix}"
+
+    normalized = text
+    for pattern in _CI_PAIR_PATTERNS:
+        normalized = pattern.sub(_replace, normalized)
+    return normalized
 
 
 # ---------------------------------------------------------------------------
@@ -150,28 +176,68 @@ def _analyze_ranking(results: RankingResults) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def _render_ranking_table(results: RankingResults) -> str:
-    """Render an enhanced ranking table with CI width and gap columns."""
+    """Render ranking table with confidence interval and score columns."""
     order = sorted(range(len(results.ranks)), key=lambda i: results.ranks[i])
-    top_score = results.theta_hat[order[0]]
 
     lines = [
-        "| Rank | Item | Score (theta_hat) | 95% CI | CI Width | Gap to #1 |",
-        "|---:|---|---:|---|---:|---:|",
+        "| Rank | Item | Confidence Interval | Score (θ̂) |",
+        "|---:|---|---|---:|",
     ]
     for idx in order:
         item = _escape_table_cell(results.items[idx])
         score = results.theta_hat[idx]
         ci_lo = results.ci_lower[idx]
         ci_hi = results.ci_upper[idx]
-        ci_w = ci_hi - ci_lo
-        gap = top_score - score
-        gap_str = f"{gap:.4f}" if results.ranks[idx] > 1 else "---"
 
         lines.append(
-            f"| {results.ranks[idx]} | {item} | {score:.4f} "
-            f"| [{ci_lo:.4f}, {ci_hi:.4f}] | {ci_w:.4f} | {gap_str} |"
+            f"| {results.ranks[idx]} | {item} | {_ci_pair(ci_lo, ci_hi)} | {score:.4f} |"
         )
     return "\n".join(lines)
+
+
+def _build_ranking_interpretation(results: RankingResults, analysis: dict[str, Any]) -> str:
+    """Build structured interpretation with tier, uncertainty, and usage guidance."""
+    tiers = analysis["clusters"]
+    near_ties = analysis["near_ties_with_top"]
+    largest_gap = analysis.get("largest_gap")
+    top_item = results.items[analysis["order"][0]]
+
+    tier_lines = []
+    for idx, cluster in enumerate(tiers, start=1):
+        items_md = ", ".join(f"**{item}**" for item in cluster)
+        tier_lines.append(
+            f"- **Tier {idx}** ({len(cluster)} item{'s' if len(cluster) != 1 else ''}): {items_md}"
+        )
+
+    uncertainty_lines = [
+        (
+            f"- **Top-position stability**: Uncertain; **{top_item}** overlaps with "
+            + ", ".join(f"**{item}**" for item in near_ties)
+            + "."
+        )
+        if near_ties
+        else f"- **Top-position stability**: Strong; **{top_item}** has no CI overlap with the next-ranked item.",
+        (
+            f"- **Largest separation**: **{largest_gap['from']} -> {largest_gap['to']}** "
+            f"(score gap {largest_gap['gap']:.4f})."
+            if largest_gap
+            else "- **Largest separation**: Not available."
+        ),
+    ]
+
+    interpretation = (
+        "### Tier Structure\n"
+        + "\n".join(tier_lines)
+        + "\n\n"
+        + "### Uncertainty Signals\n"
+        + "\n".join(uncertainty_lines)
+        + "\n\n"
+        + "### Practical Reading Guide\n"
+        + "- Prefer **tier-level** interpretation when CIs overlap.\n"
+        + "- Use point estimates to break ties only as a **tentative** signal.\n"
+        + "- Treat CI overlap as uncertainty context, not a formal significance test."
+    )
+    return interpretation
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +260,7 @@ def _build_llm_narrative(
     top_idx = order[0]
     top_ci_lo = results.ci_lower[top_idx]
     top_ci_hi = results.ci_upper[top_idx]
+    top_ci_pair = _ci_pair(top_ci_lo, top_ci_hi)
     near_ties = analysis["near_ties_with_top"]
     clusters = analysis["clusters"]
 
@@ -212,13 +279,8 @@ def _build_llm_narrative(
 
     bullets: list[str] = [
         f"**{top_item}** ranks #1 with score {top_score:.4f} "
-        f"(95% CI: [{top_ci_lo:.4f}, {top_ci_hi:.4f}])",
+        f"(95% CI: {top_ci_pair})",
     ]
-    if len(clusters) > 1:
-        bullets.append(
-            f"Items form **{len(clusters)} performance tier(s)** based on "
-            "confidence interval overlap"
-        )
     if analysis["largest_gap"]:
         lg = analysis["largest_gap"]
         bullets.append(
@@ -258,7 +320,7 @@ def _build_llm_narrative(
             parts.append(
                 f"**{label}**: {items_md} "
                 f"(theta\\_hat = {results.theta_hat[ci]:.4f}, "
-                f"CI: [{results.ci_lower[ci]:.4f}, {results.ci_upper[ci]:.4f}])."
+                f"CI: {_ci_pair(results.ci_lower[ci], results.ci_upper[ci])})."
             )
         else:
             scores = [results.theta_hat[results.items.index(it)] for it in cluster]
@@ -269,48 +331,20 @@ def _build_llm_narrative(
             )
     results_narrative = " ".join(parts)
 
-    # ── Targeted Comparisons ─────────────────────────────────────────────
-    targeted = ""
-    if len(order) >= 2:
-        s_idx = order[1]
-        s_item = results.items[s_idx]
-        s_score = results.theta_hat[s_idx]
-        s_ci_lo = results.ci_lower[s_idx]
-        s_ci_hi = results.ci_upper[s_idx]
-
-        overlap = (
-            results.ci_upper[s_idx] >= results.ci_lower[top_idx]
-            and results.ci_lower[s_idx] <= results.ci_upper[top_idx]
-        )
-        if overlap:
-            targeted = (
-                f"**{top_item} vs. {s_item}**: "
-                f"{top_item} ({top_score:.4f}, CI [{top_ci_lo:.4f}, {top_ci_hi:.4f}]) "
-                f"and {s_item} ({s_score:.4f}, CI [{s_ci_lo:.4f}, {s_ci_hi:.4f}]) "
-                "have **overlapping confidence intervals**. While the point "
-                f"estimate favours {top_item}, the overlap means the true "
-                "ordering remains uncertain at the 95% level."
-            )
-        else:
-            targeted = (
-                f"**{top_item} vs. {s_item}**: "
-                f"{top_item} ({top_score:.4f}, CI [{top_ci_lo:.4f}, {top_ci_hi:.4f}]) "
-                f"and {s_item} ({s_score:.4f}, CI [{s_ci_lo:.4f}, {s_ci_hi:.4f}]) "
-                "have **non-overlapping confidence intervals**, suggesting "
-                f"measurable separation between these two items."
-            )
-
     # ── Methods ──────────────────────────────────────────────────────────
     B = session_meta.get("B", 2000)
     seed = session_meta.get("seed", 42)
     methods = (
-        f"**Estimator**: Spectral ranking estimates latent preference scores "
-        f"(theta\\_hat) from the stationary distribution of a Markov chain "
-        f"constructed from comparison data. "
-        f"**Uncertainty**: 95% bootstrap confidence intervals via Gaussian "
-        f"multiplier bootstrap (Fan et al., 2023) with **B = {B}** iterations "
-        f"and **seed = {seed}**. "
-        f"**Scope**: {len(results.items)} items analyzed."
+        "### Estimation Procedure\n"
+        "- **Spectral estimator**: Build a comparison graph, construct a Markov chain, and estimate latent preference scores from its stationary distribution.\n"
+        "- **Ranking rule**: Sort items by **theta\\_hat** (higher score first when `bigbetter=1`).\n"
+        f"- **Analysis scope**: **{len(results.items)} items** included in this run.\n\n"
+        "### Uncertainty Quantification\n"
+        "- **Interval type**: 95% bootstrap confidence intervals for rank uncertainty.\n"
+        "- **Bootstrap engine**: Gaussian multiplier bootstrap (Fan et al., 2023).\n\n"
+        "### Run Configuration\n"
+        f"- **Bootstrap iterations (B)**: {B}\n"
+        f"- **Random seed**: {seed}"
     )
 
     # ── Limitations ──────────────────────────────────────────────────────
@@ -324,28 +358,13 @@ def _build_llm_narrative(
         "rank certainty."
     )
 
-    # ── Reproducibility ──────────────────────────────────────────────────
-    fpath = session_meta.get("current_file_path", "N/A")
-    rpath = session_meta.get(
-        "r_script_path", "src/spectral_ranking/spectral_ranking.R"
-    )
-    reproducibility = (
-        f"- **Input data**: `{fpath}`\n"
-        f"- **Engine**: `{rpath}`\n"
-        f"- **Bootstrap iterations (B)**: {B}\n"
-        f"- **Random seed**: {seed}\n"
-        "- **Artifacts**: Ranking tables and SVG visualizations stored in "
-        "session artifact directory."
-    )
-
     fallback = {
         "summary": summary,
         "results_narrative": results_narrative,
-        "targeted_comparisons": targeted,
         "methods": methods,
         "limitations": limitations,
-        "reproducibility": reproducibility,
     }
+    fallback = {k: _integerize_ci_text(v) for k, v in fallback.items()}
 
     # ── LLM generation (optional) ────────────────────────────────────────
     client = get_llm_client()
@@ -377,10 +396,13 @@ def _build_llm_narrative(
         llm_output = client.generate_json(
             "generate_report", payload=payload, max_completion_tokens=4000
         )
-        return {
+        llm_narrative = {
             k: str(llm_output.get(k) or fallback[k])
             for k in fallback
         }
+        # Keep Methodology deterministic and clean for consistent report quality.
+        llm_narrative["methods"] = methods
+        return {k: _integerize_ci_text(v) for k, v in llm_narrative.items()}
     except (LLMCallError, ValueError, TypeError, KeyError) as exc:
         raise LLMCallError(f"LLM report generation failed: {exc}") from exc
 
@@ -506,6 +528,14 @@ def generate_report(
             "ranks": results.ranks,
         },
     )
+    result_detail_bid = _stable_block_id(
+        "result-detail",
+        {
+            "n_items": len(results.items),
+            "n_clusters": analysis["n_clusters"],
+            "near_ties_with_top": analysis["near_ties_with_top"],
+        },
+    )
     methods_bid = _stable_block_id(
         "method",
         {"B": session_meta.get("B", 2000), "seed": session_meta.get("seed", 42)},
@@ -513,31 +543,28 @@ def generate_report(
     limitation_bid = _stable_block_id(
         "limitation", {"n_items": len(results.items)}
     )
-    repro_bid = _stable_block_id(
-        "repro",
-        {
-            "current_file_path": str(session_meta.get("current_file_path", "")),
-            "r_script_path": str(session_meta.get("r_script_path", "")),
-            "B": session_meta.get("B", 2000),
-            "seed": session_meta.get("seed", 42),
-        },
-    )
 
     # ── Construct named section markdowns ────────────────────────────────
     summary_md = _section(
         summary_bid,
         "summary",
-        f"## Executive Summary\n\n{narrative['summary']}",
+        f"### Executive Summary\n\n{narrative['summary']}",
     )
     result_md = _section(
         result_bid,
         "result",
-        f"## Ranking Results\n\n{narrative['results_narrative']}",
+        "## Ranking Results",
     )
     table_md = _section(
         table_bid,
         "table",
-        f"### Full Ranking Table\n\n{ranking_table}",
+        ranking_table,
+    )
+    ranking_interpretation_md = _build_ranking_interpretation(results, analysis)
+    result_detail_md = _section(
+        result_detail_bid,
+        "result",
+        f"### Ranking Interpretation\n\n{ranking_interpretation_md}",
     )
     methods_md = _section(
         methods_bid,
@@ -549,18 +576,17 @@ def generate_report(
         "limitation",
         f"### Limitations and Assumptions\n\n{narrative['limitations']}",
     )
-    repro_md = _section(
-        repro_bid,
-        "repro",
-        f"### Reproducibility\n\n{narrative['reproducibility']}",
-    )
 
     # ── Figures (interleaved in the narrative) ───────────────────────────
     figure_mds: list[str] = []
     figure_blocks: list[CitationBlock] = []
     artifacts: list[ArtifactRef] = []
 
-    for idx, plot in enumerate(plots):
+    for idx, plot in enumerate(plots, start=1):
+        # Keep only CI-forest figure in the report body.
+        if plot.type == "ranking_bar":
+            continue
+
         fig_bid = plot.block_id or _stable_block_id(
             "figure",
             {"type": plot.type, "index": idx, "data": plot.data, "config": plot.config},
@@ -569,7 +595,7 @@ def generate_report(
         cap_acad = plot.caption_academic or plot.type
 
         fig_body = (
-            f"**Figure {idx + 1}: {cap_plain}**\n\n"
+            f"**Figure {idx}: {cap_plain}**\n\n"
             f"![{cap_plain}]({plot.svg_path})\n\n"
             f"*{cap_acad}*"
         )
@@ -581,7 +607,7 @@ def generate_report(
                 block_id=fig_bid,
                 kind=CitationKind.FIGURE,
                 markdown=fig_md,
-                text=f"Figure {idx + 1}: {cap_acad}",
+                text=f"Figure {idx}: {cap_acad}",
                 hint_ids=plot.hint_ids,
                 artifact_paths=[plot.svg_path],
             )
@@ -595,34 +621,17 @@ def generate_report(
             )
         )
 
-    # ── Targeted Comparisons (optional) ──────────────────────────────────
-    comparison_bid: str | None = None
-    comparison_md = ""
-    targeted_text = narrative.get("targeted_comparisons", "").strip()
-    if targeted_text:
-        comparison_bid = _stable_block_id(
-            "comparison",
-            {"top_item": top_item, "n_items": len(results.items)},
-        )
-        comparison_md = _section(
-            comparison_bid,
-            "comparison",
-            f"### Targeted Comparisons\n\n{targeted_text}",
-        )
-
     # ── Assemble full markdown ───────────────────────────────────────────
     parts: list[str] = [
-        "# OmniRank Spectral Ranking Report",
-        summary_md,
-        "---",
+        "# OmniRank Report",
         result_md,
         table_md,
+        summary_md,
+        result_detail_md,
         *figure_mds,
     ]
-    if comparison_md:
-        parts.append(comparison_md)
     parts.append("---")
-    parts.extend([methods_md, limitation_md, repro_md])
+    parts.extend([methods_md, limitation_md])
 
     full_markdown = "\n\n".join(parts)
 
@@ -640,6 +649,14 @@ def generate_report(
             block_id=result_bid,
             kind=CitationKind.RESULT,
             markdown=result_md,
+            text="Ranking results section",
+            hint_ids=["hint-rank-interpretation"],
+            artifact_paths=[],
+        ),
+        CitationBlock(
+            block_id=result_detail_bid,
+            kind=CitationKind.RESULT,
+            markdown=result_detail_md,
             text=narrative["results_narrative"],
             hint_ids=["hint-theta-hat", "hint-ci", "hint-rank-interpretation"],
             artifact_paths=[],
@@ -654,18 +671,6 @@ def generate_report(
         ),
         *figure_blocks,
     ]
-
-    if comparison_bid and comparison_md:
-        citation_blocks.append(
-            CitationBlock(
-                block_id=comparison_bid,
-                kind=CitationKind.COMPARISON,
-                markdown=comparison_md,
-                text=targeted_text,
-                hint_ids=["hint-ci", "hint-ci-overlap"],
-                artifact_paths=[],
-            )
-        )
 
     citation_blocks.extend(
         [
@@ -684,14 +689,6 @@ def generate_report(
                 text=narrative["limitations"],
                 hint_ids=["hint-ci", "hint-ci-overlap"],
                 artifact_paths=[],
-            ),
-            CitationBlock(
-                block_id=repro_bid,
-                kind=CitationKind.REPRO,
-                markdown=repro_md,
-                text=narrative["reproducibility"],
-                hint_ids=[],
-                artifact_paths=[a.path for a in artifacts],
             ),
         ]
     )

@@ -45,7 +45,7 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: unknow
           Point Estimate: <span className="text-primary font-mono">#{data.rank}</span>
         </p>
         <p className="text-muted-foreground">
-          95% CI: <span className="text-foreground font-mono">[{data.ci_lower}, {data.ci_upper}]</span>
+          Confidence Interval: <span className="text-foreground font-mono">[{data.ci_lower}, {data.ci_upper}]</span>
         </p>
         <p className="text-muted-foreground">
           CI Width: <span className="text-foreground font-mono">{data.ci_width}</span>
@@ -78,15 +78,19 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
   const chartData: ForestPlotDataItem[] = useMemo(() => {
     return [...items]
       .sort((a, b) => a.rank - b.rank)
-      .map((item) => ({
-        name: item.name,
-        rank: item.rank,
-        theta_hat: item.theta_hat,
-        ci_lower: item.ci_two_sided[0],
-        ci_upper: item.ci_two_sided[1],
-        ci_width: item.ci_two_sided[1] - item.ci_two_sided[0],
-        ciRange: [item.ci_two_sided[0], item.ci_two_sided[1]] as [number, number],
-      }));
+      .map((item) => {
+        const ciLower = Math.round(item.ci_two_sided[0]);
+        const ciUpper = Math.round(item.ci_two_sided[1]);
+        return {
+          name: item.name,
+          rank: item.rank,
+          theta_hat: item.theta_hat,
+          ci_lower: ciLower,
+          ci_upper: ciUpper,
+          ci_width: ciUpper - ciLower,
+          ciRange: [ciLower, ciUpper] as [number, number],
+        };
+      });
   }, [items]);
 
   // Calculate domain for X axis (rank-based)

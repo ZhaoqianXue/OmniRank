@@ -53,7 +53,7 @@ function DisplayRow({
     <div className="flex items-center gap-2 min-w-0">
       <span className="text-xs text-muted-foreground whitespace-nowrap">{label}:</span>
       <div className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded inline-flex items-center gap-1 min-w-0">
-        <span className="break-words">{children}</span>
+        <span className="break-words text-primary">{children}</span>
         {valueHelpText && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -242,9 +242,7 @@ export function RankingPreviewBubble({
                 label="Data Format"
                 valueHelpText="How this dataset encodes comparisons: pointwise scores, pairwise matchups, or multiway rankings."
               >
-                <span className="text-primary">
-                  {detectedFormat || "inferred"}
-                </span>
+                {detectedFormat || "inferred"}
               </DisplayRow>
               <DisplayRow
                 label="Ranking Direction"
@@ -272,7 +270,7 @@ export function RankingPreviewBubble({
               <DisplayRow label="Selected">
                 {selectedItems.length} / {schema.ranking_items.length}
               </DisplayRow>
-              <div className="text-xs font-mono bg-muted/60 px-2 py-1 rounded leading-relaxed break-words">
+              <div className="text-xs font-mono text-primary bg-muted/60 px-2 py-1 rounded leading-relaxed break-words">
                 {selectedItems.join(", ")}
               </div>
             </Section>
@@ -285,7 +283,7 @@ export function RankingPreviewBubble({
                   {indicatorCol ? selectedIndicatorValues.length : 0} / {schema.indicator_values.length}
                 </DisplayRow>
                 {indicatorCol && selectedIndicatorValues.length > 0 && (
-                  <div className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded">
+                  <div className="text-xs font-mono text-primary bg-muted/60 px-2 py-0.5 rounded">
                     {selectedIndicatorValues.join(", ")}
                   </div>
                 )}
