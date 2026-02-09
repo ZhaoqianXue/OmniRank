@@ -57,6 +57,11 @@ export default function Home() {
       return;
     }
 
+    if (menuId === "leaderboard") {
+      window.open("/leaderboard", "_blank", "noopener,noreferrer");
+      return;
+    }
+
     if (menuId === "new-chat") {
       reset();
     }
