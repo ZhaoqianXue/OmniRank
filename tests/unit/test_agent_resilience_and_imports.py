@@ -13,16 +13,7 @@ from core.session_memory import SessionMemory
 from core.schemas import SessionStatus
 
 
-class _FailingClient:
-    class chat:  # noqa: D106
-        class completions:  # noqa: D106
-            @staticmethod
-            def create(*args, **kwargs):  # noqa: ANN002, ANN003, D401
-                """Raise a synthetic upstream failure."""
-                raise RuntimeError("synthetic llm failure")
-
-
-def test_optional_llm_stage_note_failure_does_not_break_infer(tmp_path: Path):
+def test_agent_infer_runs_without_optional_stage_note_hook(tmp_path: Path):
     csv_path = tmp_path / "input.csv"
     csv_path.write_text("A,B\n1,0\n0,1\n", encoding="utf-8")
 
@@ -33,10 +24,7 @@ def test_optional_llm_stage_note_failure_does_not_break_infer(tmp_path: Path):
         current_file_path=str(csv_path),
     )
 
-    agent = OmniRankAgent()
-    agent.client = _FailingClient()
-
-    response = agent.infer(session=session, user_hints=None)
+    response = OmniRankAgent().infer(session=session, user_hints=None)
 
     assert response.success is True
     assert response.requires_confirmation is True

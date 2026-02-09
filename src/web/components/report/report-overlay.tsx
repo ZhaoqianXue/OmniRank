@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Download, FileText, MessageSquareQuote, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,16 @@ interface QuoteDraft {
   x: number;
   y: number;
 }
+
+const reportSanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames || []), "section"],
+  attributes: {
+    ...(defaultSchema.attributes || {}),
+    section: ["data-omni-block-id", "data-omni-kind"],
+    img: [...(((defaultSchema.attributes || {}).img as Array<string | [string, ...string[]]>) || []), "src", "alt", "title"],
+  },
+};
 
 export function ReportOverlay({
   isVisible,
@@ -208,7 +219,7 @@ export function ReportOverlay({
               <div className="prose prose-sm dark:prose-invert max-w-none">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
+                  rehypePlugins={[rehypeRaw, [rehypeSanitize, reportSanitizeSchema]]}
                   components={{
                     img: ({ src, alt }) => {
                       const source = typeof src === "string" ? src : "";

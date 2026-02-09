@@ -110,6 +110,19 @@ class EngineConfig(BaseModel):
     r_script_path: str = "src/spectral_ranking/spectral_ranking.R"
 
 
+class RankingMetadata(BaseModel):
+    """Engine metadata propagated from R output."""
+
+    n_samples: int = 0
+    k_methods: int = 0
+    runtime_sec: float = 0.0
+    heterogeneity_index: float = 0.0
+    spectral_gap: float = 0.0
+    sparsity_ratio: float = 0.0
+    mean_ci_width_top_5: float = 0.0
+    n_comparisons: Optional[int] = None
+
+
 class RankingResults(BaseModel):
     """Ranking output from spectral engine."""
 
@@ -119,6 +132,7 @@ class RankingResults(BaseModel):
     ci_lower: list[float]
     ci_upper: list[float]
     indicator_value: Optional[str] = None
+    metadata: Optional[RankingMetadata] = None
 
 
 class ExecutionTrace(BaseModel):
@@ -313,6 +327,13 @@ class ConfirmRequest(BaseModel):
     seed: int = 42
 
 
+class ConfirmResponse(BaseModel):
+    """Confirmation response payload."""
+
+    confirmation: ConfirmationResult
+    session_status: SessionStatus
+
+
 class RunRequest(BaseModel):
     """Run request payload."""
 
@@ -336,6 +357,12 @@ class QuestionRequest(BaseModel):
 
     question: str
     quotes: list[QuotePayload] = Field(default_factory=list)
+
+
+class QuestionResponse(BaseModel):
+    """Question response payload."""
+
+    answer: AnswerOutput
 
 
 class SessionSnapshot(BaseModel):

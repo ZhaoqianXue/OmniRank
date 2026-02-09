@@ -7,6 +7,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 from typing import Any, Optional
 
 from .schemas import (
@@ -27,9 +28,21 @@ from .schemas import (
 )
 
 
+SAFE_FILENAME_PATTERN = re.compile(r"[^A-Za-z0-9._-]")
+
+
 def _now_iso() -> str:
     """Return unix timestamp as ISO-like string with millisecond precision."""
     return time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()) + f".{int((time.time() % 1)*1000):03d}Z"
+
+
+def sanitize_uploaded_filename(filename: str) -> str:
+    """Normalize uploaded filename to basename + whitelist."""
+    base = Path(filename).name
+    normalized = SAFE_FILENAME_PATTERN.sub("_", base).strip()
+    if not normalized:
+        normalized = "upload.csv"
+    return normalized
 
 
 @dataclass
@@ -198,7 +211,11 @@ class SessionStore:
     def save_file(self, session_id: str, filename: str, content: bytes) -> str:
         """Persist uploaded file in session work directory."""
         work_dir = self.get_session_work_dir(session_id)
-        target_path = work_dir / filename
+        safe_filename = sanitize_uploaded_filename(filename)
+        target_path = (work_dir / safe_filename).resolve()
+        work_dir_resolved = work_dir.resolve()
+        if work_dir_resolved not in target_path.parents and target_path != work_dir_resolved:
+            raise ValueError("Unsafe upload path resolved outside the session workspace.")
         target_path.write_bytes(content)
         return str(target_path)
 

@@ -3,6 +3,7 @@
 import { useRef, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, User } from "lucide-react";
+import { Fragment } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { RankingPreviewBubble } from "./ranking-preview-bubble";
@@ -127,6 +128,16 @@ const ChatMessageItem = memo(function ChatMessageItem({
     );
   }
 
+  const renderInlineBold = (line: string) => {
+    const parts = line.split("**");
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        return <strong key={`bold-${index}`}>{part}</strong>;
+      }
+      return <Fragment key={`text-${index}`}>{part}</Fragment>;
+    });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -151,24 +162,20 @@ const ChatMessageItem = memo(function ChatMessageItem({
           "prose prose-sm dark:prose-invert max-w-none break-words",
           isSystem && "text-yellow-600 dark:text-yellow-400"
         )}>
-          {message.content.split("\n").map((line, i) => (
-            <p key={i} className="mb-1 last:mb-0 leading-relaxed">
-              {line.startsWith("- ") ? (
-                <span className="flex gap-2">
-                  <span className="text-muted-foreground">•</span>
-                  <span>{line.slice(2)}</span>
-                </span>
-              ) : line.includes("**") ? (
-                <span
-                  dangerouslySetInnerHTML={{
-                    __html: line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"),
-                  }}
-                />
-              ) : (
-                line
-              )}
-            </p>
-          ))}
+              {message.content.split("\n").map((line, i) => (
+                <p key={i} className="mb-1 last:mb-0 leading-relaxed">
+                  {line.startsWith("- ") ? (
+                    <span className="flex gap-2">
+                      <span className="text-muted-foreground">•</span>
+                      <span>{line.slice(2)}</span>
+                    </span>
+                  ) : line.includes("**") ? (
+                    <span>{renderInlineBold(line)}</span>
+                  ) : (
+                    line
+                  )}
+                </p>
+              ))}
         </div>
       </div>
     </motion.div>

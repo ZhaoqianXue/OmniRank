@@ -23,6 +23,21 @@ def reset_session_store():
     session_memory._store = None
 
 
+@pytest.fixture(autouse=True)
+def disable_llm_for_non_online_tests(monkeypatch, request):
+    """Disable live LLM calls unless the test is explicitly marked as online."""
+    if request.node.get_closest_marker("online_llm"):
+        yield
+        return
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    from core.llm_client import get_llm_client
+
+    get_llm_client.cache_clear()
+    yield
+    get_llm_client.cache_clear()
+
+
 # =============================================================================
 # Test Data Fixtures
 # =============================================================================

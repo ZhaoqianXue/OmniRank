@@ -13,10 +13,12 @@ from fastapi.responses import FileResponse
 
 from agents.omnirank_agent import OmniRankAgent
 from core.schemas import (
+    ConfirmResponse,
     ConfirmRequest,
     DataPreview,
     InferRequest,
     InferResponse,
+    QuestionResponse,
     QuestionRequest,
     RunRequest,
     RunResponse,
@@ -45,6 +47,9 @@ async def upload_file(file: UploadFile = File(...)):
     """Upload CSV file and create session."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
+    normalized_name = file.filename.replace("\\", "/")
+    if Path(normalized_name).name != normalized_name or ".." in normalized_name.split("/"):
+        raise HTTPException(status_code=400, detail="Unsafe filename path is not allowed")
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
@@ -53,13 +58,13 @@ async def upload_file(file: UploadFile = File(...)):
     session = store.create_session()
 
     saved_path = store.save_file(session.session_id, file.filename, content)
-    session.filename = file.filename
+    session.filename = Path(saved_path).name
     session.original_file_path = saved_path
     session.current_file_path = saved_path
     session.status = SessionStatus.UPLOADED
     store.update_session(session)
 
-    return UploadResponse(session_id=session.session_id, filename=file.filename)
+    return UploadResponse(session_id=session.session_id, filename=session.filename)
 
 
 @router.post("/upload/example/{example_id}", response_model=UploadResponse)
@@ -78,13 +83,13 @@ async def upload_example(example_id: str):
     session = store.create_session()
     saved_path = store.save_file(session.session_id, filename, content)
 
-    session.filename = filename
+    session.filename = Path(saved_path).name
     session.original_file_path = saved_path
     session.current_file_path = saved_path
     session.status = SessionStatus.UPLOADED
     store.update_session(session)
 
-    return UploadResponse(session_id=session.session_id, filename=filename)
+    return UploadResponse(session_id=session.session_id, filename=session.filename)
 
 
 @router.get("/preview/{session_id}", response_model=DataPreview)
@@ -133,7 +138,7 @@ async def infer_session(session_id: str, request: InferRequest):
     return response
 
 
-@router.post("/sessions/{session_id}/confirm", response_model=dict)
+@router.post("/sessions/{session_id}/confirm", response_model=ConfirmResponse)
 async def confirm_session(session_id: str, request: ConfirmRequest):
     """Persist user confirmation and schema adjustments."""
     store = get_session_store()
@@ -154,7 +159,7 @@ async def confirm_session(session_id: str, request: ConfirmRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     store.update_session(session)
-    return {"confirmation": confirmation.model_dump(), "session_status": session.status.value}
+    return ConfirmResponse(confirmation=confirmation, session_status=session.status)
 
 
 @router.post("/sessions/{session_id}/run", response_model=RunResponse)
@@ -177,7 +182,7 @@ async def run_session(session_id: str, request: RunRequest):
     return response
 
 
-@router.post("/sessions/{session_id}/question", response_model=dict)
+@router.post("/sessions/{session_id}/question", response_model=QuestionResponse)
 async def ask_question(session_id: str, request: QuestionRequest):
     """Answer follow-up question with optional quote payloads."""
     store = get_session_store()
@@ -191,7 +196,7 @@ async def ask_question(session_id: str, request: QuestionRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     store.update_session(session)
-    return {"answer": answer.model_dump()}
+    return QuestionResponse(answer=answer)
 
 
 @router.get("/sessions/{session_id}/artifacts/{artifact_id}")

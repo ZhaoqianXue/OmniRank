@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Iterable
 
+from core.llm_client import LLMCallError, get_llm_client
 from core.schemas import AnswerOutput, QuotePayload, RankingResults
+
+
+CI_CAVEAT = "CI overlap is not a formal hypothesis test; interpret overlap as uncertainty context only."
 
 
 def _top_summary(results: RankingResults) -> str:
@@ -27,14 +31,12 @@ def _comparison_sentence(results: RankingResults, item_a: str, item_b: str) -> s
     a_ci = (results.ci_lower[a_idx], results.ci_upper[a_idx])
     b_ci = (results.ci_lower[b_idx], results.ci_upper[b_idx])
     overlap = not (a_ci[1] < b_ci[0] or b_ci[1] < a_ci[0])
-
     lead = item_a if a_rank < b_rank else item_b
-    relation = "statistically indistinguishable by CI overlap" if overlap else f"{lead} appears stronger"
-
+    relation = "confidence intervals overlap (no formal significance claim)" if overlap else f"{lead} appears stronger"
     return (
         f"{item_a} rank={a_rank}, CI=[{a_ci[0]:.2f},{a_ci[1]:.2f}]; "
         f"{item_b} rank={b_rank}, CI=[{b_ci[0]:.2f},{b_ci[1]:.2f}]. "
-        f"Interpretation: {relation}."
+        f"Interpretation: {relation}. {CI_CAVEAT}"
     )
 
 
@@ -46,13 +48,13 @@ def _extract_two_items(question: str, available_items: Iterable[str]) -> tuple[s
     return None, None
 
 
-def answer_question(
+def _fallback_answer(
     question: str,
     results: RankingResults,
     citation_blocks: dict[str, str],
-    quotes: list[QuotePayload] | None = None,
+    quotes: list[QuotePayload] | None,
 ) -> AnswerOutput:
-    """Answer follow-up questions using current results and optional quote context."""
+    """Deterministic fallback answer when LLM is unavailable."""
     supporting_evidence: list[str] = []
     used_ids: list[str] = []
 
@@ -79,15 +81,98 @@ def answer_question(
         else:
             answer = (
                 _top_summary(results)
-                + " Ask a pairwise comparison by mentioning two item names for a more specific answer."
+                + " Ask a pairwise comparison by mentioning two item names for a more specific answer. "
+                + CI_CAVEAT
             )
             supporting_evidence.append("General summary based on current ranking results.")
 
     if quote_context:
         answer = f"{answer}\n\nQuote context considered: {quote_context}"
 
+    if CI_CAVEAT not in answer:
+        answer = f"{answer} {CI_CAVEAT}"
+
     return AnswerOutput(
         answer=answer,
         supporting_evidence=supporting_evidence,
         used_citation_block_ids=used_ids,
     )
+
+
+def answer_question(
+    question: str,
+    results: RankingResults,
+    citation_blocks: dict[str, str],
+    quotes: list[QuotePayload] | None = None,
+) -> AnswerOutput:
+    """Answer follow-up questions using current results and optional quote context."""
+    client = get_llm_client()
+    if not client.is_available():
+        return _fallback_answer(question, results, citation_blocks, quotes)
+
+    known_ids = set(citation_blocks.keys())
+    quoted_blocks = []
+    for quote in quotes or []:
+        if quote.block_id and quote.block_id in citation_blocks:
+            quoted_blocks.append(
+                {
+                    "block_id": quote.block_id,
+                    "kind": quote.kind,
+                    "quoted_text": quote.quoted_text,
+                    "block_text": citation_blocks[quote.block_id],
+                }
+            )
+        else:
+            quoted_blocks.append(
+                {
+                    "block_id": quote.block_id,
+                    "kind": quote.kind,
+                    "quoted_text": quote.quoted_text,
+                    "block_text": None,
+                }
+            )
+
+    payload = {
+        "question": question,
+        "results": {
+            "items": results.items,
+            "ranks": results.ranks,
+            "theta_hat": results.theta_hat,
+            "ci_lower": results.ci_lower,
+            "ci_upper": results.ci_upper,
+            "metadata": results.metadata.model_dump() if results.metadata else None,
+        },
+        "quotes": quoted_blocks,
+        "known_citation_block_ids": sorted(known_ids),
+    }
+
+    try:
+        llm_output = client.generate_json("answer_question", payload=payload, max_completion_tokens=900)
+        answer = str(llm_output.get("answer") or "").strip()
+        if not answer:
+            raise LLMCallError("Answer payload is empty.")
+
+        supporting = llm_output.get("supporting_evidence")
+        supporting_evidence = [str(entry) for entry in supporting] if isinstance(supporting, list) else []
+        if not supporting_evidence:
+            supporting_evidence = ["Derived from ranking scores and confidence intervals."]
+
+        used_ids_raw = llm_output.get("used_citation_block_ids")
+        used_ids: list[str] = []
+        if isinstance(used_ids_raw, list):
+            used_ids = [str(entry) for entry in used_ids_raw if str(entry) in known_ids]
+
+        for quote in quotes or []:
+            if quote.block_id and quote.block_id in known_ids and quote.block_id not in used_ids:
+                used_ids.append(quote.block_id)
+
+        if CI_CAVEAT not in answer:
+            answer = f"{answer}\n\n{CI_CAVEAT}"
+
+        return AnswerOutput(
+            answer=answer,
+            supporting_evidence=supporting_evidence,
+            used_citation_block_ids=used_ids,
+        )
+    except (LLMCallError, ValueError, TypeError, KeyError) as exc:
+        raise LLMCallError(f"LLM question answering failed: {exc}") from exc

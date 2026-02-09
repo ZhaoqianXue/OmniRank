@@ -63,6 +63,17 @@ export interface EngineConfig {
   r_script_path: string;
 }
 
+export interface RankingMetadata {
+  n_samples: number;
+  k_methods: number;
+  runtime_sec: number;
+  heterogeneity_index: number;
+  spectral_gap: number;
+  sparsity_ratio: number;
+  mean_ci_width_top_5: number;
+  n_comparisons?: number | null;
+}
+
 export interface RankingResults {
   items: string[];
   theta_hat: number[];
@@ -70,6 +81,7 @@ export interface RankingResults {
   ci_lower: number[];
   ci_upper: number[];
   indicator_value?: string | null;
+  metadata?: RankingMetadata | null;
 }
 
 export interface ExecutionTrace {
@@ -233,6 +245,11 @@ export interface ConfirmRequest {
   seed?: number;
 }
 
+export interface ConfirmResponse {
+  confirmation: ConfirmationResult;
+  session_status: SessionMemorySnapshot["status"];
+}
+
 export interface RunRequest {
   selected_items?: string[];
   selected_indicator_values?: string[];
@@ -250,6 +267,10 @@ export interface RunResponse {
 export interface QuestionRequest {
   question: string;
   quotes?: QuotePayload[];
+}
+
+export interface QuestionResponse {
+  answer: AnswerOutput;
 }
 
 export interface ArtifactDescriptor {

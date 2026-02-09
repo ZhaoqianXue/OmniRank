@@ -37,7 +37,16 @@ def test_execute_spectral_ranking_success(monkeypatch, tmp_path: Path):
             "methods": [
                 {"name": "A", "theta_hat": 0.25, "rank": 1, "ci_left": 1, "ci_uniform_left": 2},
                 {"name": "B", "theta_hat": -0.25, "rank": 2, "ci_left": 2, "ci_uniform_left": 2},
-            ]
+            ],
+            "metadata": {
+                "n_samples": 2,
+                "k_methods": 2,
+                "runtime_sec": 0.12,
+                "heterogeneity_index": 0.3,
+                "spectral_gap": 0.4,
+                "sparsity_ratio": 1.5,
+                "mean_ci_width_top_5": 1.0,
+            },
         }
         (out_dir / "ranking_results.json").write_text(json.dumps(payload), encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
@@ -48,6 +57,8 @@ def test_execute_spectral_ranking_success(monkeypatch, tmp_path: Path):
     assert result.success is True
     assert result.results is not None
     assert result.results.items == ["A", "B"]
+    assert result.results.metadata is not None
+    assert result.results.metadata.n_samples == 2
     assert result.trace.exit_code == 0
 
 

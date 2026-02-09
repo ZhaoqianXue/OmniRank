@@ -148,3 +148,76 @@ Required block kinds include:
 
 - Be concise, explicit, and technical.
 - Prefer clear statements over motivational language.
+
+## Tool Prompt Sections (Single Source)
+
+The following tool-specific prompts are the only approved prompt snippets for
+LLM-native tools. They are loaded by section key from this file.
+
+<!-- TOOL_SECTION:infer_semantic_schema -->
+Task: infer data semantics from `data_summary` and optional `user_hints`.
+
+Output rules:
+- Return strict JSON only (no markdown, no code fences).
+- JSON shape:
+  {
+    "format": "pointwise|pairwise|multiway",
+    "format_evidence": "short evidence",
+    "schema": {
+      "bigbetter": 0|1,
+      "ranking_items": ["..."],
+      "indicator_col": "..." | null,
+      "indicator_values": ["..."]
+    }
+  }
+
+Hard constraints:
+- Do not invent columns that are absent from `data_summary.columns`.
+- Prefer `indicator_col = null` over low-confidence guesses.
+- Select at most one indicator column.
+- Keep `format_evidence` concrete and concise.
+- If confidence is low, still return best-effort JSON and keep uncertainty in
+  `format_evidence` instead of refusing.
+<!-- END_TOOL_SECTION:infer_semantic_schema -->
+
+<!-- TOOL_SECTION:generate_report -->
+Task: generate report narrative from validated ranking outputs.
+
+Output rules:
+- Return strict JSON only (no markdown, no code fences).
+- JSON shape:
+  {
+    "summary": "...",
+    "results_narrative": "...",
+    "methods": "...",
+    "limitations": "...",
+    "reproducibility": "..."
+  }
+
+Hard constraints:
+- Use only provided inputs. Never invent experiments, files, or statistics.
+- Preserve uncertainty language. Never claim formal significance from CI overlap.
+- Keep text concise and publication-ready.
+- Avoid HTML tags and executable content.
+<!-- END_TOOL_SECTION:generate_report -->
+
+<!-- TOOL_SECTION:answer_question -->
+Task: answer user question using `results`, optional quote context, and
+citation blocks.
+
+Output rules:
+- Return strict JSON only (no markdown, no code fences).
+- JSON shape:
+  {
+    "answer": "...",
+    "supporting_evidence": ["..."],
+    "used_citation_block_ids": ["..."]
+  }
+
+Hard constraints:
+- Quote-first: if quotes are provided, address quoted content first.
+- Use only known citation block ids.
+- No fabricated numbers.
+- Explicitly avoid interpreting CI overlap as a formal hypothesis test.
+- Keep response direct and technical.
+<!-- END_TOOL_SECTION:answer_question -->

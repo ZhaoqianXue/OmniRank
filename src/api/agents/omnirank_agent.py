@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import os
-import logging
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
-from agents.prompt_loader import load_system_prompt
 from core.schemas import (
     AnswerOutput,
     ConfirmationResult,
@@ -27,7 +24,6 @@ from tools import ToolRegistry, build_tool_registry
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(PROJECT_ROOT / ".env")
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
-logger = logging.getLogger(__name__)
 
 
 class OmniRankAgent:
@@ -35,9 +31,6 @@ class OmniRankAgent:
 
     def __init__(self, registry: ToolRegistry | None = None):
         self.registry = registry or build_tool_registry()
-        self.system_prompt = load_system_prompt()
-        self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None
 
         # Stage gating to prevent tool misuse.
         self.allowed_tools: dict[str, set[str]] = {
@@ -77,34 +70,10 @@ class OmniRankAgent:
             )
             raise
 
-    def _optional_llm_stage_note(self, stage: str, context: dict[str, Any]) -> None:
-        """Optional model call for stage-level reasoning trace.
-
-        This keeps gpt-5-mini involved while preserving deterministic tool execution fallback.
-        """
-        if self.client is None:
-            return
-        try:
-            self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"Stage: {stage}. Keep fixed pipeline. Context: {context}",
-                    },
-                ],
-                max_completion_tokens=300,
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Optional LLM stage note skipped for stage '%s': %s", stage, exc)
-
     def infer(self, session: SessionMemory, user_hints: str | None = None) -> InferResponse:
         """Run read->infer->format-loop->quality validation pipeline."""
         if not session.current_file_path:
             return InferResponse(success=False, requires_confirmation=False, error="No uploaded file found for session.")
-
-        self._optional_llm_stage_note("infer", {"file": session.current_file_path})
 
         read_result = self._call_tool(
             "infer",
@@ -241,8 +210,6 @@ class OmniRankAgent:
         if session.inferred_schema is None or session.format_validation_result is None or session.quality_validation_result is None:
             raise RuntimeError("Cannot confirm before successful infer phase.")
 
-        self._optional_llm_stage_note("confirm", {"session_id": session.session_id})
-
         confirmation = self._call_tool(
             "confirm",
             session,
@@ -282,8 +249,6 @@ class OmniRankAgent:
             return RunResponse(success=False, error=f"Session is not runnable in state {session.status.value}.")
         if session.config is None:
             return RunResponse(success=False, error="Missing confirmed engine config.")
-
-        self._optional_llm_stage_note("run", {"session_id": session.session_id})
 
         session.status = SessionStatus.RUNNING
         session.config.selected_items = selected_items if selected_items else session.config.selected_items
@@ -361,8 +326,6 @@ class OmniRankAgent:
         """Answer follow-up question with quote-aware support."""
         if session.current_results is None:
             raise RuntimeError("No ranking results available for question answering.")
-
-        self._optional_llm_stage_note("question", {"question": question})
 
         citation_lookup = {}
         if session.report_output is not None:

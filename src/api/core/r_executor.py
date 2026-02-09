@@ -12,7 +12,7 @@ from typing import Optional
 
 import pandas as pd
 
-from .schemas import EngineConfig, ExecutionResult, ExecutionTrace, RankingResults
+from .schemas import EngineConfig, ExecutionResult, ExecutionTrace, RankingMetadata, RankingResults
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -160,6 +160,24 @@ class RScriptExecutor:
         if not methods:
             return ExecutionResult(success=False, error="Engine output has no methods", trace=trace)
 
+        metadata_payload = payload.get("metadata", {})
+        metadata: RankingMetadata | None = None
+        if isinstance(metadata_payload, dict):
+            metadata = RankingMetadata(
+                n_samples=int(metadata_payload.get("n_samples", 0) or 0),
+                k_methods=int(metadata_payload.get("k_methods", 0) or 0),
+                runtime_sec=float(metadata_payload.get("runtime_sec", 0.0) or 0.0),
+                heterogeneity_index=float(metadata_payload.get("heterogeneity_index", 0.0) or 0.0),
+                spectral_gap=float(metadata_payload.get("spectral_gap", 0.0) or 0.0),
+                sparsity_ratio=float(metadata_payload.get("sparsity_ratio", 0.0) or 0.0),
+                mean_ci_width_top_5=float(metadata_payload.get("mean_ci_width_top_5", 0.0) or 0.0),
+                n_comparisons=(
+                    int(metadata_payload["n_comparisons"])
+                    if "n_comparisons" in metadata_payload and metadata_payload["n_comparisons"] is not None
+                    else None
+                ),
+            )
+
         ci_bounds: list[tuple[float, float]] = []
         for method in methods:
             ci_two_sided = method.get("ci_two_sided")
@@ -178,6 +196,7 @@ class RScriptExecutor:
             ci_lower=[bounds[0] for bounds in ci_bounds],
             ci_upper=[bounds[1] for bounds in ci_bounds],
             indicator_value=None,
+            metadata=metadata,
         )
 
         return ExecutionResult(success=True, results=ranking, trace=trace)

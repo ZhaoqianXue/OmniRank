@@ -2,6 +2,42 @@
  * OmniRank API client (SOP single-agent pipeline).
  */
 
+import type {
+  ArtifactDescriptor,
+  ConfirmResponse,
+  DataPreview,
+  DataSummary,
+  FormatValidationResult,
+  InferResponse,
+  PlotSpec,
+  QualityValidationResult,
+  QuotePayload,
+  QuestionResponse,
+  ReportOutput,
+  RunResponse,
+  SemanticSchema,
+  SessionSnapshotResponse,
+  UploadResponse,
+} from "@shared/types";
+
+export type {
+  ArtifactDescriptor,
+  ConfirmResponse,
+  DataPreview,
+  DataSummary,
+  FormatValidationResult,
+  InferResponse,
+  PlotSpec,
+  QualityValidationResult,
+  QuotePayload,
+  QuestionResponse,
+  ReportOutput,
+  RunResponse,
+  SemanticSchema,
+  SessionSnapshotResponse,
+  UploadResponse,
+};
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function apiEndpoint(path: string): string {
@@ -34,65 +70,10 @@ async function fetchApi(path: string, init: RequestInit): Promise<Response> {
   }
 }
 
-export interface SemanticSchema {
-  bigbetter: 0 | 1;
-  ranking_items: string[];
-  indicator_col: string | null;
-  indicator_values: string[];
-}
-
-export interface DataSummary {
-  columns: string[];
-  sample_rows: Array<Record<string, unknown>>;
-  row_count: number;
-  column_types: Record<string, string>;
-}
-
-export interface FormatValidationResult {
-  is_ready: boolean;
-  fixable: boolean;
-  issues: string[];
-  suggested_fixes: string[];
-}
-
-export interface QualityValidationResult {
-  is_valid: boolean;
-  warnings: string[];
-  errors: string[];
-}
-
 export interface ValidationWarning {
   type: "format" | "quality";
   severity: "warning" | "error";
   message: string;
-}
-
-export interface UploadResponse {
-  session_id: string;
-  filename: string;
-}
-
-export interface DataPreview {
-  columns: string[];
-  rows: Array<Record<string, string | number | null>>;
-  totalRows: number;
-}
-
-export interface InferResponse {
-  success: boolean;
-  data_summary?: DataSummary;
-  schema_result?: {
-    success: boolean;
-    format: "pointwise" | "pairwise" | "multiway";
-    format_evidence: string;
-    schema?: SemanticSchema;
-    error?: string;
-  };
-  format_result?: FormatValidationResult;
-  quality_result?: QualityValidationResult;
-  preprocessed_path?: string;
-  requires_confirmation: boolean;
-  error?: string;
 }
 
 export interface AnalysisConfig {
@@ -115,46 +96,14 @@ export interface RankingItem {
 
 export interface RankingMetadata {
   n_items: number;
+  n_samples: number;
+  k_methods: number;
   n_comparisons: number;
   heterogeneity_index: number;
+  spectral_gap: number;
   sparsity_ratio: number;
+  mean_ci_width_top_5: number;
   runtime_sec: number;
-}
-
-export interface PlotSpec {
-  type: string;
-  data: Record<string, unknown>;
-  config: Record<string, unknown>;
-  svg_path: string;
-  block_id: string;
-  caption_plain: string;
-  caption_academic: string;
-  hint_ids: string[];
-}
-
-export interface HintSpec {
-  hint_id: string;
-  title: string;
-  body: string;
-  kind: "definition" | "assumption" | "caveat" | "method";
-  sources: string[];
-}
-
-export interface CitationBlock {
-  block_id: string;
-  kind: "summary" | "result" | "comparison" | "method" | "limitation" | "repro" | "figure" | "table";
-  markdown: string;
-  text: string;
-  hint_ids: string[];
-  artifact_paths: string[];
-}
-
-export interface ReportOutput {
-  markdown: string;
-  key_findings: Record<string, unknown>;
-  artifacts: Array<{ kind: string; path: string; title: string; mime_type: string }>;
-  hints: HintSpec[];
-  citation_blocks: CitationBlock[];
 }
 
 export interface RankingResults {
@@ -172,67 +121,6 @@ export interface RankingResults {
     insights: string[];
     score_distribution: string[];
     confidence_intervals: string[];
-  };
-}
-
-export interface RunResponse {
-  success: boolean;
-  config?: {
-    csv_path: string;
-    bigbetter: 0 | 1;
-    selected_items?: string[];
-    selected_indicator_values?: string[];
-    B: number;
-    seed: number;
-    r_script_path: string;
-  };
-  execution?: {
-    success: boolean;
-    results?: {
-      items: string[];
-      theta_hat: number[];
-      ranks: number[];
-      ci_lower: number[];
-      ci_upper: number[];
-      indicator_value?: string | null;
-    };
-    error?: string;
-    trace: {
-      command: string;
-      stdout: string;
-      stderr: string;
-      exit_code: number;
-      duration_seconds: number;
-      timestamp: string;
-    };
-  };
-  visualizations?: {
-    plots: PlotSpec[];
-    errors: string[];
-  };
-  report?: ReportOutput;
-  error?: string;
-}
-
-export interface QuotePayload {
-  quoted_text: string;
-  block_id?: string;
-  kind?: string;
-  source: "report" | "user_upload" | "external";
-}
-
-export interface ArtifactDescriptor {
-  artifact_id: string;
-  kind: string;
-  title: string;
-  mime_type: string;
-}
-
-export interface QuestionResponse {
-  answer: {
-    answer: string;
-    supporting_evidence: string[];
-    used_citation_block_ids: string[];
   };
 }
 
@@ -337,13 +225,13 @@ export async function confirmSession(
     B: number;
     seed: number;
   }
-): Promise<{ confirmation: unknown; session_status: string }> {
+): Promise<ConfirmResponse> {
   const response = await fetchApi(`/api/sessions/${sessionId}/confirm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  return parseResponse(response, "Failed to confirm schema");
+  return parseResponse<ConfirmResponse>(response, "Failed to confirm schema");
 }
 
 export async function runSession(
@@ -371,17 +259,9 @@ export async function askQuestion(
   return parseResponse<QuestionResponse>(response, "Failed to answer question");
 }
 
-export async function getSessionSnapshot(sessionId: string): Promise<{
-  session: {
-    status: string;
-    report_output?: ReportOutput;
-    visualization_output?: { plots: PlotSpec[]; errors: string[] };
-    citation_blocks?: CitationBlock[];
-  };
-  artifacts: ArtifactDescriptor[];
-}> {
+export async function getSessionSnapshot(sessionId: string): Promise<SessionSnapshotResponse> {
   const response = await fetchApi(`/api/sessions/${sessionId}`, {});
-  return parseResponse(response, "Failed to fetch session snapshot");
+  return parseResponse<SessionSnapshotResponse>(response, "Failed to fetch session snapshot");
 }
 
 export function artifactUrl(sessionId: string, artifactId: string): string {
@@ -443,15 +323,22 @@ export function normalizeRunResponse(run: RunResponse): {
     ci_two_sided: [raw.ci_lower[index], raw.ci_upper[index]],
   }));
 
+  const rawMetadata = raw.metadata;
+  const rankingMetadata: RankingMetadata = {
+    n_items: items.length,
+    n_samples: rawMetadata?.n_samples ?? 0,
+    k_methods: rawMetadata?.k_methods ?? items.length,
+    n_comparisons: rawMetadata?.n_comparisons ?? rawMetadata?.n_samples ?? 0,
+    heterogeneity_index: rawMetadata?.heterogeneity_index ?? 0,
+    spectral_gap: rawMetadata?.spectral_gap ?? 0,
+    sparsity_ratio: rawMetadata?.sparsity_ratio ?? 0,
+    mean_ci_width_top_5: rawMetadata?.mean_ci_width_top_5 ?? 0,
+    runtime_sec: rawMetadata?.runtime_sec ?? run.execution.trace.duration_seconds,
+  };
+
   const rankingResults: RankingResults = {
     items,
-    metadata: {
-      n_items: items.length,
-      n_comparisons: 0,
-      heterogeneity_index: 0,
-      sparsity_ratio: 0,
-      runtime_sec: run.execution.trace.duration_seconds,
-    },
+    metadata: rankingMetadata,
     pairwise_matrix: [],
     report: run.report?.markdown,
     section_questions: {
@@ -468,3 +355,4 @@ export function normalizeRunResponse(run: RunResponse): {
     plots: run.visualizations?.plots ?? [],
   };
 }
+
