@@ -181,24 +181,75 @@ Hard constraints:
 <!-- END_TOOL_SECTION:infer_semantic_schema -->
 
 <!-- TOOL_SECTION:generate_report -->
-Task: generate report narrative from validated ranking outputs.
+Task: generate publication-ready report narrative from validated ranking outputs following single-page progressive disclosure contract.
+
+You receive `results` (items, theta_hat, ranks, CIs), `session_meta` (B, seed, file paths), and `analysis` (clusters, near_ties_with_top, largest_gap, ci extremes). Use ALL of these inputs to craft a rich narrative.
+
+Report Structure Requirements (in reading order):
+1. Executive Summary (non-technical, above the fold):
+   - Name the top-ranked item and what "best" means here
+   - Plain-language uncertainty statement
+   - Key takeaways as a markdown bullet list (use `- `)
+   - Length: 4-8 sentences + 3-5 bullets
+
+2. Results Narrative (technical-lite):
+   - Describe the ranking story referencing tiers/clusters from `analysis`
+   - Bold item names: `**Model_A**`
+   - Reference specific scores, CI bounds, and tier membership
+   - Highlight patterns: clear winners, competitive clusters, outliers
+   - Length: 5-10 sentences
+
+3. Targeted Comparisons (as-needed):
+   - Compare the top-2 items with CI overlap interpretation
+   - Bold comparison header: `**Item_A vs. Item_B**:`
+   - If CIs overlap: "uncertainty in relative ordering"
+   - If CIs do not overlap: "measurable separation"
+   - Length: 2-5 sentences; empty string if only 1 item
+
+4. Methods (academic, concise):
+   - Use bold labels: `**Estimator**:`, `**Uncertainty**:`, `**Scope**:`
+   - Reference Gaussian multiplier bootstrap (Fan et al., 2023)
+   - Include B, seed, item count
+   - Length: 3-5 sentences
+
+5. Limitations (as markdown bullets):
+   - Use `- ` prefix for each point
+   - Bold key terms: `**not** a formal hypothesis test`
+   - 3-5 bullets
+
+6. Reproducibility (as markdown bullets):
+   - Use `- **Label**: value` format
+   - Include file path, engine, B, seed, artifact note
+   - 4-5 bullets
 
 Output rules:
-- Return strict JSON only (no markdown, no code fences).
+- Return strict JSON only (no markdown code fences wrapping the JSON).
+- JSON string values SHOULD contain markdown formatting: `**bold**`,
+  `- bullet lists`, `` `inline code` ``, `*italic*`. This is required for
+  the frontend markdown renderer.
+- Do NOT use raw HTML tags inside JSON values.
+- Escape underscores in theta_hat as `theta\_hat` for markdown rendering.
 - JSON shape:
   {
     "summary": "...",
     "results_narrative": "...",
+    "targeted_comparisons": "...",
     "methods": "...",
     "limitations": "...",
     "reproducibility": "..."
   }
 
-Hard constraints:
-- Use only provided inputs. Never invent experiments, files, or statistics.
+Content Guidelines:
+- Use only provided inputs. Never invent data.
 - Preserve uncertainty language. Never claim formal significance from CI overlap.
-- Keep text concise and publication-ready.
-- Avoid HTML tags and executable content.
+- Write for mixed audience: accessible to domain experts, rigorous for statisticians.
+- Keep prose concise and publication-ready.
+
+Statistical Accuracy:
+- theta_hat: estimated latent preference score from spectral ranking
+- CI: 95% bootstrap interval via Gaussian multiplier bootstrap
+- CI overlap is NOT a formal hypothesis test
+- Use "suggests", "indicates", "consistent with" -- never "proves" or "demonstrates"
 <!-- END_TOOL_SECTION:generate_report -->
 
 <!-- TOOL_SECTION:answer_question -->
