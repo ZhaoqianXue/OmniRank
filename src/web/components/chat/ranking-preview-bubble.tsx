@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Play, Loader2, Settings2, Check, X, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Play, Loader2, Settings2, Check, X, ChevronDown, ChevronRight, Eye, EyeOff, CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -41,15 +42,35 @@ interface RankingPreviewBubbleProps {
 // Display row component (read-only)
 function DisplayRow({
   label,
+  valueHelpText,
   children,
 }: {
   label: string;
+  valueHelpText?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 min-w-0">
       <span className="text-xs text-muted-foreground whitespace-nowrap">{label}:</span>
-      <div className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded">{children}</div>
+      <div className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded inline-flex items-center gap-1 min-w-0">
+        <span className="break-words">{children}</span>
+        {valueHelpText && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex text-muted-foreground/70 hover:text-foreground transition-colors flex-shrink-0"
+                aria-label={`${label} explanation`}
+              >
+                <CircleHelp className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="leading-relaxed">{valueHelpText}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
     </div>
   );
 }
@@ -81,8 +102,6 @@ function Section({
 export function RankingPreviewBubble({
   schema,
   detectedFormat,
-  formatResult,
-  qualityResult,
   warnings = [],
   onStartAnalysis,
   isAnalyzing = false,
@@ -180,9 +199,6 @@ export function RankingPreviewBubble({
     onStartAnalysis(config);
   };
 
-  // Calculate estimated runtime
-  const estimatedRuntime = `~${Math.max(1, Math.ceil(selectedItems.length * 0.3))} seconds`;
-
   // Check if config has been modified from defaults
   const isModified = 
     bigbetter !== schema.bigbetter ||
@@ -194,163 +210,151 @@ export function RankingPreviewBubble({
 
   return (
     <>
-      <div className={cn(
-        "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full",
-        className
-      )}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold">Ranking Preview</h3>
-            {isModified && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                Modified
-              </Badge>
-            )}
-          </div>
-          <button
-            onClick={handleOpenDialog}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title="Configure analysis"
-          >
-            <Settings2 className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Content (Read-only display) */}
-        <div className="px-4 py-3">
-          {/* Data Schema */}
-          <Section title="Data Schema">
-            <DisplayRow label="Format">
-              <span className={cn(
-                detectedFormat === "pairwise" ? "text-blue-600 dark:text-blue-400" : "text-green-600 dark:text-green-400"
-              )}>
-                {detectedFormat || "inferred"}
-              </span>
-            </DisplayRow>
-            <DisplayRow label="Format Check">
-              <span className={cn(formatResult ? (formatResult.is_ready ? "text-green-600" : "text-yellow-600") : "text-muted-foreground")}>
-                {formatResult ? (formatResult.is_ready ? "PASS" : "Needs Attention") : "N/A"}
-              </span>
-            </DisplayRow>
-            <DisplayRow label="Quality Check">
-              <span className={cn(qualityResult ? (qualityResult.is_valid ? "text-green-600" : "text-red-600") : "text-muted-foreground")}>
-                {qualityResult ? (qualityResult.is_valid ? "PASS" : "Blocking Errors") : "N/A"}
-              </span>
-            </DisplayRow>
-            <DisplayRow label="Data Quality">
-              <span className={cn(
-                warnings.length === 0 ? "text-green-600" : 
-                warnings.some(w => w.severity === "error") ? "text-red-600" : "text-yellow-600"
-              )}>
-                {warnings.length === 0 ? "Good" : 
-                 warnings.some(w => w.severity === "error") ? "Issues Found" : "Warnings"}
-              </span>
-            </DisplayRow>
-            {warnings.length > 0 && (
-              <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
-                {warnings.map((w, i) => (
-                  <div key={i} className={cn(
-                    "flex items-start gap-1",
-                    w.severity === "error" ? "text-red-600" : "text-yellow-600"
-                  )}>
-                    <span>{w.severity === "error" ? "✕" : "⚠"}</span>
-                    <span>{w.message}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <DisplayRow label="Direction">
-              {bigbetter === 1 ? "Higher is better" : "Lower is better"}
-            </DisplayRow>
-          </Section>
-
-          {/* Ranking Items */}
-          <Section title="Ranking Items">
-            <DisplayRow label="Selected">
-              {selectedItems.length} / {schema.ranking_items.length}
-            </DisplayRow>
-            <div className="text-xs font-mono bg-muted/60 px-2 py-1 rounded leading-relaxed break-words">
-              {selectedItems.join(", ")}
+      <TooltipProvider delayDuration={120}>
+        <div className={cn(
+          "bg-white dark:bg-zinc-800 border border-border/50 rounded-2xl rounded-bl-sm shadow-sm max-w-sm w-full",
+          className
+        )}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold">Ranking Preview</h3>
+              {isModified && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  Modified
+                </Badge>
+              )}
             </div>
-          </Section>
+            <button
+              onClick={handleOpenDialog}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Configure analysis"
+            >
+              <Settings2 className="h-4 w-4" />
+            </button>
+          </div>
 
-          {/* Ranking Indicator (only if indicator exists) */}
-          {hasIndicator && (
-            <Section title="Ranking Indicator">
-              <DisplayRow label="Column">{indicatorCol || "Disabled"}</DisplayRow>
-              <DisplayRow label="Selected">
-                {indicatorCol ? selectedIndicatorValues.length : 0} / {schema.indicator_values.length}
+          {/* Content (Read-only display) */}
+          <div className="px-4 py-3">
+            {/* Ranking Overview */}
+            <Section title="Ranking Overview">
+              <DisplayRow
+                label="Data Format"
+                valueHelpText="How this dataset encodes comparisons: pointwise scores, pairwise matchups, or multiway rankings."
+              >
+                <span className={cn(
+                  detectedFormat === "pairwise" ? "text-blue-600 dark:text-blue-400" : "text-green-600 dark:text-green-400"
+                )}>
+                  {detectedFormat || "inferred"}
+                </span>
               </DisplayRow>
-              {indicatorCol && selectedIndicatorValues.length > 0 && (
-                <div className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded">
-                  {selectedIndicatorValues.join(", ")}
+              <DisplayRow
+                label="Ranking Direction"
+                valueHelpText="Defines whether higher values or lower values should be treated as better in ranking."
+              >
+                {bigbetter === 1 ? "Higher is better" : "Lower is better"}
+              </DisplayRow>
+              {warnings.length > 0 && (
+                <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
+                  {warnings.map((w, i) => (
+                    <div key={i} className={cn(
+                      "flex items-start gap-1",
+                      w.severity === "error" ? "text-red-600" : "text-yellow-600"
+                    )}>
+                      <span>{w.severity === "error" ? "✕" : "⚠"}</span>
+                      <span>{w.message}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </Section>
-          )}
 
-          {/* Parameters */}
-          <Section title="Parameters" showLine={false}>
-            <DisplayRow label="Bootstrap">{bootstrapIterations}</DisplayRow>
-            <DisplayRow label="Seed">{randomSeed}</DisplayRow>
-            <DisplayRow label="Est. runtime">{estimatedRuntime}</DisplayRow>
-          </Section>
-        </div>
+            {/* Ranking Items */}
+            <Section title="Ranking Items">
+              <DisplayRow label="Selected">
+                {selectedItems.length} / {schema.ranking_items.length}
+              </DisplayRow>
+              <div className="text-xs font-mono bg-muted/60 px-2 py-1 rounded leading-relaxed break-words">
+                {selectedItems.join(", ")}
+              </div>
+            </Section>
 
-        {/* Action Button - changes based on state */}
-        <div className="px-4 pb-4">
-          {isCompleted ? (
-            // After ranking is completed: Show/Hide Report toggle
-            <Button
-              onClick={onToggleReport}
-              variant="outline"
-              className="w-full"
-              size="lg"
-            >
-              {isReportVisible ? (
-                <>
-                  <EyeOff className="h-4 w-4 mr-2" />
-                  Hide Report
-                </>
-              ) : (
-                <>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Show Report
-                </>
-              )}
-            </Button>
-          ) : (
-            // Before/during analysis: Start Ranking button
-            <>
+            {/* Ranking Indicator (only if indicator exists) */}
+            {hasIndicator && (
+              <Section title="Ranking Indicator">
+                <DisplayRow label="Column">{indicatorCol || "Disabled"}</DisplayRow>
+                <DisplayRow label="Selected">
+                  {indicatorCol ? selectedIndicatorValues.length : 0} / {schema.indicator_values.length}
+                </DisplayRow>
+                {indicatorCol && selectedIndicatorValues.length > 0 && (
+                  <div className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded">
+                    {selectedIndicatorValues.join(", ")}
+                  </div>
+                )}
+              </Section>
+            )}
+
+            {/* Ranking Parameters */}
+            <Section title="Ranking Parameters">
+              <DisplayRow label="Bootstrap">{bootstrapIterations}</DisplayRow>
+              <DisplayRow label="Seed">{randomSeed}</DisplayRow>
+            </Section>
+          </div>
+
+          {/* Action Button - changes based on state */}
+          <div className="px-4 pb-4">
+            {isCompleted ? (
+              // After ranking is completed: Show/Hide Report toggle
               <Button
-                onClick={handleStartAnalysis}
-                disabled={isAnalyzing || selectedItems.length < 2}
+                onClick={onToggleReport}
                 variant="outline"
                 className="w-full"
                 size="lg"
               >
-                {isAnalyzing ? (
+                {isReportVisible ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Analyzing...
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    Hide Report
                   </>
                 ) : (
                   <>
-                    <Play className="h-4 w-4 mr-2" />
-                    Start Ranking
+                    <Eye className="h-4 w-4 mr-2" />
+                    Show Report
                   </>
                 )}
               </Button>
-              {selectedItems.length < 2 && (
-                <p className="text-xs text-destructive mt-1 text-center">
-                  Select at least 2 items to rank
-                </p>
-              )}
-            </>
-          )}
+            ) : (
+              // Before/during analysis: Start Ranking button
+              <>
+                <Button
+                  onClick={handleStartAnalysis}
+                  disabled={isAnalyzing || selectedItems.length < 2}
+                  variant="outline"
+                  className="w-full"
+                  size="lg"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Start Ranking
+                    </>
+                  )}
+                </Button>
+                {selectedItems.length < 2 && (
+                  <p className="text-xs text-destructive mt-1 text-center">
+                    Select at least 2 items to rank
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
 
       {/* Configuration Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

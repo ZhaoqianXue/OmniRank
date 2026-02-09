@@ -76,7 +76,8 @@ const ChatMessageItem = memo(function ChatMessageItem({
       >
         <MessageIcon role="assistant" />
         <DataAgentWorkingBubble
-          isComplete={message.workingData?.isComplete}
+          completedSteps={message.workingData?.completedSteps}
+          totalSteps={message.workingData?.totalSteps}
         />
       </motion.div>
     );

@@ -27,6 +27,7 @@ import {
   type SemanticSchema,
   type ValidationWarning,
 } from "@/lib/api";
+import { DATA_AGENT_TOTAL_STEPS } from "@/lib/data-agent-steps";
 
 export type AnalysisStatus =
   | "idle"
@@ -51,7 +52,8 @@ export interface ChatMessage {
       detectedFormat?: "pointwise" | "pairwise" | "multiway";
     };
   workingData?: {
-    isComplete: boolean;
+    completedSteps: number;
+    totalSteps: number;
   };
   analysisCompleteData?: {
     suggestedQuestions: string[];
@@ -121,6 +123,9 @@ const initialState: OmniRankState = {
   error: null,
 };
 
+const STEP_TRANSITION_DELAY_MS = 220;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export function useOmniRank() {
   const [state, setState] = useState<OmniRankState>(initialState);
 
@@ -153,8 +158,42 @@ export function useOmniRank() {
     []
   );
 
+  const updateWorkingMessageProgress = useCallback((messageId: string, completedSteps: number) => {
+    setState((prev) => ({
+      ...prev,
+      messages: prev.messages.map((message) => {
+        if (message.id !== messageId || message.type !== "data-agent-working") {
+          return message;
+        }
+
+        return {
+          ...message,
+          workingData: {
+            completedSteps: Math.max(0, Math.min(completedSteps, DATA_AGENT_TOTAL_STEPS)),
+            totalSteps: DATA_AGENT_TOTAL_STEPS,
+          },
+        };
+      }),
+    }));
+  }, []);
+
   const prepareSession = useCallback(
-    async (sessionId: string, filename: string, source: "upload" | "example", exampleInfo: ExampleDataInfo | null) => {
+    async (
+      sessionId: string,
+      filename: string,
+      source: "upload" | "example",
+      exampleInfo: ExampleDataInfo | null,
+      workingMessageId?: string
+    ) => {
+      const completeStep = async (stepNumber: number, delayMs = 0) => {
+        if (workingMessageId) {
+          updateWorkingMessageProgress(workingMessageId, stepNumber);
+        }
+        if (delayMs > 0) {
+          await sleep(delayMs);
+        }
+      };
+
       setState((prev) => ({
         ...prev,
         sessionId,
@@ -169,11 +208,13 @@ export function useOmniRank() {
 
       const preview = await getDataPreview(sessionId);
       setState((prev) => ({ ...prev, dataPreview: preview, progress: 0.35, progressMessage: "Inferring schema..." }));
+      await completeStep(1);
 
       const infer = await inferSession(sessionId);
       if (!infer.success || !infer.schema_result?.schema) {
         throw new Error(infer.error || "Failed to infer schema");
       }
+      await completeStep(2);
 
       const warnings = toValidationWarnings(infer.format_result, infer.quality_result);
 
@@ -188,6 +229,10 @@ export function useOmniRank() {
         progressMessage: "Schema inferred. Awaiting confirmation.",
       }));
 
+      await completeStep(3, STEP_TRANSITION_DELAY_MS);
+      await completeStep(4, STEP_TRANSITION_DELAY_MS);
+      await completeStep(5, STEP_TRANSITION_DELAY_MS);
+
       addMessage("assistant", "", "data", {
         type: "ranking-config",
         configData: {
@@ -199,7 +244,7 @@ export function useOmniRank() {
         },
       });
     },
-    [addMessage]
+    [addMessage, updateWorkingMessageProgress]
   );
 
   const handleUpload = useCallback(
@@ -216,11 +261,17 @@ export function useOmniRank() {
         progressMessage: "Uploading file...",
       }));
       addMessage("user", `Uploaded: ${file.name}`);
-      addMessage("assistant", "", "data", { type: "data-agent-working", workingData: { isComplete: false } });
+      const workingMessage = addMessage("assistant", "", "data", {
+        type: "data-agent-working",
+        workingData: {
+          completedSteps: 0,
+          totalSteps: DATA_AGENT_TOTAL_STEPS,
+        },
+      });
 
       try {
         const upload = await uploadFile(file);
-        await prepareSession(upload.session_id, upload.filename, "upload", null);
+        await prepareSession(upload.session_id, upload.filename, "upload", null, workingMessage.id);
         setState((prev) => ({ ...prev, progress: 0.6 }));
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Upload failed";
@@ -254,11 +305,17 @@ export function useOmniRank() {
         progressMessage: "Loading example dataset...",
       }));
       addMessage("user", `Selected example: ${exampleInfo.title}`);
-      addMessage("assistant", "", "data", { type: "data-agent-working", workingData: { isComplete: false } });
+      const workingMessage = addMessage("assistant", "", "data", {
+        type: "data-agent-working",
+        workingData: {
+          completedSteps: 0,
+          totalSteps: DATA_AGENT_TOTAL_STEPS,
+        },
+      });
 
       try {
         const upload = await apiLoadExampleData(exampleId);
-        await prepareSession(upload.session_id, upload.filename, "example", exampleInfo);
+        await prepareSession(upload.session_id, upload.filename, "example", exampleInfo, workingMessage.id);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Failed to load example data";
         setState((prev) => ({ ...prev, status: "error", error: errorMessage }));

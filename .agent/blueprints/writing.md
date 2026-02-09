@@ -275,133 +275,23 @@ For rank inference, we employ the bootstrap to assess whether observed rank diff
 
 ## 4 Experiments
 
-In this section, we evaluate OmniRank's performance through three experimental dimensions: (1) verifying the computational fidelity of the spectral ranking engine, (2) evaluating the intelligent capabilities of OmniRank's agent components, and (3) demonstrating OmniRank's advantage over generic data analysis agents.
+### 4.1 Tool Capability Evaluation
 
-### 4.1 Computational Fidelity Validation
+#### 4.1.1 Schema Inference Evaluation
 
-**Purpose**: Verify that OmniRank's spectral ranking engine produces mathematically correct results. We compare agent-mediated execution to direct R package calls to confirm that the delegation pipeline introduces no precision loss.
+#### 4.1.2 Data Validation Pipeline Evaluation
 
-**What to include**:
-- **Experimental Setup**: 
-  - Synthetic datasets generated from Plackett-Luce model
-  - Parameter ranges: $n \in \{50, 100, 200\}$ items, varying comparison counts $M$
-  - Baseline: Standard R implementation of spectral ranking (Yu et al. [8])
-- **Metrics**: 
-  - Spearman correlation coefficient ($\rho$) between true and estimated preference scores
-  - Ranking Mean Squared Error (RMSE)
-- **Results Table**: 
-  - OmniRank vs R package results side-by-side
-  - Should show numerical identity (e.g., $\rho > 0.98$ for $M > n \log n$)
-- **Discussion**: 
-  - Confirm that LLM-driven "Instruction Following to Computation" delegation does not introduce numerical artifacts
-  - Note that this is a necessary but not sufficient validation (the real value is in agentic capabilities)
+### 4.2 Comparison with Generic LLM Agents
 
-### 4.2 OmniRank Agent Capability Evaluation
+#### 4.2.1 Task Design
 
-This section evaluates the intelligent capabilities of OmniRank's agent components. Unlike the computational fidelity validation in Section 4.1, which verifies numerical correctness, these experiments assess the agents' ability to perform semantic understanding---capabilities that distinguish OmniRank from simple wrapper systems. We designed a comprehensive test suite covering two core functions: data format recognition (Section 4.2.1) and semantic schema inference (Section 4.2.2).
-
-#### 4.2.1 Format Recognition and Validation
-
-**Experimental Setup.** The Data Agent must automatically identify the structure of uploaded data and assess its suitability for spectral ranking analysis. We constructed a test suite of 41 synthetic datasets spanning five difficulty categories: (i) *Standard* formats (9 datasets) with clean, unambiguous structures; (ii) *Ambiguous* cases (8 datasets) where data characteristics could lead to misclassification (e.g., sparse pointwise data resembling pairwise comparisons, binary values identical to win/loss encodings); (iii) *Transposed* structures (4 datasets) with rows and columns swapped from expected orientations; (iv) *Invalid* data (8 datasets) that should trigger rejection (single-column files, all-text content); and (v) *Real-world* formats (12 datasets) based on common internet data sources such as tennis match records and product ratings.
-
-Each dataset was labeled with ground truth for three classification targets: data format (pointwise, pairwise, multiway, or invalid), engine compatibility (compatible or incompatible), and required standardization action (none, standardize, or reject).
-
-**Results.** Table 1 presents the format detection performance. The Data Agent achieved 92.7% overall accuracy across the 41 test datasets. Performance varied across categories: the agent achieved perfect accuracy on Standard datasets (100%) and near-perfect on Transposed structures (100%), demonstrating reliable handling of both clean inputs and structurally challenging orientations. On Ambiguous cases, accuracy reached 87.5%, indicating robust discrimination between superficially similar formats.
-
-**Table 1: Format Detection Performance of the Data Agent**
-
-| Format | Precision | Recall | F1 Score | Support |
-|--------|-----------|--------|----------|---------|
-| Pointwise | 0.950 | 1.000 | 0.974 | 19 |
-| Pairwise | 0.900 | 1.000 | 0.947 | 9 |
-| Multiway | 1.000 | 0.889 | 0.941 | 9 |
-| Invalid | 0.800 | 0.750 | 0.774 | 4 |
-| **Overall Accuracy** | | | **0.927** | 41 |
-
-The agent demonstrated strong performance on Real-world datasets (91.7% accuracy), reflecting its capacity for semantic understanding---correctly interpreting winner/loser column pairs in tennis match data, recognizing benchmark score matrices despite irregular column naming conventions, and handling varied real-world formatting conventions.
-
-**Table 2: Category-wise Format Detection Accuracy**
-
-| Category | Accuracy |
-|----------|----------|
-| Standard | 100.0% |
-| Ambiguous | 87.5% |
-| Transposed | 100.0% |
-| Invalid | 75.0% |
-| Real-world | 91.7% |
-
-Error analysis revealed two systematic failure modes. First, the agent occasionally misclassified invalid data (75% accuracy), with some single-column files incorrectly identified as valid pointwise format. Second, ambiguous two-item multiway rankings (values 1 and 2 only) were occasionally confused with pairwise comparisons. These errors suggest opportunities for prompt engineering refinements in future iterations.
-
-#### 4.2.2 Semantic Schema Inference
-
-**Experimental Setup.** Beyond format recognition, the Data Agent must infer semantic properties of the data that are essential for correct ranking interpretation. We evaluated four schema inference tasks: (i) *BigBetter direction*---determining whether higher or lower metric values indicate superior performance (e.g., accuracy vs. error rate); (ii) *Ranking items identification*---correctly identifying which columns represent the items to be ranked; (iii) *Indicator column detection*---recognizing categorical columns that define subgroups for stratified analysis; and (iv) *Indicator values extraction*---correctly enumerating the unique values within indicator columns.
-
-We constructed 44 test datasets across six categories designed to probe different aspects of semantic understanding. The *BigBetter* categories (24 datasets) included metrics where higher is better (accuracy, score, win rate), lower is better (error, cost, latency, loss), and semantically ambiguous cases (algorithm names, model identifiers). The *Indicator* categories (12 datasets) tested detection of explicit categorical columns versus datasets with no true indicator. The *Items Complex* category (8 datasets) featured challenging item identification scenarios including descriptive column names, mixed naming conventions, and multi-word identifiers.
-
-**Results.** Table 3 summarizes the schema inference performance. The Data Agent achieved perfect accuracy (100%) across all four inference tasks and all six dataset categories. This result demonstrates that carefully engineered prompts with domain-specific knowledge can enable reliable semantic understanding for structured data analysis tasks.
-
-**Table 3: Semantic Schema Inference Performance**
-
-| Category | BigBetter Acc. | Items Jaccard | Indicator Acc. | Values F1 |
-|----------|----------------|---------------|----------------|-----------|
-| BigBetter High | 1.000 | 1.000 | 1.000 | 1.000 |
-| BigBetter Low | 1.000 | 1.000 | 1.000 | 1.000 |
-| BigBetter Ambiguous | 1.000 | 1.000 | 1.000 | 1.000 |
-| Indicator Clear | 1.000 | 1.000 | 1.000 | 1.000 |
-| Indicator None | 1.000 | 1.000 | 1.000 | 1.000 |
-| Items Complex | 1.000 | 1.000 | 1.000 | 1.000 |
-| **Overall** | **1.000** | **1.000** | **1.000** | **1.000** |
-
-The perfect performance on BigBetter inference is particularly notable because incorrect direction inference would invert all rankings---a catastrophic failure mode. The agent's success reflects explicit prompt engineering that instructs the model to reason about metric semantics: "For metrics like 'accuracy', 'score', 'win_rate', higher values indicate better performance. For metrics like 'error', 'loss', 'latency', lower values are better."
-
-### 4.3 Comparison with Generic Agents
-
-This section demonstrates OmniRank's advantage over generic data analysis agents on knowledge-intensive ranking tasks that require specialized spectral ranking expertise.
-
-#### 4.3.1 Knowledge-Intensive Task Performance
-
-**Purpose**: Show that OmniRank's specialized architecture outperforms generic agents on tasks requiring spectral ranking theory, hypergraph construction, and optimal weighting schemes.
-
-**What to include**:
-- **Knowledge-Intensive Tasks**:
-  - **Task 1**: Spectral ranking with hypergraph Laplacian construction
-  - **Task 2**: Bootstrap confidence interval computation and interpretation
-  - **Task 3**: User Q&A requiring spectral ranking knowledge (e.g., "Is model A significantly better than model B?" requires confidence interval interpretation)
-  - Each task requires precise handling of spectral ranking theory beyond simple Bradley-Terry models
-- **Case Study** (optional but recommended):
-  - Detailed example where generic agents fail but OmniRank succeeds
-  - Demonstrate specific failure modes (e.g., incorrect hypergraph construction, missing bootstrap CI logic)
-  - Highlight how specialized Spectral Calculation Engine enables correct results
-
-#### 4.3.2 Scoring System & Baseline Comparison
-
-**Purpose**: Provide quantitative comparison between OmniRank and generic data analysis agents.
-
-**What to include**:
-- **Scoring System Definition** (similar to LAMBDA Table 8):
-  - **1.0**: Both code generation and execution successful, correct statistical decisions
-  - **0.8**: Code successful but execution error due to environment/configuration issues
-  - **0.5**: Code error but execution successful (partial functionality)
-  - **0.0**: Code error and execution error, or exceeded runtime limit
-- **Comparison Baselines**:
-  - GPT-4 Advanced Data Analysis (OpenAI)
-  - Data Interpreter [22]
-  - Other relevant general-purpose data agents if applicable
-- **Results Table** (similar to LAMBDA Table 8):
-  - Score comparison across agents for each task
-  - Failure reasons annotated (code error, execution error, timeout, etc.)
-  - Should show OmniRank consistently achieving 1.0 while generic agents score < 0.3
-- **Discussion**:
-  - Explain why generic agents struggle (lack of spectral ranking knowledge, no specialized engine)
-  - Emphasize OmniRank's unique value: combining LLM reasoning with rigorous mathematical backend
+#### 4.2.2 Evaluation Protocol
 
 ## 5 Case Study
 
 ### 5.1
 
 ### 5.2
-
-### 5.3
 
 ## 6 Conclusion
 

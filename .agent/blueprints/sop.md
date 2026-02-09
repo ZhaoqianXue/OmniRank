@@ -1008,3 +1008,183 @@ class ConfirmationResult:
 ## OmniRank Agent System Prompt
 
 **Single-Source Constraint**: All prompts used by the OmniRank agent system MUST reside exclusively in ONE file. No prompts shall be scattered across multiple modules, configs, or inline strings. This ensures maintainability, version control clarity, and consistent prompt governance.
+
+## OmniRank Agent Experiments
+
+This section documents the experimental design for validating OmniRank's capabilities. The experiments are structured to verify the contributions stated in this document and demonstrate OmniRank's advantages over generic LLM agents.
+
+```
+4 Experiments
+├── 4.1 Tool Capability Evaluation
+│   ├── 4.1.1 Schema Inference Evaluation
+│   └── 4.1.2 Data Validation Pipeline Evaluation
+└── 4.2 Comparison with Generic LLM Agents
+    ├── 4.2.1 Task Design
+    └── 4.2.2 Evaluation Protocol
+```
+
+### 4.1 Tool Capability Evaluation
+
+This section evaluates the intelligent capabilities of OmniRank's tools within the Single Agent + Tool Calling architecture.
+
+#### 4.1.1 Schema Inference Evaluation
+
+**Purpose**: Evaluate the `infer_semantic_schema` tool's ability to automatically detect data format and infer semantic metadata.
+
+**Tool Under Test**: `infer_semantic_schema` (see `src/api/tools/infer_semantic_schema.py`)
+
+The tool performs two key functions:
+1. **Format Detection**: Classify input data as `pointwise`, `pairwise`, or `multiway`
+2. **Schema Inference**: Infer `bigbetter`, `ranking_items`, `indicator_col`, and `indicator_values`
+
+**Test Dataset Design Principles**:
+
+*Format Detection Categories*:
+- **Standard**: Clean, unambiguous structures for each format type
+- **Ambiguous**: Cases where data characteristics could lead to misclassification (e.g., pairwise data that resembles pointwise)
+- **Edge Cases**: Transposed orientations, minimal valid data, boundary conditions
+- **Invalid**: Data that should trigger rejection (empty files, non-tabular data)
+- **Real-world**: Representative samples from common domains (sports rankings, LLM benchmarks, product comparisons)
+
+*Schema Inference Categories*:
+- **BigBetter Clear**: Metrics with unambiguous preference direction (accuracy, error_rate, latency)
+- **BigBetter Ambiguous**: Semantically ambiguous column names requiring contextual inference
+- **Indicator Present/Absent**: Datasets with and without meaningful stratification dimensions
+- **Items Identification**: Various column layouts challenging item detection heuristics
+
+**Ground Truth Labeling**:
+Each test dataset must include human-annotated labels:
+- `expected_format`: `pointwise` | `pairwise` | `multiway`
+- `expected_bigbetter`: `0` | `1`
+- `expected_ranking_items`: List of column names
+- `expected_indicator_col`: Column name or `null`
+- `expected_indicator_values`: List of values or `[]`
+
+**Evaluation Metrics**:
+
+| Component | Metric | Definition |
+|-----------|--------|------------|
+| Format Detection | Accuracy | Proportion of correctly classified formats |
+| Format Detection | Confusion Matrix | Per-format precision/recall/F1 |
+| BigBetter | Accuracy | Proportion of correctly inferred preference directions |
+| Ranking Items | Jaccard Index | $|Predicted \cap Ground Truth| / |Predicted \cup Ground Truth|$ |
+| Indicator Column | Accuracy | Correct column selection (including null detection) |
+| Indicator Values | F1 Score | Precision/recall of value enumeration |
+
+**Experimental Procedure**:
+1. Prepare test dataset collection with ground truth annotations
+2. For each dataset, invoke `infer_semantic_schema` with `user_hints=None`
+3. Compare tool output against ground truth
+4. Aggregate metrics by category and overall
+
+#### 4.1.2 Data Validation Pipeline Evaluation
+
+**Purpose**: Evaluate the `validate_data_format`, `validate_data_quality`, and `preprocess_data` tools.
+
+**Tools Under Test**:
+- `validate_data_format` (see `src/api/tools/validate_data_format.py`): Checks structural readiness
+- `validate_data_quality` (see `src/api/tools/validate_data_quality.py`): Checks statistical validity
+- `preprocess_data` (see `src/api/tools/preprocess_data.py`): Performs format transformations
+
+**Test Categories**:
+
+| Category | Description | Expected Tool Behavior |
+|----------|-------------|------------------------|
+| Valid Wide Format | Correctly structured item-score columns | `is_ready=True`, `is_valid=True` |
+| Long Format (Fixable) | Item/value rows requiring pivot | `is_ready=False`, `fixable=True` → preprocess → `is_ready=True` |
+| Pairwise Long (Fixable) | item_a/item_b/winner format | `is_ready=False`, `fixable=True` → preprocess → `is_ready=True` |
+| Non-Numeric Columns | Ranking columns with string values | `is_ready=False` with appropriate issue message |
+| Sparse Data | $M < n \log n$ comparisons | `is_valid=True` with sparsity warning |
+| Disconnected Graph | Multiple graph components | `is_valid=False` with connectivity error |
+| Insufficient Items | Fewer than 2 ranking items | `is_valid=False` with item count error |
+
+**Evaluation Metrics**:
+
+| Tool | Metric |
+|------|--------|
+| `validate_data_format` | Issue detection precision/recall |
+| `validate_data_format` | Fixable classification accuracy |
+| `validate_data_quality` | Warning trigger accuracy (sparsity) |
+| `validate_data_quality` | Error trigger accuracy (connectivity, item count) |
+| `preprocess_data` | Transformation success rate |
+| `preprocess_data` | Data integrity (no information loss) |
+
+**Experimental Procedure**:
+1. Prepare test datasets covering each category
+2. Run validation tools and record outputs
+3. Compare against expected behavior annotations
+4. For fixable cases, verify preprocessing resolves issues
+
+### 4.2 Comparison with Generic LLM Agents
+
+**Purpose**: Demonstrate that OmniRank's specialized architecture outperforms generic LLM agents on knowledge-intensive ranking tasks requiring spectral ranking expertise.
+
+#### 4.2.1 Task Design
+
+**Baseline Agents**:
+
+| Agent | Description | Why Included |
+|-------|-------------|--------------|
+| **gpt-5-mini (raw)** | Same base model as OmniRank, no specialized tools | Ablation: isolate tool contribution |
+| **gpt-5 (raw)** | More capable model, no specialized tools | Test if specialized tools on weaker model outperform stronger model without tools |
+| **[TBD] Other Ranking Systems** | Existing ranking-related agents or systems | Domain comparison (to be determined through literature review) |
+
+**Task Suite**:
+
+| Task ID | Task Description | Required Domain Knowledge |
+|---------|------------------|---------------------------|
+| T1 | Given pairwise comparison data, compute spectral ranking scores | Hypergraph construction, transition matrix, stationary distribution |
+| T2 | Compute bootstrap confidence intervals for ranking scores | Gaussian multiplier bootstrap methodology |
+| T3 | Answer: "Is Model A significantly better than Model B at 95% confidence?" | CI interpretation, statistical inference |
+| T4 | Handle dataset with disconnected comparison graph | Graph connectivity theory, component-wise ranking |
+| T5 | Provide guidance for sparse dataset ($M \ll n \log n$) | Sample complexity theory, sparsity implications |
+| T6 | Infer semantic schema from ambiguous LLM benchmark data | Semantic understanding, format detection |
+
+**Task Presentation**:
+- Each task is presented as a natural language prompt with attached CSV data
+- No hints about spectral ranking methodology are provided
+- Agents must independently determine appropriate methodology
+
+#### 4.2.2 Evaluation Protocol
+
+**Evaluation Dimensions**:
+
+| Dimension | Weight | Criteria |
+|-----------|--------|----------|
+| Methodology Selection | 30% | Did the agent choose appropriate statistical method? |
+| Numerical Correctness | 30% | Are computed scores/CIs numerically accurate? |
+| Interpretation Quality | 20% | Are conclusions and recommendations statistically valid? |
+| Error Handling | 20% | Did the agent correctly identify and report data issues? |
+
+**Scoring Rubric** (per task):
+
+| Score | Description |
+|-------|-------------|
+| 1.0 | Fully correct methodology, accurate results, valid interpretation |
+| 0.75 | Correct methodology, minor numerical errors or incomplete interpretation |
+| 0.5 | Partially correct approach, significant errors in results or interpretation |
+| 0.25 | Attempted relevant approach but fundamentally flawed execution |
+| 0.0 | Wrong methodology, no meaningful attempt, or critical errors |
+
+**Expected Outcome Hypothesis**:
+- OmniRank should achieve near-perfect scores on all tasks due to specialized tool design
+- Generic LLMs (even gpt-5) are expected to struggle with spectral ranking-specific methodology
+- The comparison will demonstrate that domain-specific tools compensate for model capability differences
+
+**Failure Mode Documentation**:
+For each task, document observed failure modes of baseline agents:
+- What methodology did they attempt?
+- Where did the approach break down?
+- What domain knowledge was missing?
+
+### Experiments Implementation Notes
+
+**Test Data Requirements**:
+- All test datasets must have human-verified ground truth annotations
+- Datasets should cover realistic variation in real-world data characteristics
+- Edge cases must be systematically included
+
+**Reproducibility Requirements**:
+- Fixed random seed (default: 42) for any stochastic components
+- All test datasets and evaluation scripts version-controlled
+- Baseline agent API calls should be logged for reproducibility

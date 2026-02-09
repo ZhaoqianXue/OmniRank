@@ -177,7 +177,7 @@ export default function Home() {
               <div className="flex items-center justify-center py-2 px-3 border-b border-border/40 min-h-[48px] shrink-0">
                 <div className="text-sm font-medium flex items-center justify-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  OmniRank Assistant
+                  OmniRank Agent
                 </div>
               </div>
 
