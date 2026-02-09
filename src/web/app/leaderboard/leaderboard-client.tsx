@@ -365,9 +365,10 @@ function RankingTable({
           tooltip: "The 95% two-sided confidence interval for the rank. For example, an interval of [1, 3] means we are 95% confident the model's true rank is between 1 and 3.",
           className: "core-column ci-95-col",
           style: {
-            width: "80px",
-            minWidth: "80px",
-            maxWidth: "80px",
+            width: "88px",
+            minWidth: "88px",
+            maxWidth: "88px",
+            whiteSpace: "nowrap",
           },
         },
         {
@@ -502,8 +503,8 @@ function RankingTable({
         sortable: false,
         toggleable: true,
         tooltip: "The 95% two-sided confidence interval for the rank. For example, an interval of [1, 3] means we are 95% confident the model's true rank is between 1 and 3.",
-        className: "core-column",
-        style: { width: "85px" },
+        className: "core-column ci-95-col",
+        style: { width: "92px", minWidth: "92px", whiteSpace: "nowrap" },
       },
       {
         key: "ci_uniform",

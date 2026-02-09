@@ -34,61 +34,55 @@ const jsonCache = new Map<string, unknown>();
 const csvCache = new Map<string, string[][]>();
 
 const REPO_ROOT = detectRepoRoot();
-const LEGACY_ROOT = path.join(REPO_ROOT, "Ranking");
+const LEADERBOARD_DATA_ROOT = path.join(REPO_ROOT, "data", "leaderboard");
 
 const HF_BASE_FILE = path.join(
-  LEGACY_ROOT,
-  "data_llm",
-  "data_huggingface",
+  LEADERBOARD_DATA_ROOT,
+  "huggingface",
   "data_ranking",
   "current",
   "huggingface_ranking_result_enhanced.json",
 );
 
 const HF_COMBINATIONS_DIR = path.join(
-  LEGACY_ROOT,
-  "data_llm",
-  "data_huggingface",
+  LEADERBOARD_DATA_ROOT,
+  "huggingface",
   "data_ranking",
   "current",
   "all_combinations",
 );
 
 const HF_MATRIX_FILE = path.join(
-  LEGACY_ROOT,
-  "data_llm",
-  "data_huggingface",
+  LEADERBOARD_DATA_ROOT,
+  "huggingface",
   "data_processing",
   "huggingface_processed_top100.csv",
 );
 
 const ARENA_BASE_FILE = path.join(
-  LEGACY_ROOT,
-  "data_llm",
-  "data_arena",
+  LEADERBOARD_DATA_ROOT,
+  "arena",
   "data_ranking",
   "current",
   "ranking_results.json",
 );
 
 const ARENA_COMBINATIONS_DIR = path.join(
-  LEGACY_ROOT,
-  "data_llm",
-  "data_arena",
+  LEADERBOARD_DATA_ROOT,
+  "arena",
   "data_ranking",
   "current",
   "all_combinations",
 );
 
 const ARENA_MATRIX_FILE = path.join(
-  LEGACY_ROOT,
-  "data_llm",
-  "data_arena",
+  LEADERBOARD_DATA_ROOT,
+  "arena",
   "data_processing",
   "arena_elo_full.csv",
 );
 
-const EXAMPLE_ARENA_FILE = path.join(LEGACY_ROOT, "demo_r", "example_arena_style.csv");
+const EXAMPLE_ARENA_FILE = path.join(LEADERBOARD_DATA_ROOT, "examples", "example_arena_style.csv");
 
 let cachedHfBaseMethods: SpectralMethod[] | null = null;
 let cachedArenaBaseMethods: SpectralMethod[] | null = null;
@@ -101,14 +95,20 @@ function detectRepoRoot(): string {
   const candidates = [cwd, path.resolve(cwd, ".."), path.resolve(cwd, "..", "..")];
 
   for (const candidate of candidates) {
-    const hasRanking = fs.existsSync(path.join(candidate, "Ranking"));
     const hasWebApp = fs.existsSync(path.join(candidate, "src", "web", "app"));
-    if (hasRanking && hasWebApp) {
+    const hasLeaderboardData = fs.existsSync(path.join(candidate, "data", "leaderboard"));
+    if (hasWebApp && hasLeaderboardData) {
       return candidate;
     }
   }
 
-  return path.resolve(cwd, "..", "..");
+  for (const candidate of candidates) {
+    if (fs.existsSync(path.join(candidate, "src", "web", "app"))) {
+      return candidate;
+    }
+  }
+
+  return cwd;
 }
 
 function parseCsv(content: string): string[][] {
