@@ -93,7 +93,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: "easeOut" }}
-              className="w-full translate-y-5 md:translate-y-7"
+              className="w-full translate-y-8 md:translate-y-10"
             >
               <h1 className="text-balance text-5xl font-bold leading-tight md:text-7xl">
                 Omni<span className="text-primary">Rank</span>
