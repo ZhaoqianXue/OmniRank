@@ -94,6 +94,10 @@ export interface OmniRankState {
   error: string | null;
 }
 
+export interface ResetOptions {
+  deleteCurrentSession?: boolean;
+}
+
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome-message",
   role: "assistant",
@@ -103,28 +107,32 @@ const WELCOME_MESSAGE: ChatMessage = {
   agent: "analyst",
 };
 
-const initialState: OmniRankState = {
-  sessionId: null,
-  status: "idle",
-  dataSource: null,
-  exampleDataInfo: null,
-  dataPreview: null,
-  filename: null,
-  schema: null,
-  warnings: [],
-  formatResult: null,
-  qualityResult: null,
-  config: null,
-  results: null,
-  reportOutput: null,
-  plots: [],
-  artifacts: [],
-  isReportVisible: true,
-  messages: [WELCOME_MESSAGE],
-  progress: 0,
-  progressMessage: "",
-  error: null,
-};
+export function createInitialOmniRankState(): OmniRankState {
+  return {
+    sessionId: null,
+    status: "idle",
+    dataSource: null,
+    exampleDataInfo: null,
+    dataPreview: null,
+    filename: null,
+    schema: null,
+    warnings: [],
+    formatResult: null,
+    qualityResult: null,
+    config: null,
+    results: null,
+    reportOutput: null,
+    plots: [],
+    artifacts: [],
+    isReportVisible: true,
+    messages: [WELCOME_MESSAGE],
+    progress: 0,
+    progressMessage: "",
+    error: null,
+  };
+}
+
+const initialState: OmniRankState = createInitialOmniRankState();
 
 const STEP_TRANSITION_DELAY_MS = 220;
 const RUN_JOB_POLL_INTERVAL_MS = 600;
@@ -492,6 +500,31 @@ export function useOmniRank() {
     [addMessage, patchMessage, state.sessionId]
   );
 
+  const hydrateState = useCallback((nextState: OmniRankState) => {
+    const clonedState = typeof structuredClone === "function"
+      ? structuredClone(nextState)
+      : (JSON.parse(JSON.stringify(nextState)) as OmniRankState);
+    setState(clonedState);
+  }, []);
+
+  const refreshDataPreview = useCallback(
+    async (sessionId?: string | null) => {
+      const targetSessionId = sessionId ?? state.sessionId;
+      if (!targetSessionId) {
+        setState((prev) => ({ ...prev, dataPreview: null }));
+        return;
+      }
+
+      const preview = await getDataPreview(targetSessionId);
+      setState((prev) => (
+        prev.sessionId === targetSessionId
+          ? { ...prev, dataPreview: preview }
+          : prev
+      ));
+    },
+    [state.sessionId]
+  );
+
   const cancelData = useCallback(() => {
     setState((prev) => ({
       ...prev,
@@ -517,15 +550,16 @@ export function useOmniRank() {
     addMessage("system", "Data selection cancelled.");
   }, [addMessage]);
 
-  const reset = useCallback(async () => {
-    if (state.sessionId) {
+  const reset = useCallback(async (options?: ResetOptions) => {
+    const shouldDeleteCurrentSession = options?.deleteCurrentSession ?? true;
+    if (shouldDeleteCurrentSession && state.sessionId) {
       try {
         await deleteSession(state.sessionId);
       } catch {
         // Ignore cleanup failures.
       }
     }
-    setState(initialState);
+    setState(createInitialOmniRankState());
   }, [state.sessionId]);
 
   const toggleReportVisibility = useCallback(() => {
@@ -548,6 +582,8 @@ export function useOmniRank() {
     startAnalysis,
     sendMessage,
     addMessage,
+    hydrateState,
+    refreshDataPreview,
     reset,
     toggleReportVisibility,
     hideReport,
