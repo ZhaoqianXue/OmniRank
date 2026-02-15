@@ -63,7 +63,7 @@ export function ProgressIndicator({ progress, message, className }: ProgressIndi
                     className={cn(
                       "h-2.5 w-2.5 rounded-full border transition-colors",
                       isCompleted && "bg-primary border-primary",
-                      isActive && "bg-amber-500 border-amber-500",
+                      isActive && "bg-[#FFD700] border-[#FFD700]",
                       !isCompleted && !isActive && "bg-background border-border/70",
                     )}
                   />
@@ -71,7 +71,7 @@ export function ProgressIndicator({ progress, message, className }: ProgressIndi
                     className={cn(
                       "text-[10px]",
                       isCompleted && "text-primary",
-                      isActive && "text-amber-600 dark:text-amber-400",
+                      isActive && "text-[#FFD700]",
                       !isCompleted && !isActive && "text-muted-foreground",
                     )}
                   >

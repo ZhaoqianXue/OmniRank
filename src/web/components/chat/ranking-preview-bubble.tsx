@@ -255,7 +255,7 @@ export function RankingPreviewBubble({
                   {warnings.map((w, i) => (
                     <div key={i} className={cn(
                       "flex items-start gap-1",
-                      w.severity === "error" ? "text-red-600" : "text-yellow-600"
+                      w.severity === "error" ? "text-red-600" : "text-[#FFD700]"
                     )}>
                       <span>{w.severity === "error" ? "✕" : "⚠"}</span>
                       <span>{w.message}</span>

@@ -88,7 +88,7 @@ const SECTION_STYLES: Record<string, string> = {
     "bg-muted/20 border border-border/40 rounded-lg p-5 my-6",
   method: "my-6",
   limitation:
-    "border-l-4 border-amber-500/50 bg-amber-500/[0.03] rounded-r-lg pl-5 pr-4 py-4 my-6",
+    "border-l-4 border-[#FFD700]/50 bg-[#FFD700]/[0.03] rounded-r-lg pl-5 pr-4 py-4 my-6",
   repro: "bg-muted/20 border border-border/30 rounded-lg p-5 my-6 font-mono text-xs leading-relaxed",
 };
 

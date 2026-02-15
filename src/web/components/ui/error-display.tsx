@@ -36,10 +36,10 @@ export function ErrorDisplay({
       title: "text-destructive",
     },
     warning: {
-      bg: "bg-yellow-500/10",
-      border: "border-yellow-500/30",
-      icon: "text-yellow-500",
-      title: "text-yellow-600 dark:text-yellow-400",
+      bg: "bg-[#FFD700]/10",
+      border: "border-[#FFD700]/30",
+      icon: "text-[#FFD700]",
+      title: "text-[#FFD700]",
     },
     info: {
       bg: "bg-primary/10",

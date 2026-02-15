@@ -708,7 +708,7 @@ export default function Home() {
             </Button>
 
             {isSidebarExpanded && !isGoogleConfigured && (
-              <p className="mt-2 text-[10px] leading-relaxed text-amber-500">
+              <p className="mt-2 text-[10px] leading-relaxed text-[#FFD700]">
                 Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google login.
               </p>
             )}
@@ -813,7 +813,7 @@ export default function Home() {
               <Card className="h-[calc(100vh-32px)] flex flex-col bg-card backdrop-blur-sm glow-border gap-0 p-0 overflow-hidden">
                 <div className="flex items-center justify-center py-2 px-3 border-b border-border/40 min-h-[48px] shrink-0">
                   <div className="text-sm font-bold flex items-center justify-center gap-2 min-w-0">
-                    <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FFD700] animate-pulse" />
                     <span className="truncate">{activeHistoryEntry?.title || "OmniRank Agent"}</span>
                   </div>
                 </div>

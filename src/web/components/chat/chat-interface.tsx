@@ -220,7 +220,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
         isUser
           ? "bg-primary/10 border-primary/25 text-foreground rounded-br-sm"
           : "bg-background border-border/60 text-foreground rounded-bl-sm",
-        isSystem && "border-yellow-500/20"
+        isSystem && "border-[#FFD700]/20"
       )}>
         {attachedQuotes.length > 0 && (
           <div className="mb-2 space-y-1.5 rounded-lg border border-primary/20 bg-primary/[0.06] p-2">
@@ -242,7 +242,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
         )}
         <div className={cn(
           "prose prose-sm dark:prose-invert max-w-none break-words",
-          isSystem && "text-yellow-600 dark:text-yellow-400"
+          isSystem && "text-[#FFD700]"
         )}>
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={CHAT_MARKDOWN_COMPONENTS}>
             {message.content}
