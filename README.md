@@ -114,13 +114,14 @@ Required env vars on Render:
   - `CORS_ORIGINS` (comma-separated frontend origins)
 - Frontend:
   - `NEXT_PUBLIC_API_URL` (public HTTPS URL of backend service)
+  - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (Google OAuth Web client ID)
 
 Deploy steps:
 
 1. Push this repository to GitHub/GitLab.
 2. In Render, create a new Blueprint service from the repo.
 3. Confirm service names/regions/plans from `render.yaml`.
-4. Set secret values (at minimum `OPENAI_API_KEY`), then deploy.
+4. Set secret values (at minimum `OPENAI_API_KEY` and `NEXT_PUBLIC_GOOGLE_CLIENT_ID`), then deploy.
 
 ## Notes
 

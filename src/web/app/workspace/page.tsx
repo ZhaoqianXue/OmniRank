@@ -206,7 +206,7 @@ function formatTimestamp(timestamp: number): string {
 }
 
 export default function Home() {
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [quoteDrafts, setQuoteDrafts] = useState<QuotePayload[]>([]);
   const [historyEntries, setHistoryEntries] = useState<ChatHistoryEntry[]>([]);
@@ -269,9 +269,9 @@ export default function Home() {
   const sidebarItems = useMemo(
     () => [
       { id: "home", label: "Home", icon: House },
-      { id: "new-chat", label: "New Chat", icon: Plus },
-      { id: "history", label: "Chat History", icon: History },
-      { id: "leaderboard", label: "LLM Leaderboard", icon: Trophy },
+      { id: "new-chat", label: "New", icon: Plus },
+      { id: "history", label: "History", icon: History },
+      { id: "leaderboard", label: "Leaderboard", icon: Trophy },
     ] as const,
     []
   );
@@ -621,7 +621,7 @@ export default function Home() {
         <aside
           className={cn(
             "shrink-0 border-r border-border/40 bg-background backdrop-blur-sm flex flex-col justify-between transition-all duration-300 ease-in-out",
-            isSidebarExpanded ? "w-56" : "w-12"
+            isSidebarExpanded ? "w-44" : "w-12"
           )}
         >
           <div className="p-2">
@@ -694,7 +694,7 @@ export default function Home() {
               {isSidebarExpanded && (
                 <>
                   <span className="text-xs font-medium truncate">
-                    {isLoggedIn ? user?.name || user?.email || "Logout" : "Login with Google"}
+                    {isLoggedIn ? user?.name || user?.email || "Logout" : "Login"}
                   </span>
                   {isAuthLoading ? (
                     <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-muted-foreground" />
@@ -720,12 +720,12 @@ export default function Home() {
         </aside>
 
         <div className="flex-1 min-w-0 px-4 pb-4 pt-4 md:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-6 lg:flex-row">
             <motion.div
               variants={fadeInLeft}
               initial="hidden"
               animate="show"
-              className="lg:col-span-2"
+              className="min-w-0 flex-1"
             >
               <Card className="h-[calc(100vh-32px)] flex flex-col bg-card backdrop-blur-sm glow-border py-4 relative overflow-hidden">
                 {showResults && (
@@ -809,6 +809,7 @@ export default function Home() {
               variants={fadeInRight}
               initial="hidden"
               animate="show"
+              className="w-full lg:w-[calc((100vw-120px)/3)] lg:shrink-0"
             >
               <Card className="h-[calc(100vh-32px)] flex flex-col bg-card backdrop-blur-sm glow-border gap-0 p-0 overflow-hidden">
                 <div className="flex items-center justify-center py-2 px-3 border-b border-border/40 min-h-[48px] shrink-0">

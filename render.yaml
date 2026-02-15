@@ -35,3 +35,5 @@ services:
         value: 20.19.0
       - key: NEXT_PUBLIC_API_URL
         value: https://omnirank-backend.onrender.com
+      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        sync: false
