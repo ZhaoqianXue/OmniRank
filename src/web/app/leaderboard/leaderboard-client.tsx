@@ -1382,7 +1382,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
         <section className={cn(sectionWrapperClass, "mb-5")}>
           <div className="p-4 md:p-6">
             <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">
-              OminiRank LLM Leaderboard
+              Omni<span className="text-primary">Rank</span> LLM Leaderboard
             </h1>
             <p className="mt-3 max-w-4xl text-sm text-muted-foreground md:text-base">
               Ranking top LLMs with Spectral Ranking Algorithm across LMSYS Arena (human preferences) and Hugging Face (standardized benchmarks), delivering statistically robust head-to-head ranking, multi-source evaluation, customizable benchmark-based views, and model-vs-top-LLMs comparison with statistical ranking output.
