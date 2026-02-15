@@ -395,7 +395,7 @@ export function HeroScene({ className }: HeroSceneProps) {
           // Normalize coordinates to reduce position-dependent density
           vec2 normalizedP = p * 0.85;
 
-          for (int i = 0; i < 7; i++) {
+          for (int i = 0; i < 9; i++) {
             float fi = float(i);
             float fbmVal = fbm(q * 0.4 + slowT * 0.025);
             
@@ -406,13 +406,13 @@ export function HeroScene({ className }: HeroSceneProps) {
             );
             
             // Lower frequency for more uniform line distribution
-            float line = abs(sin((q.x * 5.5) + (q.y * 3.2) + fi * 0.7));
+            float line = abs(sin((q.x * 6.2) + (q.y * 3.9) + fi * 0.7));
             
             // Wider smoothstep range for better visibility
-            value += smoothstep(0.985, 1.0, line);
+            value += smoothstep(0.978, 1.0, line);
           }
 
-          return value / 7.0;
+          return value / 9.0;
         }
 
         void main() {
@@ -441,6 +441,17 @@ export function HeroScene({ className }: HeroSceneProps) {
           float strands = strandField(p * 0.95, uTime, n) * positionCompensation;
           float core = smoothstep(0.54, 0.02, pDist) * (0.2 + uBoost * 0.7);
           float glow = strands * (0.52 + uBoost * 0.78) + core;
+
+          // Denser outer concentric ring bands (parallel to the existing halo)
+          float radialDist = length(uv);
+          float outerRingMask = smoothstep(0.56, 0.83, radialDist) * (1.0 - smoothstep(1.06, 1.3, radialDist));
+          float ringWavePrimary = abs(sin(radialDist * 25.5 - slowTime * 0.52 + n * 3.2));
+          float ringWaveSecondary = abs(sin(radialDist * 36.75 + slowTime * 0.31 - n * 2.4));
+          float outerRingBands = (
+            smoothstep(0.9, 1.0, ringWavePrimary) * 0.66 +
+            smoothstep(0.93, 1.0, ringWaveSecondary) * 0.34
+          ) * outerRingMask;
+          glow += outerRingBands * (0.24 + uBoost * 0.32);
 
           // Base color gradient
           vec3 color = mix(uBase, uDeep, 0.52 + uv.y * 0.14);
@@ -477,6 +488,7 @@ export function HeroScene({ className }: HeroSceneProps) {
           
           // Add accent glow
           color += uAccent * glow * 1.15;
+          color += uAccent * outerRingBands * 0.98;
 
           // Softer vignette for more uniform appearance
           float vignette = smoothstep(2.2, 0.35, length(uv));
@@ -492,9 +504,9 @@ export function HeroScene({ className }: HeroSceneProps) {
 
     // Multi-layer parallax particle system
     const layerConfigs = [
-      { count: 400, size: 0.014, opacity: 0.45, speedMult: 0.3 * SPEED_MULT, color: "#8a7ad8", texture: particleTextureBg },
-      { count: 600, size: 0.020, opacity: 0.78, speedMult: 0.5 * SPEED_MULT, color: "#c8bbff", texture: particleTextureMid },
-      { count: 180, size: 0.032, opacity: 0.88, speedMult: 0.7 * SPEED_MULT, color: "#f0e8ff", texture: particleTextureFg },
+      { count: 460, size: 0.014, opacity: 0.45, speedMult: 0.3 * SPEED_MULT, color: "#8a7ad8", texture: particleTextureBg },
+      { count: 700, size: 0.020, opacity: 0.78, speedMult: 0.5 * SPEED_MULT, color: "#c8bbff", texture: particleTextureMid },
+      { count: 220, size: 0.032, opacity: 0.88, speedMult: 0.7 * SPEED_MULT, color: "#f0e8ff", texture: particleTextureFg },
     ];
 
     const particleSystems: {
