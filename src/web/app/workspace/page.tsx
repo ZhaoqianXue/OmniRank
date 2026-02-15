@@ -621,7 +621,7 @@ export default function Home() {
         <aside
           className={cn(
             "shrink-0 border-r border-border/40 bg-background backdrop-blur-sm flex flex-col justify-between transition-all duration-300 ease-in-out",
-            isSidebarExpanded ? "w-44" : "w-12"
+            isSidebarExpanded ? "w-36" : "w-12"
           )}
         >
           <div className="p-2">

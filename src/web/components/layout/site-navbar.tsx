@@ -11,27 +11,35 @@ interface SiteNavbarProps {
 }
 
 const SCROLL_TO_HOW_TO_USE_KEY = "omnirank:scroll-to-how-to-use";
+const HOW_TO_USE_SCROLL_OFFSET = 24;
 
 export function SiteNavbar({ id }: SiteNavbarProps) {
   const [isNavFloating, setIsNavFloating] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const isHomePage = pathname === "/";
+  const showActionButtons = !isHomePage || isNavFloating;
+
+  const performHowToUseScroll = useCallback(() => {
+    const howToUseSection = document.getElementById("how-to-use");
+    if (!howToUseSection) return;
+
+    const targetTop = Math.max(0, howToUseSection.getBoundingClientRect().top + window.scrollY - HOW_TO_USE_SCROLL_OFFSET);
+    window.scrollTo({ top: targetTop, behavior: "smooth" });
+
+    const nextUrl = `${window.location.pathname}${window.location.search}`;
+    window.history.replaceState(null, "", nextUrl);
+  }, []);
 
   const handleHowToUseClick = useCallback(() => {
     if (isHomePage) {
-      const howToUseSection = document.getElementById("how-to-use");
-      if (!howToUseSection) return;
-
-      howToUseSection.scrollIntoView({ behavior: "smooth", block: "start" });
-      const nextUrl = `${window.location.pathname}${window.location.search}`;
-      window.history.replaceState(null, "", nextUrl);
+      performHowToUseScroll();
       return;
     }
 
     window.sessionStorage.setItem(SCROLL_TO_HOW_TO_USE_KEY, "1");
     router.push("/");
-  }, [isHomePage, router]);
+  }, [isHomePage, performHowToUseScroll, router]);
 
   useEffect(() => {
     const updateNavState = () => {
@@ -57,7 +65,7 @@ export function SiteNavbar({ id }: SiteNavbarProps) {
         className={cn(
           "w-full transition-all duration-500 ease-out",
           isNavFloating
-            ? "max-w-5xl rounded-full border border-border/55 bg-background/52 px-5 backdrop-blur-xl shadow-[0_18px_42px_rgba(0,0,0,0.35)]"
+            ? "max-w-5xl rounded-full border border-border/55 bg-background/25 px-5 backdrop-blur-xl shadow-[0_18px_42px_rgba(0,0,0,0.35)]"
             : "max-w-7xl bg-transparent",
         )}
       >
@@ -66,7 +74,7 @@ export function SiteNavbar({ id }: SiteNavbarProps) {
             Omni<span className="text-primary">Rank</span>
           </Link>
 
-          {isNavFloating ? (
+          {showActionButtons ? (
             <div className="flex items-center gap-2">
               <button
                 type="button"

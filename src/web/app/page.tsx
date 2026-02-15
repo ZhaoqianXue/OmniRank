@@ -55,42 +55,49 @@ const workflowSteps: WorkflowStep[] = [
 
 const keyFeatures: KeyFeature[] = [
   {
-    title: "Natural Language Interface",
+    title: "An Agentic Ranking Copilot",
     description:
-      "The first natural language interface for spectral ranking inference. Democratizing access to minimax-optimal ranking methods for practitioners without statistical programming expertise.",
+      "OmniRank is an AI copilot for ranking analysis. You describe your objective in plain language, and the system plans the statistical workflow from data interpretation to final report generation.",
     icon: MessageSquareText,
   },
   {
-    title: "Semantic Schema Inference",
+    title: "From Raw Columns to Ranking Design",
     description:
-      "AI automatically infers comparison data semantics including preference direction, ranking items, and stratification dimensions. Reducing user configuration burden while maintaining statistical rigor.",
+      "It infers comparison semantics automatically: which columns define items, which direction means better performance, and which fields should be used for stratified analysis.",
     icon: Brain,
   },
   {
-    title: "Statistical Rigor",
+    title: "Research-Grade Inference Engine",
     description:
-      "Integrated uncertainty quantification with automatic bootstrap confidence intervals based on Gaussian multiplier bootstrap method. Enabling statistically grounded decisions without manual implementation.",
+      "At its core, OmniRank runs spectral ranking estimation with built-in diagnostics and uncertainty quantification, producing confidence intervals so decisions are based on signal, not noise.",
     icon: BarChart3,
   },
   {
-    title: "Flexible Data Formats",
+    title: "Decision-Ready Outputs",
     description:
-      "Supports all common comparison data formats: pointwise scores, pairwise outcomes, and multiway rankings. Automatic format detection and preprocessing for seamless analysis.",
+      "The output is a complete analysis artifact: interpretable rankings, uncertainty summaries, and exportable visuals that teams can review, share, and reuse in publications or product decisions.",
     icon: FileSpreadsheet,
   },
 ];
 
 const SCROLL_TO_HOW_TO_USE_KEY = "omnirank:scroll-to-how-to-use";
+const HOW_TO_USE_SCROLL_OFFSET = 24;
 
 export default function LandingPage() {
-  const scrollToHowToUse = useCallback(() => {
+  const performHowToUseScroll = useCallback(() => {
     const howToUseSection = document.getElementById("how-to-use");
     if (!howToUseSection) return;
 
-    howToUseSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    const targetTop = Math.max(0, howToUseSection.getBoundingClientRect().top + window.scrollY - HOW_TO_USE_SCROLL_OFFSET);
+    window.scrollTo({ top: targetTop, behavior: "smooth" });
+
     const nextUrl = `${window.location.pathname}${window.location.search}`;
     window.history.replaceState(null, "", nextUrl);
   }, []);
+
+  const scrollToHowToUse = useCallback(() => {
+    performHowToUseScroll();
+  }, [performHowToUseScroll]);
 
   useEffect(() => {
     const shouldScroll = window.sessionStorage.getItem(SCROLL_TO_HOW_TO_USE_KEY);
@@ -98,14 +105,9 @@ export default function LandingPage() {
 
     window.sessionStorage.removeItem(SCROLL_TO_HOW_TO_USE_KEY);
     window.requestAnimationFrame(() => {
-      const howToUseSection = document.getElementById("how-to-use");
-      if (!howToUseSection) return;
-
-      howToUseSection.scrollIntoView({ behavior: "smooth", block: "start" });
-      const nextUrl = `${window.location.pathname}${window.location.search}`;
-      window.history.replaceState(null, "", nextUrl);
+      performHowToUseScroll();
     });
-  }, []);
+  }, [performHowToUseScroll]);
 
   return (
     <main className="relative min-h-screen overflow-x-hidden text-foreground">
@@ -115,13 +117,13 @@ export default function LandingPage() {
       <SiteNavbar />
 
       <div className="relative z-10 text-foreground">
-        <section className="min-h-screen px-4 pb-24 pt-44 md:px-6 md:pt-52">
+        <section className="min-h-screen px-4 pb-12 pt-36 md:px-6 md:pb-14 md:pt-44">
           <div className="mx-auto flex w-full max-w-7xl flex-col items-center text-center">
             <motion.div
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: "easeOut" }}
-              className="w-full translate-y-8 md:translate-y-10"
+              className="w-full translate-y-14 md:translate-y-16"
             >
               <h1 className="text-balance text-5xl font-bold leading-tight md:text-7xl">
                 Omni<span className="text-primary">Rank</span>
@@ -210,9 +212,9 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="how-to-use" className="min-h-screen px-4 py-28 md:px-6">
+        <section id="how-to-use" className="scroll-mt-24 px-4 py-20 md:px-6 md:py-22">
           <div className="mx-auto w-full max-w-6xl">
-            <h2 className="mb-12 text-center text-3xl font-bold md:mb-16 md:text-4xl">How to Use OmniRank</h2>
+            <h2 className="mb-10 text-center text-3xl font-bold md:mb-12 md:text-4xl">How to Use OmniRank</h2>
 
             <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
               <div className="space-y-8">
@@ -250,7 +252,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="why-omnirank" className="min-h-screen px-4 py-28 md:px-6">
+        <section id="what-is-omnirank" className="scroll-mt-32 px-4 pb-16 pt-28 md:px-6 md:pb-16 md:pt-28">
           <div className="mx-auto w-full max-w-6xl">
             <motion.div
               initial={{ opacity: 0, y: 18 }}
@@ -259,39 +261,39 @@ export default function LandingPage() {
               transition={{ duration: 0.5, ease: "easeOut" }}
               className="text-center"
             >
-              <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Why OmniRank</h2>
-              <p className="mx-auto mb-10 max-w-2xl text-center text-muted-foreground md:mb-12">
-                A bridge that democratizes spectral ranking inference for domain experts without requiring linear algebra expertise or R programming skills.
+              <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">What is OmniRank</h2>
+              <p className="mx-auto mb-8 max-w-2xl text-center text-muted-foreground md:mb-10">
+                OmniRank is an end-to-end agentic AI platform for spectral ranking analysis, designed to convert messy comparison data into statistically grounded, decision-ready ranking reports.
               </p>
             </motion.div>
 
-            <div className="rounded-3xl border border-border/55 bg-card/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl md:p-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                {keyFeatures.map((feature, index) => {
-                  const Icon = feature.icon;
-                  return (
-                    <motion.article
-                      key={feature.title}
-                      initial={{ opacity: 0, y: 18 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, amount: 0.2 }}
-                      transition={{ duration: 0.5, delay: index * 0.08, ease: "easeOut" }}
-                      className="group rounded-2xl border border-border/55 bg-background/72 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/45 hover:bg-background/86"
-                    >
-                      <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-primary/30 bg-primary/15 text-primary transition-colors group-hover:bg-primary/25">
-                        <Icon className="h-5 w-5" />
-                      </div>
+            <div className="grid items-start gap-8 md:grid-cols-2 md:gap-x-12 md:gap-y-8">
+              {keyFeatures.map((feature, index) => {
+                const Icon = feature.icon;
+                return (
+                  <motion.div
+                    key={feature.title}
+                    initial={{ opacity: 0, y: 18 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    transition={{ duration: 0.5, delay: index * 0.08, ease: "easeOut" }}
+                    className="flex gap-4"
+                  >
+                    <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
                       <h3 className="text-xl font-semibold text-foreground">{feature.title}</h3>
-                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
                         {feature.description}
                       </p>
-                    </motion.article>
-                  );
-                })}
-              </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
 
-            <div className="mt-12 text-center">
+            <div className="mt-8 text-center">
               <Link
                 href="/workspace"
                 target="_blank"
@@ -305,7 +307,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <footer className="border-t border-border/55 bg-card/70 py-10 backdrop-blur-xl">
+        <footer className="border-t border-border/55 bg-card/70 py-8 backdrop-blur-xl md:py-9">
           <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 text-center text-sm text-muted-foreground md:px-6">
             <div className="flex items-center justify-center">
               <img
@@ -313,7 +315,7 @@ export default function LandingPage() {
                 alt="UPenn"
                 className="mr-4 h-6 w-auto shrink-0 sm:mr-5 sm:h-7"
               />
-              <Link href="/" target="_blank" rel="noopener noreferrer" className="text-xl font-semibold tracking-wide text-foreground">
+              <Link href="/" target="_blank" rel="noopener noreferrer" className="text-2xl font-semibold tracking-wide text-foreground">
                 Omni<span className="text-primary">Rank</span>
               </Link>
               <img
