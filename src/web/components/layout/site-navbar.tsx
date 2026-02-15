@@ -79,10 +79,7 @@ export function SiteNavbar({ id }: SiteNavbarProps) {
               <button
                 type="button"
                 onClick={handleHowToUseClick}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold transition-all duration-300",
-                  "border-primary/65 bg-card/80 text-primary hover:bg-primary/10 hover:border-primary",
-                )}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold transition-all duration-300 border-primary/48 bg-card/26 text-primary hover:bg-card/36 hover:border-primary/66"
               >
                 <BookOpen className="h-4 w-4 text-primary" />
                 Usage Guide
@@ -92,10 +89,7 @@ export function SiteNavbar({ id }: SiteNavbarProps) {
                 href="/workspace"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full text-sm font-semibold transition-colors",
-                  "bg-primary px-3.5 py-2 text-primary-foreground hover:bg-primary/90",
-                )}
+                className="inline-flex items-center gap-1 rounded-full text-sm font-semibold transition-colors duration-300 bg-primary/80 px-3.5 py-2 text-primary-foreground hover:bg-primary/72"
               >
                 Start Ranking
                 <ArrowRight className="h-4 w-4" />
@@ -105,10 +99,7 @@ export function SiteNavbar({ id }: SiteNavbarProps) {
                 href="/leaderboard"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold transition-all duration-300",
-                  "border-primary/65 bg-card/80 text-primary hover:bg-primary/10 hover:border-primary",
-                )}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold transition-all duration-300 border-primary/48 bg-card/26 text-primary hover:bg-card/36 hover:border-primary/66"
               >
                 <Trophy className="h-4 w-4 text-primary" />
                 LLM Leaderboard

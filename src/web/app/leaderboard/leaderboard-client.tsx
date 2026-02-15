@@ -8,6 +8,7 @@ import {
   Code2,
   Database,
   Download,
+  ExternalLink,
   FileSpreadsheet,
   Rocket,
   Scale,
@@ -69,7 +70,7 @@ const sectionWrapperClass = "mx-auto w-full max-w-[1400px] px-4 md:px-8";
 
 const DETAIL_PANEL_ITEMS: Array<{ key: DetailPanelKey; title: string; id: string }> = [
   { key: "upload", title: "Upload Your Arena Results", id: "upload-your-arena-results" },
-  { key: "compare", title: "Compare With Your Model", id: "compare-with-your-model" },
+  { key: "compare", title: "Compare Your Model with Hugging Face Leaderboard", id: "compare-with-your-model" },
   { key: "what", title: "What is OmniRank LLM Leaderboard?", id: "what-is-omnirank" },
   { key: "how", title: "How This Leaderboard is Calculated", id: "how-this-leaderboard-is-calculated" },
 ];
@@ -186,6 +187,45 @@ function buildCustomRankingResult(
       benchmarkScores: customMethod.benchmark_scores ?? {},
     },
   };
+}
+
+function SourceSummaryGrid({
+  methods,
+  countLabel,
+  countValue,
+  sourceName,
+  sourceUrl,
+}: {
+  methods: SpectralMethod[];
+  countLabel: string;
+  countValue: number;
+  sourceName: string;
+  sourceUrl: string;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <div className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Ranked Models</div>
+        <div className="text-lg font-semibold">{methods.length}</div>
+      </div>
+      <div className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{countLabel}</div>
+        <div className="text-lg font-semibold">{countValue}</div>
+      </div>
+      <div className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Data Source</div>
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline underline-offset-4"
+        >
+          {sourceName}
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
+    </div>
+  );
 }
 
 function RankingTable({
@@ -1368,9 +1408,20 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   LMSYS Arena Leaderboard
                 </CardTitle>
                 <CardDescription>
-                  Switch the ranking table to LMSYS Arena human-preference results.
+                  Crowdsourced human preference battles from real-world interactions.
+                  <br />
+                  Human preference, head-to-head battles, real-world behavior.
                 </CardDescription>
               </CardHeader>
+              <CardContent className="px-5 pt-0 text-sm text-muted-foreground">
+                <SourceSummaryGrid
+                  methods={arenaMethods}
+                  countLabel="Task Categories"
+                  countValue={selectedArenaLabels.length}
+                  sourceName="LMSYS Arena"
+                  sourceUrl="https://lmarena.ai/leaderboard/"
+                />
+              </CardContent>
             </Card>
 
             <Card
@@ -1389,9 +1440,20 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   Hugging Face Leaderboard
                 </CardTitle>
                 <CardDescription>
-                  Switch the ranking table to Hugging Face benchmark results.
+                  Standardized academic benchmark evaluation for top open LLMs.
+                  <br />
+                  Six core benchmarks, automated evaluation, Top 100 models.
                 </CardDescription>
               </CardHeader>
+              <CardContent className="px-5 pt-0 text-sm text-muted-foreground">
+                <SourceSummaryGrid
+                  methods={huggingFaceMethods}
+                  countLabel="Benchmarks"
+                  countValue={selectedHfLabels.length}
+                  sourceName="Hugging Face"
+                  sourceUrl="https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard"
+                />
+              </CardContent>
             </Card>
           </div>
         </section>
@@ -1586,7 +1648,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
 
           {activeDetailPanel === "compare" ? (
             <div id="compare-with-your-model" className="space-y-4 px-1 md:px-2">
-              <h3 className="text-2xl font-semibold">Compare With Your Model</h3>
+              <h3 className="text-2xl font-semibold">Compare Your Model with Hugging Face Leaderboard</h3>
               <p className="max-w-4xl text-sm text-muted-foreground md:text-base">
                 Enter a model name and six benchmark scores (0-100). We re-rank against the current Top 100 locally in this page.
               </p>

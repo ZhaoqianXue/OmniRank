@@ -129,7 +129,7 @@ export default function LandingPage() {
                 Omni<span className="text-primary">Rank</span>
               </h1>
 
-              <p className="mx-auto mt-4 w-fit max-w-none whitespace-nowrap text-center font-[family-name:var(--font-space-mono)] text-sm text-muted-foreground md:text-base">
+              <p className="mx-auto mt-4 w-fit max-w-none whitespace-nowrap text-center font-[family-name:var(--font-space-mono)] text-sm tracking-[-0.04em] [word-spacing:-0.1em] text-muted-foreground md:text-base">
                 An agentic AI platform for{" "}
                 <a
                   href="https://doi.org/10.1287/opre.2023.0439"
@@ -137,9 +137,9 @@ export default function LandingPage() {
                   rel="noopener noreferrer"
                   className="text-primary underline underline-offset-2 hover:text-primary/80"
                 >
-                  Spectral Ranking
+                  Ranking Analysis
                 </a>{" "}
-                Analysis Developed by{" "}
+                Developed by{" "}
                 <a
                   href="https://jin93.github.io/"
                   target="_blank"
@@ -163,7 +163,7 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={scrollToHowToUse}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-primary/65 bg-card/80 px-5 py-3 text-base font-semibold text-primary transition-all duration-300 hover:bg-primary/10 hover:border-primary"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-primary/48 bg-card/26 px-5 py-3 text-base font-semibold text-primary transition-all duration-300 hover:bg-card/36 hover:border-primary/66"
                 >
                   <BookOpen className="h-4 w-4 text-primary" />
                   Usage Guide
@@ -172,7 +172,7 @@ export default function LandingPage() {
                   href="/workspace"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary/80 px-5 py-3 text-base font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/72"
                 >
                   <ArrowRight className="h-4 w-4" />
                   Start Ranking
@@ -181,19 +181,19 @@ export default function LandingPage() {
                   href="/leaderboard"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-primary/65 bg-card/80 px-5 py-3 text-base font-semibold text-primary transition-all duration-300 hover:bg-primary/10 hover:border-primary"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-primary/48 bg-card/26 px-5 py-3 text-base font-semibold text-primary transition-all duration-300 hover:bg-card/36 hover:border-primary/66"
                 >
                   <Trophy className="h-4 w-4 text-primary" />
                   LLM Leaderboard
                 </Link>
               </div>
 
-              <div className="mx-auto mt-4 flex flex-wrap items-center justify-center gap-2">
+              <div className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-2">
                 <a
                   href="https://arxiv.org/html/2308.02918"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/70 px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/26 px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-card/36 hover:text-foreground"
                 >
                   <FileText className="h-4 w-4" />
                   Method Paper
@@ -202,7 +202,7 @@ export default function LandingPage() {
                   href="https://github.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/70 px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/26 px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-card/36 hover:text-foreground"
                 >
                   <Github className="h-4 w-4" />
                   GitHub

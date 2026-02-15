@@ -435,8 +435,8 @@ export function HeroScene({ className }: HeroSceneProps) {
 
           p += vec2(cos(slowTime * 0.16 + n), sin(slowTime * 0.14 - n)) * (0.05 + uBoost * 0.07);
 
-          // Position-based density compensation: boost strands in lower-left, reduce in upper-right
-          float positionCompensation = 1.0 + (uv.x + uv.y) * -0.12;
+          // Keep vertical density shaping, but remove left/right directional bias
+          float positionCompensation = 1.0 + uv.y * -0.08;
           
           float strands = strandField(p * 0.95, uTime, n) * positionCompensation;
           float core = smoothstep(0.54, 0.02, pDist) * (0.2 + uBoost * 0.7);
@@ -445,8 +445,10 @@ export function HeroScene({ className }: HeroSceneProps) {
           // Denser outer concentric ring bands (parallel to the existing halo)
           float radialDist = length(uv);
           float outerRingMask = smoothstep(0.56, 0.83, radialDist) * (1.0 - smoothstep(1.06, 1.3, radialDist));
-          float ringWavePrimary = abs(sin(radialDist * 25.5 - slowTime * 0.52 + n * 3.2));
-          float ringWaveSecondary = abs(sin(radialDist * 36.75 + slowTime * 0.31 - n * 2.4));
+          float ringPhase = -slowTime * 0.46;
+          float ringNoisePhase = n * 2.1;
+          float ringWavePrimary = abs(sin(radialDist * 25.5 + ringPhase + ringNoisePhase));
+          float ringWaveSecondary = abs(sin(radialDist * 36.75 + ringPhase * 0.67 + ringNoisePhase * 0.78));
           float outerRingBands = (
             smoothstep(0.9, 1.0, ringWavePrimary) * 0.66 +
             smoothstep(0.93, 1.0, ringWaveSecondary) * 0.34
