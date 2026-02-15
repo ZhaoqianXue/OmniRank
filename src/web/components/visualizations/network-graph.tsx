@@ -138,7 +138,7 @@ export function NetworkGraph({ results, className }: NetworkGraphProps) {
 
     // Draw rank badge
     ctx.font = `bold ${fontSize}px sans-serif`;
-    ctx.fillStyle = "#0b101e";
+    ctx.fillStyle = "#070e19";
     ctx.fillText(`#${node.rank}`, node.x, node.y);
   };
 

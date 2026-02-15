@@ -79,7 +79,7 @@ const reportSanitizeSchema = {
 
 const SECTION_STYLES: Record<string, string> = {
   summary:
-    "relative bg-primary/[0.04] border border-primary/20 rounded-xl p-6 my-6 shadow-[0_0_24px_-6px_rgba(152,132,229,0.12)]",
+    "relative bg-primary/[0.04] border border-primary/20 rounded-xl p-6 my-6 shadow-[0_0_24px_-6px_rgba(106,159,217,0.12)]",
   result: "my-6",
   table: "my-6",
   figure:

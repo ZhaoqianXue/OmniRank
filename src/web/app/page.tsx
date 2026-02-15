@@ -1,10 +1,12 @@
 "use client";
 
+import { useCallback, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
   BarChart3,
+  BookOpen,
   Brain,
   CirclePlay,
   FileSpreadsheet,
@@ -78,11 +80,37 @@ const keyFeatures: KeyFeature[] = [
   },
 ];
 
+const SCROLL_TO_HOW_TO_USE_KEY = "omnirank:scroll-to-how-to-use";
+
 export default function LandingPage() {
+  const scrollToHowToUse = useCallback(() => {
+    const howToUseSection = document.getElementById("how-to-use");
+    if (!howToUseSection) return;
+
+    howToUseSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    const nextUrl = `${window.location.pathname}${window.location.search}`;
+    window.history.replaceState(null, "", nextUrl);
+  }, []);
+
+  useEffect(() => {
+    const shouldScroll = window.sessionStorage.getItem(SCROLL_TO_HOW_TO_USE_KEY);
+    if (shouldScroll !== "1") return;
+
+    window.sessionStorage.removeItem(SCROLL_TO_HOW_TO_USE_KEY);
+    window.requestAnimationFrame(() => {
+      const howToUseSection = document.getElementById("how-to-use");
+      if (!howToUseSection) return;
+
+      howToUseSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      const nextUrl = `${window.location.pathname}${window.location.search}`;
+      window.history.replaceState(null, "", nextUrl);
+    });
+  }, []);
+
   return (
     <main className="relative min-h-screen overflow-x-hidden text-foreground">
       <HeroScene className="fixed inset-0 -z-30 opacity-90" />
-      <div className="pointer-events-none fixed inset-0 -z-20 bg-[radial-gradient(circle_at_20%_18%,rgba(152,132,229,0.24),transparent_40%),radial-gradient(circle_at_80%_14%,rgba(197,184,246,0.16),transparent_46%),radial-gradient(circle_at_50%_84%,rgba(16,25,46,0.88),transparent_62%)]" />
+      <div className="pointer-events-none fixed inset-0 -z-20 bg-[radial-gradient(circle_at_20%_18%,rgba(106,159,217,0.24),transparent_40%),radial-gradient(circle_at_80%_14%,rgba(159,194,232,0.16),transparent_46%),radial-gradient(circle_at_50%_84%,rgba(11,26,48,0.88),transparent_62%)]" />
       <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-background/86 via-background/94 to-background" />
       <SiteNavbar />
 
@@ -117,19 +145,27 @@ export default function LandingPage() {
                   className="text-primary underline underline-offset-2 hover:text-primary/80"
                 >
                   Jin Jin Lab
+                </a>{" "}
+                and{" "}
+                <a
+                  href="https://maxineyu.github.io/personal_web/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline underline-offset-2 hover:text-primary/80"
+                >
+                  Mengxin Yu Lab
                 </a>
               </p>
 
-              <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
-                <Link
-                  href="/leaderboard"
-                  target="_blank"
-                  rel="noopener noreferrer"
+              <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={scrollToHowToUse}
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-primary/65 bg-card/80 px-5 py-3 text-base font-semibold text-primary transition-all duration-300 hover:bg-primary/10 hover:border-primary"
                 >
-                  <Trophy className="h-4 w-4 text-primary" />
-                  LLM Leaderboard
-                </Link>
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  Usage Guide
+                </button>
                 <Link
                   href="/workspace"
                   target="_blank"
@@ -139,25 +175,34 @@ export default function LandingPage() {
                   <ArrowRight className="h-4 w-4" />
                   Start Ranking
                 </Link>
+                <Link
+                  href="/leaderboard"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-primary/65 bg-card/80 px-5 py-3 text-base font-semibold text-primary transition-all duration-300 hover:bg-primary/10 hover:border-primary"
+                >
+                  <Trophy className="h-4 w-4 text-primary" />
+                  LLM Leaderboard
+                </Link>
               </div>
 
-              <div className="mx-auto mt-4 flex w-full max-w-3xl flex-wrap justify-center gap-2">
+              <div className="mx-auto mt-4 flex flex-wrap items-center justify-center gap-2">
                 <a
                   href="https://arxiv.org/html/2308.02918"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/70 px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <FileText className="h-3.5 w-3.5" />
-                  Preprint
+                  <FileText className="h-4 w-4" />
+                  Method Paper
                 </a>
                 <a
                   href="https://github.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/70 px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <Github className="h-3.5 w-3.5" />
+                  <Github className="h-4 w-4" />
                   GitHub
                 </a>
               </div>
@@ -277,7 +322,7 @@ export default function LandingPage() {
                 className="ml-1 h-8 w-auto shrink-0 sm:ml-2 sm:h-9"
               />
             </div>
-            <p>© 2026 Jin Jin Lab. All rights reserved.</p>
+            <p>© 2026 Jin Jin Lab and Mengxin Yu Lab. All rights reserved.</p>
           </div>
         </footer>
       </div>

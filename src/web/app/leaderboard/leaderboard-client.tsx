@@ -950,7 +950,7 @@ function SpectralTableStyles() {
       }
 
       .leaderboard-spectral-table-html .model-cell a {
-        color: #c5b8f6;
+        color: #9fc2e8;
         text-decoration: underline;
       }
 
@@ -1430,7 +1430,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
     <main className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
       <SpectralTableStyles />
       <div className="pointer-events-none fixed inset-0 -z-30 grid-pattern opacity-40" />
-      <div className="pointer-events-none fixed inset-0 -z-20 bg-[radial-gradient(circle_at_15%_15%,rgba(152,132,229,0.24),transparent_42%),radial-gradient(circle_at_80%_12%,rgba(197,184,246,0.18),transparent_46%),radial-gradient(circle_at_45%_85%,rgba(16,25,46,0.9),transparent_62%)]" />
+      <div className="pointer-events-none fixed inset-0 -z-20 bg-[radial-gradient(circle_at_15%_15%,rgba(106,159,217,0.24),transparent_42%),radial-gradient(circle_at_80%_12%,rgba(159,194,232,0.18),transparent_46%),radial-gradient(circle_at_45%_85%,rgba(11,26,48,0.9),transparent_62%)]" />
       <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-background/85 via-background/95 to-background" />
       <SiteNavbar id="leaderboard-top-nav" />
 

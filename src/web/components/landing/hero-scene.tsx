@@ -166,7 +166,7 @@ export function HeroScene({ className }: HeroSceneProps) {
         const gradient = ctx.createRadialGradient(half, half, 2, half, half, half - 2);
         gradient.addColorStop(0, innerColor);
         gradient.addColorStop(0.5, outerColor);
-        gradient.addColorStop(1, "rgba(152, 132, 229, 0)");
+        gradient.addColorStop(1, "rgba(106, 159, 217, 0)");
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, size, size);
       }
@@ -178,9 +178,9 @@ export function HeroScene({ className }: HeroSceneProps) {
       return texture;
     };
 
-    const particleTextureBg = createParticleTexture("rgba(122, 109, 216, 1)", "rgba(100, 88, 180, 0.7)");
-    const particleTextureMid = createParticleTexture("rgba(247, 242, 255, 1)", "rgba(152, 132, 229, 0.9)");
-    const particleTextureFg = createParticleTexture("rgba(240, 232, 255, 1)", "rgba(200, 180, 255, 0.85)");
+    const particleTextureBg = createParticleTexture("rgba(57, 93, 150, 1)", "rgba(41, 73, 124, 0.72)");
+    const particleTextureMid = createParticleTexture("rgba(238, 245, 255, 1)", "rgba(106, 159, 217, 0.9)");
+    const particleTextureFg = createParticleTexture("rgba(221, 236, 252, 1)", "rgba(159, 194, 232, 0.85)");
 
     const planeGeometry = new THREE.PlaneGeometry(2, 2);
 
@@ -192,9 +192,9 @@ export function HeroScene({ className }: HeroSceneProps) {
         uPointer: { value: new THREE.Vector2(0, 0) },
         uBoost: { value: 0 },
         uNoise: { value: noiseTexture },
-        uBase: { value: new THREE.Color("#080d18") },
-        uDeep: { value: new THREE.Color("#0c1422") },
-        uAccent: { value: new THREE.Color("#9884e5") },
+        uBase: { value: new THREE.Color("#050a13") },
+        uDeep: { value: new THREE.Color("#070e19") },
+        uAccent: { value: new THREE.Color("#6a9fd9") },
         uOrb1Pos: { value: new THREE.Vector2(-0.3, 0.4) },
         uOrb2Pos: { value: new THREE.Vector2(0.5, -0.2) },
         uOrb3Pos: { value: new THREE.Vector2(0.1, 0.6) },
