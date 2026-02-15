@@ -486,13 +486,32 @@ export function loadArenaBaseMethods(): SpectralMethod[] {
   return cachedArenaBaseMethods.map(cloneMethod);
 }
 
-function readCombinationMethods(filePath: string): SpectralMethod[] {
+function readArenaCombinationMethods(filePath: string): SpectralMethod[] {
   const rawMethods = readJsonFile<RawArenaMethod[]>(filePath);
   if (!Array.isArray(rawMethods)) {
     return [];
   }
 
   return rawMethods.map(normalizeArenaMethod);
+}
+
+function readHfCombinationMethods(filePath: string): SpectralMethod[] {
+  const payload = readJsonFile<RawHfResponse | RawArenaMethod[]>(filePath);
+
+  if (Array.isArray(payload)) {
+    return payload.map((item) => {
+      if (item && typeof item === "object" && "model" in item) {
+        return normalizeArenaMethod(item as RawArenaMethod);
+      }
+      return normalizeHfMethod(item as Record<string, unknown>);
+    });
+  }
+
+  if (payload && typeof payload === "object" && Array.isArray(payload.methods)) {
+    return payload.methods.map((item) => normalizeHfMethod(item));
+  }
+
+  return [];
 }
 
 export function loadHuggingFaceCombinationMethods(selectedKeysInput: string[]): SpectralMethod[] {
@@ -514,7 +533,7 @@ export function loadHuggingFaceCombinationMethods(selectedKeysInput: string[]): 
   }
 
   const baseMethods = loadHuggingFaceBaseMethods();
-  const methods = readCombinationMethods(combinationFile);
+  const methods = readHfCombinationMethods(combinationFile);
 
   return sortMethodsByRank(attachHfBenchmarkScores(methods, selectedKeys, baseMethods));
 }
@@ -547,7 +566,7 @@ export function loadArenaCombinationMethods(selectedVirtualKeysInput: string[]):
     throw new Error(`Combination not found: ${combinationName}`);
   }
 
-  const methods = readCombinationMethods(combinationFile);
+  const methods = readArenaCombinationMethods(combinationFile);
   return sortMethodsByRank(attachArenaBenchmarkScores(methods, normalized));
 }
 

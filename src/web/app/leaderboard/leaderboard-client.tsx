@@ -1774,7 +1774,13 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                         <input
                           type="checkbox"
                           checked={hfSelection[label]}
+                          disabled={hfSelection[label] && selectedHfLabels.length <= 2}
                           onChange={(event) => {
+                            if (!event.target.checked && hfSelection[label] && selectedHfLabels.length <= 2) {
+                              setHfError("Please select at least two benchmarks.");
+                              return;
+                            }
+
                             setHfSelection((previous) => ({
                               ...previous,
                               [label]: event.target.checked,
