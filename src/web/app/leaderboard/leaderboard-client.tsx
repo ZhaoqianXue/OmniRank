@@ -1,22 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowUpRight,
   BarChart3,
-  ChevronDown,
-  ChevronRight,
   Code2,
   Database,
   Download,
-  ExternalLink,
   FileSpreadsheet,
   Rocket,
   Scale,
   Search,
   Sparkles,
-  Upload,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,7 +63,16 @@ interface CustomSummary {
   benchmarkScores: Record<string, number>;
 }
 
+type DetailPanelKey = "upload" | "compare" | "what" | "how";
+
 const sectionWrapperClass = "mx-auto w-full max-w-[1400px] px-4 md:px-8";
+
+const DETAIL_PANEL_ITEMS: Array<{ key: DetailPanelKey; title: string; id: string }> = [
+  { key: "upload", title: "Upload Your Arena Results", id: "upload-your-arena-results" },
+  { key: "compare", title: "Compare With Your Model", id: "compare-with-your-model" },
+  { key: "what", title: "What is OmniRank LLM Leaderboard?", id: "what-is-omnirank" },
+  { key: "how", title: "How This Leaderboard is Calculated", id: "how-this-leaderboard-is-calculated" },
+];
 
 function scrollToSection(id: string): void {
   const target = document.getElementById(id);
@@ -181,159 +186,6 @@ function buildCustomRankingResult(
       benchmarkScores: customMethod.benchmark_scores ?? {},
     },
   };
-}
-
-function SourceSummaryGrid({
-  methods,
-  countLabel,
-  countValue,
-  sourceName,
-  sourceUrl,
-}: {
-  methods: SpectralMethod[];
-  countLabel: string;
-  countValue: number;
-  sourceName: string;
-  sourceUrl: string;
-}) {
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      <div className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
-        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Ranked Models</div>
-        <div className="text-lg font-semibold">{methods.length}</div>
-      </div>
-      <div className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
-        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{countLabel}</div>
-        <div className="text-lg font-semibold">{countValue}</div>
-      </div>
-      <div className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
-        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Data Source</div>
-        <a
-          href={sourceUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline underline-offset-4"
-        >
-          {sourceName}
-          <ExternalLink className="h-3.5 w-3.5" />
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function ExpandablePanel({
-  title,
-  description,
-  defaultOpen = false,
-  className,
-  children,
-}: {
-  title: string;
-  description?: string;
-  defaultOpen?: boolean;
-  className?: string;
-  children: ReactNode;
-}) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-
-  return (
-    <div className={cn("rounded-2xl border border-border/70 bg-card/55", className)}>
-      <button
-        type="button"
-        onClick={() => setIsOpen((previous) => !previous)}
-        className="flex w-full items-start justify-between gap-4 px-4 py-4 text-left md:px-5"
-        aria-expanded={isOpen}
-      >
-        <div>
-          <div className="flex items-center gap-2 text-base font-semibold md:text-lg">
-            {isOpen ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
-            {title}
-          </div>
-          {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
-        </div>
-        <Badge variant={isOpen ? "secondary" : "outline"} className="hidden shrink-0 sm:inline-flex">
-          {isOpen ? "Expanded" : "Optional"}
-        </Badge>
-      </button>
-      {isOpen ? <div className="border-t border-border/60 p-4 md:p-5">{children}</div> : null}
-    </div>
-  );
-}
-
-function WhatIsOmniRankSection({ embedded = false }: { embedded?: boolean }) {
-  const content = (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <Card className="border-border/70 bg-card/65 py-5">
-        <CardHeader className="px-5 pb-0">
-          <CardTitle className="flex items-center gap-2 text-lg"><BarChart3 className="h-5 w-5 text-primary" /> What This Leaderboard Does</CardTitle>
-        </CardHeader>
-        <CardContent className="px-5 text-sm text-muted-foreground">
-          <p>
-            This leaderboard provides a statistically robust ranking of Large Language Models (LLMs)
-            using the OmniRank algorithm, beyond simple score averaging.
-          </p>
-          <ul className="mt-3 space-y-2">
-            <li>Comprehensive rankings across LMSYS Arena and Hugging Face sources.</li>
-            <li>Confidence intervals for every model rank.</li>
-            <li>Customizable analysis by selecting benchmark subsets.</li>
-            <li>Head-to-head contextual comparison across benchmark categories.</li>
-          </ul>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/70 bg-card/65 py-5">
-        <CardHeader className="px-5 pb-0">
-          <CardTitle className="flex items-center gap-2 text-lg"><Scale className="h-5 w-5 text-primary" /> OmniRank vs Regular Ranking</CardTitle>
-        </CardHeader>
-        <CardContent className="px-5 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">Regular Ranking Limitations:</p>
-          <ul className="mt-2 space-y-2">
-            <li>Ignores context: simple averaging treats all benchmarks equally.</li>
-            <li>No confidence information for ranking stability.</li>
-          </ul>
-          <p className="mt-3 font-medium text-foreground">OmniRank Advantages:</p>
-          <ul className="mt-2 space-y-2">
-            <li>Context-aware tournament network modeling.</li>
-            <li>Bootstrap-based confidence intervals.</li>
-            <li>More robust against outliers and benchmark bias.</li>
-          </ul>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/70 bg-card/65 py-5">
-        <CardHeader className="px-5 pb-0">
-          <CardTitle className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5 text-primary" /> Key Features</CardTitle>
-        </CardHeader>
-        <CardContent className="px-5 text-sm text-muted-foreground">
-          <ul className="space-y-2">
-            <li>Multi data sources: Arena + Hugging Face.</li>
-            <li>Custom rankings with benchmark selection.</li>
-            <li>Tournament-based OmniRank scoring.</li>
-            <li>95% confidence intervals for all models.</li>
-            <li>OmniRank vs Average Score Rank side-by-side.</li>
-            <li>Rank your own model against top leaderboard models.</li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  if (embedded) {
-    return (
-      <div id="what-is-omnirank">
-        <h3 className="mb-4 text-xl font-semibold">What is OmniRank LLM Leaderboard?</h3>
-        {content}
-      </div>
-    );
-  }
-
-  return (
-    <section id="what-is-omnirank" className={cn(sectionWrapperClass, "mb-8")}>
-      <h2 className="mb-4 text-2xl font-semibold">What is OmniRank LLM Leaderboard?</h2>
-      {content}
-    </section>
-  );
 }
 
 function RankingTable({
@@ -1236,6 +1088,7 @@ function SpectralTableStyles() {
 
 export default function LeaderboardClient({ initialData }: LeaderboardClientProps) {
   const [activeMode, setActiveMode] = useState<LeaderboardMode>("arena");
+  const [activeDetailPanel, setActiveDetailPanel] = useState<DetailPanelKey>("upload");
 
   const [arenaMethods, setArenaMethods] = useState<SpectralMethod[]>(initialData.arena.methods);
   const [huggingFaceBaselineMethods, setHuggingFaceBaselineMethods] = useState<SpectralMethod[]>(
@@ -1301,10 +1154,20 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
       const hash = window.location.hash;
       if (hash === "#compare-with-your-model") {
         setActiveMode("huggingface");
+        setActiveDetailPanel("compare");
+      } else if (hash === "#upload-your-arena-results") {
+        setActiveMode("arena");
+        setActiveDetailPanel("upload");
+      } else if (hash === "#what-is-omnirank") {
+        setActiveDetailPanel("what");
+      } else if (hash === "#how-this-leaderboard-is-calculated" || hash === "#methodology-background") {
+        setActiveDetailPanel("how");
       }
 
       if (hash.startsWith("#")) {
-        const targetId = hash.slice(1);
+        const targetId = hash === "#methodology-background"
+          ? "how-this-leaderboard-is-calculated"
+          : hash.slice(1);
         window.setTimeout(() => {
           scrollToSection(targetId);
         }, 220);
@@ -1475,7 +1338,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
       <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-background/86 via-background/94 to-background" />
       <SiteNavbar id="leaderboard-top-nav" />
 
-      <div className="relative z-10 pb-20 pt-16 md:pt-20">
+      <div className="relative z-10 pt-16 md:pt-20">
         <section className={cn(sectionWrapperClass, "mb-5")}>
           <div className="p-4 md:p-6">
             <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">
@@ -1505,20 +1368,9 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   LMSYS Arena Leaderboard
                 </CardTitle>
                 <CardDescription>
-                  Crowdsourced human preference battles from real-world interactions.
-                  <br />
-                  Human preference, head-to-head battles, real-world behavior.
+                  Switch the ranking table to LMSYS Arena human-preference results.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="px-5 pt-0 text-sm text-muted-foreground">
-                <SourceSummaryGrid
-                  methods={arenaMethods}
-                  countLabel="Task Categories"
-                  countValue={selectedArenaLabels.length}
-                  sourceName="LMSYS Arena"
-                  sourceUrl="https://lmarena.ai/leaderboard/"
-                />
-              </CardContent>
             </Card>
 
             <Card
@@ -1537,473 +1389,509 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   Hugging Face Leaderboard
                 </CardTitle>
                 <CardDescription>
-                  Standardized academic benchmark evaluation for top open LLMs.
-                  <br />
-                  Six core benchmarks, automated evaluation, Top 100 models.
+                  Switch the ranking table to Hugging Face benchmark results.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="px-5 pt-0 text-sm text-muted-foreground">
-                <SourceSummaryGrid
-                  methods={huggingFaceMethods}
-                  countLabel="Benchmarks"
-                  countValue={selectedHfLabels.length}
-                  sourceName="Hugging Face"
-                  sourceUrl="https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard"
-                />
-              </CardContent>
             </Card>
           </div>
         </section>
 
-        {activeMode === "arena" ? (
-          <>
-            <section id="arena-rankings" className={cn(sectionWrapperClass, "mb-8")}>
-              <Card className="mb-3 border-border/70 bg-card/65 py-4">
-                <CardHeader className="px-4 pb-0">
-                  <CardTitle className="text-lg">Customize Arena Benchmarks</CardTitle>
-                  <CardDescription>
-                    Customize which virtual benchmarks are included in OmniRank analysis. Select 1 to 7 benchmarks.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-4">
-                  <div className="flex flex-wrap gap-3">
-                    {ARENA_BENCHMARK_LABELS.map((label) => (
-                      <label key={label} className="inline-flex items-center gap-2 rounded-md border border-border/60 bg-background/50 px-3 py-1.5 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={arenaSelection[label]}
-                          onChange={(event) => {
-                            setArenaSelection((previous) => ({
-                              ...previous,
-                              [label]: event.target.checked,
-                            }));
-                          }}
-                        />
-                        {label}
-                      </label>
+        <section
+          id={activeMode === "arena" ? "arena-rankings" : "huggingface-rankings"}
+          className={cn(sectionWrapperClass, "mb-8")}
+        >
+          {activeMode === "arena" ? (
+            <Card className="mb-3 border-border/70 bg-card/65 py-4">
+              <CardHeader className="px-4 pb-0">
+                <CardTitle className="text-lg">Customize Arena Benchmarks</CardTitle>
+                <CardDescription>
+                  Customize which virtual benchmarks are included in OmniRank analysis. Select 1 to 7 benchmarks.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-4">
+                <div className="flex flex-wrap gap-3">
+                  {ARENA_BENCHMARK_LABELS.map((label) => (
+                    <label key={label} className="inline-flex items-center gap-2 rounded-md border border-border/60 bg-background/50 px-3 py-1.5 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={arenaSelection[label]}
+                        onChange={(event) => {
+                          setArenaSelection((previous) => ({
+                            ...previous,
+                            [label]: event.target.checked,
+                          }));
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground">{arenaLoading ? "Updating..." : null}</div>
+                {arenaError ? <div className="mt-2 text-sm text-red-300">{arenaError}</div> : null}
+                <div className="mt-4 border-t border-border/60 pt-4">
+                  <TopThreeLegend className="leaderboard-top-3-legend--embedded mb-3" />
+                  <RankingTable
+                    key={`arena-${selectedArenaLabels.join("|")}-${arenaMethods.length}-${highlightModel ?? ""}`}
+                    mode="arena"
+                    methods={arenaMethods}
+                    selectedLabels={selectedArenaLabels}
+                    highlightModel={highlightModel}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="mb-3 border-border/70 bg-card/65 py-4">
+              <CardHeader className="px-4 pb-0">
+                <CardTitle className="text-lg">Customize Hugging Face Benchmarks</CardTitle>
+                <CardDescription>
+                  Customize which benchmarks are included in OmniRank analysis. Select 2 to 6 benchmarks.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-4">
+                <div className="flex flex-wrap gap-3">
+                  {HF_BENCHMARK_LABELS.map((label) => (
+                    <label key={label} className="inline-flex items-center gap-2 rounded-md border border-border/60 bg-background/50 px-3 py-1.5 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={hfSelection[label]}
+                        disabled={hfSelection[label] && selectedHfLabels.length <= 2}
+                        onChange={(event) => {
+                          if (!event.target.checked && hfSelection[label] && selectedHfLabels.length <= 2) {
+                            setHfError("Please select at least two benchmarks.");
+                            return;
+                          }
+
+                          setHfSelection((previous) => ({
+                            ...previous,
+                            [label]: event.target.checked,
+                          }));
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground">{hfLoading ? "Updating..." : null}</div>
+                {hfError ? <div className="mt-2 text-sm text-red-300">{hfError}</div> : null}
+                <div className="mt-4 border-t border-border/60 pt-4">
+                  <TopThreeLegend className="leaderboard-top-3-legend--embedded mb-3" />
+                  <RankingTable
+                    key={`huggingface-${selectedHfLabels.join("|")}-${huggingFaceMethods.length}-${highlightModel ?? ""}`}
+                    mode="huggingface"
+                    methods={huggingFaceMethods}
+                    selectedLabels={selectedHfLabels}
+                    highlightModel={highlightModel}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </section>
+
+        <section id="leaderboard-detail-tabs" className={cn(sectionWrapperClass, "mb-5")}>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {DETAIL_PANEL_ITEMS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => {
+                  setActiveDetailPanel(item.key);
+                  if (item.key === "upload") {
+                    setActiveMode("arena");
+                  } else if (item.key === "compare") {
+                    setActiveMode("huggingface");
+                  }
+                }}
+                className={cn(
+                  "rounded-2xl border px-4 py-4 text-left transition-all",
+                  activeDetailPanel === item.key
+                    ? "border-primary bg-card/85 shadow-[0_14px_32px_rgba(0,0,0,0.28)]"
+                    : "border-border/70 bg-card/45 hover:border-primary/45",
+                )}
+              >
+                <p className="text-base font-semibold">{item.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {activeDetailPanel === item.key ? "Expanded below" : "Click to view details"}
+                </p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className={cn(sectionWrapperClass, "mb-8")}>
+          {activeDetailPanel === "upload" ? (
+            <div id="upload-your-arena-results" className="space-y-4 px-1 md:px-2">
+              <h3 className="text-2xl font-semibold">Upload Your Arena Results</h3>
+              <p className="max-w-4xl text-sm text-muted-foreground md:text-base">
+                Run a standalone OmniRank leaderboard on collected Arena-style battles. Results remain separate from the built-in LMSYS leaderboard.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><strong className="text-foreground">File format:</strong> Arena-style CSV of pairwise battles. Include a task tag column (e.g., <code>Task</code>) and consistent model columns.</li>
+                <li><strong className="text-foreground">Row data:</strong> One battle per row. Winner = <code>1.0</code>, loser = <code>0.0</code>, all other models = <code>NaN</code>.</li>
+                <li><strong className="text-foreground">Result:</strong> OmniRank scores, ranks, and confidence intervals for models in your file only.</li>
+                <li><strong className="text-foreground">Quick example:</strong> Uploading the sample file runs on two tasks (<code>code</code> and <code>math</code>) and outputs OmniRank ranks for ChatGPT, Claude, Gemini, Llama, Qwen, and Your Model.</li>
+              </ul>
+
+              <div className="rounded-xl border border-border/60 bg-background/35 p-3">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-semibold text-foreground">
+                    <FileSpreadsheet className="h-4 w-4 text-primary" />
+                    Example Arena-style CSV
+                    {initialData.exampleArena.tasks.length > 0 ? (
+                      <Badge variant="secondary">Tasks: {initialData.exampleArena.tasks.join(", ")}</Badge>
+                    ) : null}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {initialData.exampleArena.rowCount} rows x {initialData.exampleArena.colCount} cols
+                  </span>
+                </div>
+
+                <ScrollArea className="h-[290px] rounded-md border border-border/50">
+                  <table className="w-full min-w-[720px] border-collapse text-xs">
+                    <thead className="sticky top-0 z-10 bg-muted">
+                      <tr>
+                        {initialData.exampleArena.headers.map((header) => (
+                          <th key={header} className="border-b border-border/50 px-2 py-1.5 text-left font-semibold">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {initialData.exampleArena.rows.map((row, index) => (
+                        <tr key={`${row.join("|")}-${index}`} className="even:bg-background/40">
+                          {row.map((cell, cellIndex) => (
+                            <td key={`${cellIndex}-${cell}`} className="border-b border-border/30 px-2 py-1.5">
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </ScrollArea>
+              </div>
+
+              <div>
+                <Button variant="outline" asChild>
+                  <Link href="/workspace" target="_blank" rel="noopener noreferrer">
+                    Go to Ranking Page (Use Example or Upload Data)
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {activeDetailPanel === "compare" ? (
+            <div id="compare-with-your-model" className="space-y-4 px-1 md:px-2">
+              <h3 className="text-2xl font-semibold">Compare With Your Model</h3>
+              <p className="max-w-4xl text-sm text-muted-foreground md:text-base">
+                Enter a model name and six benchmark scores (0-100). We re-rank against the current Top 100 locally in this page.
+              </p>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <Label htmlFor="custom-model-name">Model Name</Label>
+                  <Input
+                    id="custom-model-name"
+                    placeholder="e.g., My-Awesome-LLM-7B"
+                    value={customModelName}
+                    onChange={(event) => setCustomModelName(event.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="custom-ifeval">IFEval (%)</Label>
+                  <Input
+                    id="custom-ifeval"
+                    value={customScores.ifeval}
+                    onChange={(event) => setCustomScores((previous) => ({ ...previous, ifeval: event.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="custom-bbh">BBH (%)</Label>
+                  <Input
+                    id="custom-bbh"
+                    value={customScores.bbh}
+                    onChange={(event) => setCustomScores((previous) => ({ ...previous, bbh: event.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="custom-math">MATH (%)</Label>
+                  <Input
+                    id="custom-math"
+                    value={customScores.math}
+                    onChange={(event) => setCustomScores((previous) => ({ ...previous, math: event.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="custom-gpqa">GPQA (%)</Label>
+                  <Input
+                    id="custom-gpqa"
+                    value={customScores.gpqa}
+                    onChange={(event) => setCustomScores((previous) => ({ ...previous, gpqa: event.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="custom-musr">MUSR (%)</Label>
+                  <Input
+                    id="custom-musr"
+                    value={customScores.musr}
+                    onChange={(event) => setCustomScores((previous) => ({ ...previous, musr: event.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="custom-mmlu-pro">MMLU-Pro (%)</Label>
+                  <Input
+                    id="custom-mmlu-pro"
+                    value={customScores.mmlu_pro}
+                    onChange={(event) => setCustomScores((previous) => ({ ...previous, mmlu_pro: event.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={clearCustomInputs}>Clear</Button>
+                <Button onClick={runCustomRanking} disabled={customRunning}>Run OmniRank</Button>
+                {customError ? <span className="text-sm text-red-300">{customError}</span> : null}
+              </div>
+
+              {customRunning ? (
+                <div className="rounded-xl border border-border/70 bg-background/40 p-4">
+                  <h4 className="text-lg font-semibold">Analyzing Your Model</h4>
+                  <p className="text-sm text-muted-foreground">Running OmniRank algorithm... Progress: {customProgress.toFixed(0)}%</p>
+                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${customProgress}%` }} />
+                  </div>
+                </div>
+              ) : null}
+
+              {customSummary ? (
+                <div className="rounded-xl border border-border/70 bg-background/35 p-4">
+                  <h4 className="text-xl font-semibold">Your Model Summary</h4>
+                  <p className="text-sm text-muted-foreground">{customSummary.modelName}</p>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-lg border border-border/60 bg-background/35 p-3">
+                      <div className="text-sm text-muted-foreground">OmniRank</div>
+                      <div className="text-3xl font-semibold text-primary">{customSummary.rank}</div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-background/35 p-3">
+                      <div className="text-sm text-muted-foreground">Average Score Rank</div>
+                      <div className="text-3xl font-semibold">{customSummary.scoreRank}</div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-background/35 p-3">
+                      <div className="text-sm text-muted-foreground">θ-hat Score</div>
+                      <div className="text-2xl font-semibold">{customSummary.thetaHat.toFixed(4)}</div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-background/35 p-3">
+                      <div className="text-sm text-muted-foreground">95% CI</div>
+                      <div className="text-2xl font-semibold">[{Math.round(customSummary.ciTwoSided[0])}, {Math.round(customSummary.ciTwoSided[1])}]</div>
+                    </div>
+                  </div>
+
+                  <h5 className="mt-4 text-base font-semibold">Benchmark Performance</h5>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      ["IFEval", customSummary.benchmarkScores.ifeval],
+                      ["BBH", customSummary.benchmarkScores.bbh],
+                      ["MATH", customSummary.benchmarkScores.math],
+                      ["GPQA", customSummary.benchmarkScores.gpqa],
+                      ["MUSR", customSummary.benchmarkScores.musr],
+                      ["MMLU-Pro", customSummary.benchmarkScores.mmlu_pro],
+                      ["Average", customSummary.benchmarkScores.average_score],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm">
+                        <div className="text-muted-foreground">{label}</div>
+                        <div className="font-semibold text-foreground">{Number(value).toFixed(2)}%</div>
+                      </div>
                     ))}
                   </div>
-                  <div className="mt-3 text-xs text-muted-foreground">{arenaLoading ? "Updating..." : null}</div>
-                  {arenaError ? <div className="mt-2 text-sm text-red-300">{arenaError}</div> : null}
-                  <div className="mt-4 border-t border-border/60 pt-4">
-                    <TopThreeLegend className="leaderboard-top-3-legend--embedded mb-3" />
-                    <RankingTable
-                      key={`arena-${selectedArenaLabels.join("|")}-${arenaMethods.length}-${highlightModel ?? ""}`}
-                      mode="arena"
-                      methods={arenaMethods}
-                      selectedLabels={selectedArenaLabels}
-                      highlightModel={highlightModel}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            <section className={cn(sectionWrapperClass, "mb-8")}>
-              <ExpandablePanel
-                title="Upload Your Arena Results (Advanced)"
-                description="Optional standalone workflow for your own Arena-style battle CSV."
-              >
-                <Card className="border-border/70 bg-card/65 py-5">
-                  <CardHeader className="px-5 pb-0">
-                    <CardTitle className="flex items-center gap-2 text-xl"><Upload className="h-5 w-5 text-primary" /> Upload Your LLMs Arena Results</CardTitle>
-                    <CardDescription>
-                      Run a standalone OmniRank leaderboard on collected Arena-style battles. Results remain separate from the built-in LMSYS leaderboard.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-5 text-sm text-muted-foreground">
-                    <ul className="space-y-2">
-                      <li><strong>File format:</strong> Arena-style CSV of pairwise battles. Include a task tag column (e.g., <code>Task</code>) and consistent model columns.</li>
-                      <li><strong>Row data:</strong> One battle per row. Winner = <code>1.0</code>, loser = <code>0.0</code>, all other models = <code>NaN</code>.</li>
-                      <li><strong>Result:</strong> OmniRank scores, ranks, and confidence intervals for models in your file only.</li>
-                      <li><strong>Quick example:</strong> Uploading the sample file runs on two tasks (<code>code</code> and <code>math</code>) and outputs OmniRank ranks for ChatGPT, Claude, Gemini, Llama, Qwen, and Your Model.</li>
-                    </ul>
-
-                    <div className="mt-4 rounded-xl border border-border/60 bg-background/35 p-3">
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 font-semibold text-foreground">
-                          <FileSpreadsheet className="h-4 w-4 text-primary" />
-                          Example Arena-style CSV
-                          {initialData.exampleArena.tasks.length > 0 ? (
-                            <Badge variant="secondary">Tasks: {initialData.exampleArena.tasks.join(", ")}</Badge>
-                          ) : null}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {initialData.exampleArena.rowCount} rows x {initialData.exampleArena.colCount} cols
-                        </span>
-                      </div>
-
-                      <ScrollArea className="h-[290px] rounded-md border border-border/50">
-                        <table className="w-full min-w-[720px] border-collapse text-xs">
-                          <thead className="sticky top-0 z-10 bg-muted">
-                            <tr>
-                              {initialData.exampleArena.headers.map((header) => (
-                                <th key={header} className="border-b border-border/50 px-2 py-1.5 text-left font-semibold">
-                                  {header}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {initialData.exampleArena.rows.map((row, index) => (
-                              <tr key={`${row.join("|")}-${index}`} className="even:bg-background/40">
-                                {row.map((cell, cellIndex) => (
-                                  <td key={`${cellIndex}-${cell}`} className="border-b border-border/30 px-2 py-1.5">
-                                    {cell}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </ScrollArea>
-                    </div>
-
-                    <div className="mt-4">
-                      <Button variant="outline" asChild>
-                        <Link href="/#mode-selection" target="_blank" rel="noopener noreferrer">
-                          Go to Ranking Page (Use Example or Upload Data)
-                          <ArrowUpRight className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </ExpandablePanel>
-            </section>
-
-            <section id="methodology-background" className={cn(sectionWrapperClass, "mb-8")}>
-              <ExpandablePanel
-                title="Methodology & Background"
-                description="Optional deep dive into OmniRank rationale and calculation steps."
-              >
-                <WhatIsOmniRankSection embedded />
-
-                <h3 className="mb-4 mt-6 text-xl font-semibold">How This Leaderboard is Calculated</h3>
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <Card className="border-border/70 bg-card/65 py-5">
-                    <CardHeader className="px-5 pb-0">
-                      <CardTitle className="flex items-center gap-2 text-lg"><Database className="h-5 w-5 text-primary" /> Step 1: Data Source</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 text-sm text-muted-foreground">
-                      <ul className="space-y-2">
-                        <li><strong>Dataset:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/lmarena-ai/arena-human-preference-140k" target="_blank" rel="noreferrer">lmarena-ai/arena-human-preference-140k</a></li>
-                        <li><strong>Data Scale:</strong> 135,634 battle records, 53 unique models, about 1.61 GB.</li>
-                        <li><strong>Collection:</strong> Anonymous crowd preferences on Chatbot Arena.</li>
-                        <li><strong>Mechanism:</strong> Blind chat between <code>model_a</code> and <code>model_b</code> with votes (win/tie/both bad).</li>
-                        <li><strong>Rich Content:</strong> Includes conversation history, winner field, and category tags.</li>
-                        <li><strong>License:</strong> User prompts under CC-BY-4.0.</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/70 bg-card/65 py-5">
-                    <CardHeader className="px-5 pb-0">
-                      <CardTitle className="flex items-center gap-2 text-lg"><Search className="h-5 w-5 text-primary" /> Step 2: Virtual Benchmarks</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 text-sm text-muted-foreground">
-                      <p>Each battle is categorized into 7 virtual benchmarks based on content, metadata, and Arena definitions:</p>
-                      <ul className="mt-2 space-y-2">
-                        <li><strong>Creative Writing:</strong> tag <code>creative_writing</code>.</li>
-                        <li><strong>Math:</strong> tag <code>math</code>.</li>
-                        <li><strong>Instruction Following:</strong> tag <code>if</code>.</li>
-                        <li><strong>Coding:</strong> <code>is_code == True</code>.</li>
-                        <li><strong>Hard Prompt:</strong> at least 6 of 7 complexity criteria.</li>
-                        <li><strong>Longer Query:</strong> prompts over 500 tokens.</li>
-                        <li><strong>Multi-Turn:</strong> conversations with more than one turn.</li>
-                      </ul>
-                      <p className="mt-3 text-xs">
-                        Source: <a className="text-primary underline" href="https://news.lmarena.ai/arena-category/" target="_blank" rel="noreferrer">Chatbot Arena Categories</a>
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/70 bg-card/65 py-5">
-                    <CardHeader className="px-5 pb-0">
-                      <CardTitle className="flex items-center gap-2 text-lg"><Code2 className="h-5 w-5 text-primary" /> Step 3: BT-MLE Modeling</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 text-sm text-muted-foreground">
-                      <p>
-                        We use the Bradley-Terry model (MLE of Elo) for robust static-model scoring.
-                      </p>
-                      <ul className="mt-2 space-y-2">
-                        <li><strong>Why not simple win rate:</strong> ignores opponent strength.</li>
-                        <li><strong>Why BT-MLE over online Elo:</strong> online Elo assumes time-varying player skill; BT-MLE is more stable for static LLMs.</li>
-                        <li><strong>Core Formula:</strong> Pr(i &gt; j) = sigma(theta_i - theta_j) = exp(theta_i) / (exp(theta_i) + exp(theta_j)).</li>
-                        <li><strong>Output:</strong> BT probabilities per category as OmniRank inputs.</li>
-                      </ul>
-                      <p className="mt-3 text-xs">
-                        Reference: <a className="text-primary underline" href="https://lmsys.org/blog/2023-12-07-leaderboard/" target="_blank" rel="noreferrer">Chatbot Arena Elo system update</a>
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/70 bg-card/65 py-5">
-                    <CardHeader className="px-5 pb-0">
-                      <CardTitle className="flex items-center gap-2 text-lg"><Rocket className="h-5 w-5 text-primary" /> Step 4: OmniRank</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 text-sm text-muted-foreground">
-                      <p>
-                        Selected virtual benchmark scores (1 to 7) are combined using the OmniRank method into one final robust leaderboard.
-                      </p>
-                      <ul className="mt-2 space-y-2">
-                        <li><strong>Core Idea:</strong> a tournament network estimates a global power score (<code>theta.hat</code>).</li>
-                        <li><strong>Uncertainty:</strong> weighted bootstrap simulations generate confidence intervals.</li>
-                        <li><strong>Final Output:</strong> OmniRank with CI for statistically sound model comparison.</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
                 </div>
-              </ExpandablePanel>
-            </section>
-          </>
-        ) : (
-          <>
-            <section id="methodology-background" className={cn(sectionWrapperClass, "mb-8")}>
-              <Card className="mb-3 border-border/70 bg-card/65 py-4">
-                <CardHeader className="px-4 pb-0">
-                  <CardTitle className="text-lg">Customize Hugging Face Benchmarks</CardTitle>
-                  <CardDescription>
-                    Customize which benchmarks are included in OmniRank analysis. Select 2 to 6 benchmarks.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-4">
-                  <div className="flex flex-wrap gap-3">
-                    {HF_BENCHMARK_LABELS.map((label) => (
-                      <label key={label} className="inline-flex items-center gap-2 rounded-md border border-border/60 bg-background/50 px-3 py-1.5 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={hfSelection[label]}
-                          disabled={hfSelection[label] && selectedHfLabels.length <= 2}
-                          onChange={(event) => {
-                            if (!event.target.checked && hfSelection[label] && selectedHfLabels.length <= 2) {
-                              setHfError("Please select at least two benchmarks.");
-                              return;
-                            }
+              ) : null}
+            </div>
+          ) : null}
 
-                            setHfSelection((previous) => ({
-                              ...previous,
-                              [label]: event.target.checked,
-                            }));
-                          }}
-                        />
-                        {label}
-                      </label>
-                    ))}
+          {activeDetailPanel === "what" ? (
+            <div id="what-is-omnirank" className="space-y-6 px-1 md:px-2">
+              <h3 className="text-2xl font-semibold">What is OmniRank LLM Leaderboard?</h3>
+              <p className="max-w-4xl text-sm text-muted-foreground md:text-base">
+                OmniRank is an end-to-end ranking view built on spectral ranking principles, designed to turn benchmark and preference data into statistically grounded leaderboard decisions.
+              </p>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="flex gap-3">
+                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <BarChart3 className="h-5 w-5" />
                   </div>
-                  <div className="mt-3 text-xs text-muted-foreground">{hfLoading ? "Updating..." : null}</div>
-                  {hfError ? <div className="mt-2 text-sm text-red-300">{hfError}</div> : null}
-                  <div className="mt-4 border-t border-border/60 pt-4">
-                    <TopThreeLegend className="leaderboard-top-3-legend--embedded mb-3" />
-                    <RankingTable
-                      key={`huggingface-${selectedHfLabels.join("|")}-${huggingFaceMethods.length}-${highlightModel ?? ""}`}
-                      mode="huggingface"
-                      methods={huggingFaceMethods}
-                      selectedLabels={selectedHfLabels}
-                      highlightModel={highlightModel}
-                    />
+                  <div>
+                    <h4 className="text-lg font-semibold">What This Leaderboard Does</h4>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Provides robust LLM rankings from pairwise and benchmark data, with confidence intervals and benchmark-aware ranking views.
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            <section id="compare-with-your-model" className={cn(sectionWrapperClass, "mb-8")}>
-              <ExpandablePanel
-                title="Compare With Your Model (Advanced)"
-                description="Optional local re-ranking tool. Expand to input your six benchmark scores."
-              >
-                <Card className="border-border/70 bg-card/65 py-5">
-                  <CardHeader className="px-5 pb-0">
-                    <CardTitle className="flex items-center gap-2 text-xl"><ChevronDown className="h-5 w-5 text-primary" /> Add Your Model</CardTitle>
-                    <CardDescription>
-                      Enter a model name and six benchmark scores (0-100). We re-rank against the current Top 100 locally in this page.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-5">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="md:col-span-2">
-                        <Label htmlFor="custom-model-name">Model Name</Label>
-                        <Input
-                          id="custom-model-name"
-                          placeholder="e.g., My-Awesome-LLM-7B"
-                          value={customModelName}
-                          onChange={(event) => setCustomModelName(event.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="custom-ifeval">IFEval (%)</Label>
-                        <Input
-                          id="custom-ifeval"
-                          value={customScores.ifeval}
-                          onChange={(event) => setCustomScores((previous) => ({ ...previous, ifeval: event.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="custom-bbh">BBH (%)</Label>
-                        <Input
-                          id="custom-bbh"
-                          value={customScores.bbh}
-                          onChange={(event) => setCustomScores((previous) => ({ ...previous, bbh: event.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="custom-math">MATH (%)</Label>
-                        <Input
-                          id="custom-math"
-                          value={customScores.math}
-                          onChange={(event) => setCustomScores((previous) => ({ ...previous, math: event.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="custom-gpqa">GPQA (%)</Label>
-                        <Input
-                          id="custom-gpqa"
-                          value={customScores.gpqa}
-                          onChange={(event) => setCustomScores((previous) => ({ ...previous, gpqa: event.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="custom-musr">MUSR (%)</Label>
-                        <Input
-                          id="custom-musr"
-                          value={customScores.musr}
-                          onChange={(event) => setCustomScores((previous) => ({ ...previous, musr: event.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="custom-mmlu-pro">MMLU-Pro (%)</Label>
-                        <Input
-                          id="custom-mmlu-pro"
-                          value={customScores.mmlu_pro}
-                          onChange={(event) => setCustomScores((previous) => ({ ...previous, mmlu_pro: event.target.value }))}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-2">
-                      <Button variant="outline" onClick={clearCustomInputs}>Clear</Button>
-                      <Button onClick={runCustomRanking} disabled={customRunning}>Run OmniRank</Button>
-                      {customError ? <span className="text-sm text-red-300">{customError}</span> : null}
-                    </div>
-
-                    {customRunning ? (
-                      <Card className="mt-4 border-border/70 bg-background/40 py-4">
-                        <CardHeader className="px-4 pb-0">
-                          <CardTitle className="text-lg">Analyzing Your Model</CardTitle>
-                          <CardDescription>
-                            Running OmniRank algorithm... Progress: {customProgress.toFixed(0)}%
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="px-4">
-                          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${customProgress}%` }} />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ) : null}
-
-                    {customSummary ? (
-                      <Card className="mt-4 border-border/70 bg-background/35 py-4">
-                        <CardHeader className="px-4 pb-0">
-                          <CardTitle className="text-xl">Your Model Summary</CardTitle>
-                          <CardDescription>{customSummary.modelName}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="px-4">
-                          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                            <Card className="gap-2 border-border/60 bg-card/60 py-4">
-                              <CardHeader className="px-4 pb-0">
-                                <CardDescription>OmniRank</CardDescription>
-                                <CardTitle className="text-3xl text-primary">{customSummary.rank}</CardTitle>
-                              </CardHeader>
-                            </Card>
-                            <Card className="gap-2 border-border/60 bg-card/60 py-4">
-                              <CardHeader className="px-4 pb-0">
-                                <CardDescription>Average Score Rank</CardDescription>
-                                <CardTitle className="text-3xl">{customSummary.scoreRank}</CardTitle>
-                              </CardHeader>
-                            </Card>
-                            <Card className="gap-2 border-border/60 bg-card/60 py-4">
-                              <CardHeader className="px-4 pb-0">
-                                <CardDescription>θ-hat Score</CardDescription>
-                                <CardTitle className="text-2xl">{customSummary.thetaHat.toFixed(4)}</CardTitle>
-                              </CardHeader>
-                            </Card>
-                            <Card className="gap-2 border-border/60 bg-card/60 py-4">
-                              <CardHeader className="px-4 pb-0">
-                                <CardDescription>95% CI</CardDescription>
-                                <CardTitle className="text-2xl">[{Math.round(customSummary.ciTwoSided[0])}, {Math.round(customSummary.ciTwoSided[1])}]</CardTitle>
-                              </CardHeader>
-                            </Card>
-                          </div>
-
-                          <h4 className="mt-4 text-base font-semibold">Benchmark Performance</h4>
-                          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                            {[
-                              ["IFEval", customSummary.benchmarkScores.ifeval],
-                              ["BBH", customSummary.benchmarkScores.bbh],
-                              ["MATH", customSummary.benchmarkScores.math],
-                              ["GPQA", customSummary.benchmarkScores.gpqa],
-                              ["MUSR", customSummary.benchmarkScores.musr],
-                              ["MMLU-Pro", customSummary.benchmarkScores.mmlu_pro],
-                              ["Average", customSummary.benchmarkScores.average_score],
-                            ].map(([label, value]) => (
-                              <div key={label} className="rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm">
-                                <div className="text-muted-foreground">{label}</div>
-                                <div className="font-semibold text-foreground">{Number(value).toFixed(2)}%</div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              </ExpandablePanel>
-            </section>
-
-            <section className={cn(sectionWrapperClass, "mb-8")}>
-              <ExpandablePanel
-                title="Methodology & Background"
-                description="Optional deep dive into OmniRank rationale and calculation steps."
-              >
-                <WhatIsOmniRankSection embedded />
-
-                <h3 className="mb-4 mt-6 text-xl font-semibold">How This Leaderboard is Calculated</h3>
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <Card className="border-border/70 bg-card/65 py-5">
-                    <CardHeader className="px-5 pb-0">
-                      <CardTitle className="flex items-center gap-2 text-lg"><Download className="h-5 w-5 text-primary" /> Step 1: Data Collection & Preparation</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 text-sm text-muted-foreground">
-                      <ul className="space-y-2">
-                        <li><strong>Data Source:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/open-llm-leaderboard/requests" target="_blank" rel="noreferrer">Open LLM Leaderboard Dataset</a>.</li>
-                        <li><strong>Data Cleaning & Selection:</strong> keep 6 core benchmark scores and key metadata, filter incomplete models, then take Top 100.</li>
-                        <li><strong>Data Transformation:</strong> transform from model-per-row to a 6xN benchmark-vs-model matrix for OmniRank.</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/70 bg-card/65 py-5">
-                    <CardHeader className="px-5 pb-0">
-                      <CardTitle className="flex items-center gap-2 text-lg"><Rocket className="h-5 w-5 text-primary" /> Step 2: OmniRank</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 text-sm text-muted-foreground">
-                      <p>
-                        Scores from selected benchmarks (1 to 6) are merged by the OmniRank method for a robust final ranking.
-                      </p>
-                      <ul className="mt-2 space-y-2">
-                        <li><strong>Core Idea:</strong> benchmark comparisons form a tournament network that estimates model power score <code>theta.hat</code>.</li>
-                        <li><strong>Uncertainty & Confidence:</strong> weighted bootstrap simulations generate rank confidence intervals.</li>
-                        <li><strong>Final Output:</strong> OmniRank + CI provides statistically grounded leaderboard ordering.</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
                 </div>
-              </ExpandablePanel>
-            </section>
-          </>
-        )}
+                <div className="flex gap-3">
+                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <Scale className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold">OmniRank vs Regular Ranking</h4>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      OmniRank uses network-based comparisons and uncertainty quantification, while simple averaging ignores interaction structure and ranking confidence.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold">Key Features</h4>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Multi-source leaderboards, customizable benchmark subsets, confidence intervals, and side-by-side comparison between OmniRank and average-score ranking.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <Rocket className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold">Decision-Ready Output</h4>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Use the table and model-comparison tools to evaluate ranking stability, inspect benchmark-level behavior, and compare your model against strong baselines.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {activeDetailPanel === "how" ? (
+            <div id="how-this-leaderboard-is-calculated" className="space-y-6 px-1 md:px-2">
+              <h3 className="text-2xl font-semibold">How This Leaderboard is Calculated</h3>
+
+              <div className="space-y-8">
+                <div>
+                  <h4 className="mb-4 text-xl font-semibold">⚔️ LMSYS Arena Leaderboard</h4>
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="flex gap-3">
+                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <Database className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h5 className="text-lg font-semibold">Step 1: Data Source</h5>
+                        <ul className="mt-1 space-y-2 text-sm text-muted-foreground">
+                          <li><strong className="text-foreground">Dataset:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/lmarena-ai/arena-human-preference-140k" target="_blank" rel="noreferrer">lmarena-ai/arena-human-preference-140k</a></li>
+                          <li><strong className="text-foreground">Data Scale:</strong> 135,634 battle records, 53 unique models, about 1.61 GB.</li>
+                          <li><strong className="text-foreground">Collection:</strong> Anonymous crowd preferences on Chatbot Arena.</li>
+                          <li><strong className="text-foreground">Mechanism:</strong> Blind chat between <code>model_a</code> and <code>model_b</code> with votes (win/tie/both bad).</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <Search className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h5 className="text-lg font-semibold">Step 2: Virtual Benchmarks</h5>
+                        <p className="mt-1 text-sm text-muted-foreground">Each battle is categorized into 7 virtual benchmarks based on content, metadata, and Arena definitions.</p>
+                        <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                          <li>Creative Writing, Math, Instruction Following, Coding</li>
+                          <li>Hard Prompt, Longer Query, Multi-Turn</li>
+                        </ul>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Source: <a className="text-primary underline" href="https://news.lmarena.ai/arena-category/" target="_blank" rel="noreferrer">Chatbot Arena Categories</a>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <Code2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h5 className="text-lg font-semibold">Step 3: BT-MLE Modeling</h5>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          We use the Bradley-Terry model (MLE of Elo) for robust static-model scoring. BT-MLE is more stable for static LLMs than online Elo updates.
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Reference: <a className="text-primary underline" href="https://lmsys.org/blog/2023-12-07-leaderboard/" target="_blank" rel="noreferrer">Chatbot Arena Elo system update</a>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <Rocket className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h5 className="text-lg font-semibold">Step 4: OmniRank</h5>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Selected virtual benchmark scores (1 to 7) are combined into one robust leaderboard through spectral ranking with bootstrap uncertainty quantification.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="mb-4 text-xl font-semibold">🤗 Hugging Face Leaderboard</h4>
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="flex gap-3">
+                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <Download className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h5 className="text-lg font-semibold">Step 1: Data Collection & Preparation</h5>
+                        <ul className="mt-1 space-y-2 text-sm text-muted-foreground">
+                          <li><strong className="text-foreground">Data Source:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/open-llm-leaderboard/requests" target="_blank" rel="noreferrer">Open LLM Leaderboard Dataset</a>.</li>
+                          <li><strong className="text-foreground">Data Cleaning:</strong> keep 6 core benchmark scores and key metadata, filter incomplete models, then take Top 100.</li>
+                          <li><strong className="text-foreground">Data Transformation:</strong> convert model-per-row format into a benchmark-vs-model matrix for OmniRank.</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <Rocket className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h5 className="text-lg font-semibold">Step 2: OmniRank</h5>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Scores from selected benchmarks (2 to 6) are merged by OmniRank. A tournament-network view estimates model power scores and bootstrap confidence intervals.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <footer className="border-t border-border/55 bg-card/70 py-8 backdrop-blur-xl md:py-9">
+          <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 text-center text-sm text-muted-foreground md:px-6">
+            <div className="flex items-center justify-center">
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/7/7c/Shield_of_the_University_of_Pennsylvania.svg"
+                alt="UPenn"
+                className="mr-4 h-6 w-auto shrink-0 sm:mr-5 sm:h-7"
+              />
+              <Link href="/" target="_blank" rel="noopener noreferrer" className="text-2xl font-semibold tracking-wide text-foreground">
+                Omni<span className="text-primary">Rank</span>
+              </Link>
+              <img
+                src="https://static.cdnlogo.com/logos/w/18/washington-university-in-st-louis.svg"
+                alt="WUSTL"
+                className="ml-1 h-8 w-auto shrink-0 sm:ml-2 sm:h-9"
+              />
+            </div>
+            <p>© 2026 Jin Jin Lab and Mengxin Yu Lab. All rights reserved.</p>
+          </div>
+        </footer>
 
       </div>
     </main>
