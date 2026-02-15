@@ -54,41 +54,45 @@ export function ExampleDataSelector({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Header with introduction */}
-      <div className="text-center space-y-2">
+      {/* Header with lightweight hierarchy */}
+      <div className="space-y-1.5">
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-border/50" />
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            or try an example
-          </span>
-          <div className="flex-1 h-px bg-border/50" />
+          <div className="h-px flex-1 bg-border/60" />
+          <p className="text-sm sm:text-base font-semibold text-foreground whitespace-nowrap">
+            Use Example Data
+          </p>
+          <div className="h-px flex-1 bg-border/60" />
         </div>
-        <p className="text-xs text-muted-foreground">
-          See how OmniRank transforms comparison data into statistically rigorous rankings
+        <p className="text-xs sm:text-sm text-muted-foreground text-center leading-relaxed">
+          Preview expected input formats before uploading your own dataset.
         </p>
       </div>
 
       {/* Vertical list of examples */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {examples.map((example) => {
           const Icon = iconMap[example.id] || ListOrdered;
           const isLoading = loadingId === example.id;
-          const isDisabled = disabled || (loadingId !== null && loadingId !== example.id);
+          const isButtonDisabled = disabled || loadingId !== null;
 
           return (
             <motion.div
               key={example.id}
-              whileHover={isDisabled ? {} : { x: 4 }}
-              whileTap={isDisabled ? {} : { scale: 0.99 }}
+              whileHover={isButtonDisabled ? {} : { x: 4 }}
+              whileTap={isButtonDisabled ? {} : { scale: 0.99 }}
             >
-              <div
+              <button
+                type="button"
                 className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all bg-background",
+                  "w-full text-left flex items-center gap-3 p-3.5 rounded-lg border transition-all bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   isLoading && "border-primary bg-background",
-                  isDisabled && !isLoading && "opacity-50 cursor-not-allowed",
-                  !isDisabled && !isLoading && "hover:border-primary/50 hover:bg-background"
+                  isButtonDisabled && !isLoading && "opacity-50 cursor-not-allowed",
+                  !isButtonDisabled && !isLoading && "hover:border-primary/50 hover:bg-background"
                 )}
                 onClick={() => handleSelect(example.id)}
+                disabled={isButtonDisabled}
+                aria-busy={isLoading}
+                aria-label={`Load ${example.title} example dataset`}
               >
                 {/* Icon */}
                 <div
@@ -119,7 +123,7 @@ export function ExampleDataSelector({
 
                 {/* Arrow */}
                 <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              </div>
+              </button>
             </motion.div>
           );
         })}
