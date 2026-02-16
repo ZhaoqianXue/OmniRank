@@ -6,8 +6,10 @@ import csv
 import io
 import logging
 import mimetypes
+import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -42,7 +44,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["omnirank"])
 
 
-EXAMPLE_DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "examples"
 EXAMPLE_DATASETS: dict[str, str] = {
     "pairwise": "example_data_pairwise.csv",
     "pairwise_human_logs": "example_data_pairwise_human_logs.csv",
@@ -51,6 +52,47 @@ EXAMPLE_DATASETS: dict[str, str] = {
     "multiway_rank_columns": "example_data_multiway_rank_columns.csv",
     "multiway": "example_data_multiway.csv",
 }
+
+
+@lru_cache(maxsize=1)
+def _example_data_dir_candidates() -> tuple[Path, ...]:
+    """Build candidate directories for bundled example datasets."""
+    candidates: list[Path] = []
+
+    env_dir = os.getenv("OMNIRANK_EXAMPLE_DATA_DIR", "").strip()
+    if env_dir:
+        candidates.append(Path(env_dir).expanduser())
+
+    for seed in (Path(__file__).resolve().parent, Path.cwd().resolve()):
+        for ancestor in (seed, *seed.parents):
+            candidates.append(ancestor / "data" / "examples")
+
+    deduped: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        normalized = candidate.resolve(strict=False)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return tuple(deduped)
+
+
+def _resolve_example_path(filename: str) -> Path | None:
+    for base_dir in _example_data_dir_candidates():
+        source_path = base_dir / filename
+        if source_path.exists():
+            return source_path
+    return None
+
+
+def _format_example_search_paths(filename: str, max_paths: int = 6) -> str:
+    candidates = _example_data_dir_candidates()
+    paths = [str(path / filename) for path in candidates[:max_paths]]
+    if len(candidates) > max_paths:
+        paths.append("...")
+    return "; ".join(paths)
+
 
 agent = OmniRankAgent()
 run_executor = ThreadPoolExecutor(max_workers=2)
@@ -206,9 +248,13 @@ async def upload_example(example_id: str, http_request: Request):
         raise HTTPException(status_code=404, detail=f"Unknown example id: {example_id}")
 
     filename = EXAMPLE_DATASETS[example_id]
-    source_path = EXAMPLE_DATA_DIR / filename
-    if not source_path.exists():
-        raise HTTPException(status_code=500, detail=f"Example file missing: {filename}")
+    source_path = _resolve_example_path(filename)
+    if source_path is None:
+        searched_paths = _format_example_search_paths(filename)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Example file missing: {filename}. Searched: {searched_paths}",
+        )
 
     content = source_path.read_bytes()
     store = get_session_store()
