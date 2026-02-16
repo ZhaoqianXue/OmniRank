@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
+from html import unescape
 import re
 from typing import Any, Iterable
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from core.llm_client import LLMCallError, get_llm_client
 from core.schemas import AnswerOutput, QuotePayload, RankingResults
 
 
 CI_CAVEAT = "CI overlap is not a formal hypothesis test; interpret overlap as uncertainty context only."
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-LITERATURE_PATH = PROJECT_ROOT / ".agent" / "literature" / "spectral_ranking_inferences.md"
 METHOD_REFERENCE_TITLE = "Spectral Ranking Inferences based on General Multiway Comparisons"
 METHOD_REFERENCE_URL = "https://arxiv.org/html/2308.02918"
+METHOD_REFERENCE_TIMEOUT_SECONDS = 12
 
 _NUMERIC_BRACKET_PAIR_PATTERN = re.compile(r"\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]")
 _NON_ANSWER_LINE_PATTERN = re.compile(r"(?i)`?used_citation_block_ids`?[^\n]*")
@@ -72,6 +73,12 @@ _DEFAULT_LITERATURE_REFERENCES: list[dict[str, str]] = [
         "title": METHOD_REFERENCE_TITLE,
         "url": METHOD_REFERENCE_URL,
     },
+]
+_DEFAULT_METHOD_KEY_POINTS: list[str] = [
+    "Supports fixed and random comparison graphs, including heterogeneous multiway comparisons.",
+    "Two-step spectral weighting can asymptotically match MLE efficiency under proper weighting.",
+    "Uses Gaussian multiplier bootstrap for rank uncertainty quantification and confidence intervals.",
+    "CI overlap should be treated as uncertainty context, not as a formal significance test.",
 ]
 
 
@@ -137,50 +144,61 @@ def _dedupe_nonempty(items: list[str], max_items: int) -> list[str]:
     return deduped
 
 
-def _extract_section(text: str, start_marker: str, end_marker: str) -> str:
-    start = text.find(start_marker)
-    if start < 0:
-        return ""
-    start += len(start_marker)
-    end = text.find(end_marker, start)
-    if end < 0:
-        end = len(text)
-    return text[start:end].strip()
+def _strip_html(raw_html: str) -> str:
+    """Convert HTML into normalized plain text."""
+    no_script = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", raw_html)
+    no_tags = re.sub(r"(?is)<[^>]+>", " ", no_script)
+    return re.sub(r"\s+", " ", unescape(no_tags)).strip()
+
+
+def _extract_reference_summary(raw_html: str) -> str:
+    """Extract a compact abstract-like summary from the allowlisted paper page."""
+    plain = _strip_html(raw_html)
+    lowered = plain.lower()
+
+    abstract_index = lowered.find("abstract")
+    if abstract_index >= 0:
+        plain = plain[abstract_index + len("abstract") :].strip()
+        lowered = plain.lower()
+
+    for marker in ("1 introduction", "introduction"):
+        marker_index = lowered.find(marker)
+        if marker_index > 300:
+            plain = plain[:marker_index].strip()
+            break
+
+    if len(plain) > 900:
+        plain = plain[:900].rstrip() + "..."
+    return plain
+
+
+def _fetch_allowlisted_literature_summary() -> str:
+    """Fetch method context from the single approved external source."""
+    request = Request(METHOD_REFERENCE_URL, headers={"User-Agent": "OmniRank/1.0"})
+    with urlopen(request, timeout=METHOD_REFERENCE_TIMEOUT_SECONDS) as response:
+        charset = response.headers.get_content_charset() or "utf-8"
+        raw_html = response.read().decode(charset, errors="ignore")
+    return _extract_reference_summary(raw_html)
 
 
 @lru_cache(maxsize=1)
 def _load_literature_context() -> dict[str, Any]:
-    if not LITERATURE_PATH.exists():
-        return {
-            "source_path": str(LITERATURE_PATH),
-            "summary": "",
-            "references": list(_DEFAULT_LITERATURE_REFERENCES),
-        }
-
-    content = LITERATURE_PATH.read_text(encoding="utf-8")
-    abstract = _extract_section(content, "## Abstract", "## 1.")
-    compact_abstract = re.sub(r"\s+", " ", abstract).strip()
-    if len(compact_abstract) > 900:
-        compact_abstract = compact_abstract[:900].rstrip() + "..."
-
-    key_points = [
-        "Supports fixed and random comparison graphs, including heterogeneous multiway comparisons.",
-        "Two-step spectral weighting can asymptotically match MLE efficiency under proper weighting.",
-        "Uses Gaussian multiplier bootstrap for rank uncertainty quantification and confidence intervals.",
-        "CI overlap should be treated as uncertainty context, not as a formal significance test.",
-    ]
+    try:
+        summary = _fetch_allowlisted_literature_summary()
+    except (HTTPError, URLError, OSError, ValueError):
+        summary = ""
 
     return {
-        "source_path": str(LITERATURE_PATH),
-        "summary": compact_abstract,
-        "key_points": key_points,
+        "source_path": METHOD_REFERENCE_URL,
+        "summary": summary,
+        "key_points": list(_DEFAULT_METHOD_KEY_POINTS),
         "references": list(_DEFAULT_LITERATURE_REFERENCES),
     }
 
 
 def _empty_literature_context() -> dict[str, Any]:
     return {
-        "source_path": str(LITERATURE_PATH),
+        "source_path": METHOD_REFERENCE_URL,
         "summary": "",
         "key_points": [],
         "references": [],

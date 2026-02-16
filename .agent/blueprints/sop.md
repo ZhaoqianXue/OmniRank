@@ -109,7 +109,7 @@ Phase 1: Data Processing
            │
            ├──[Error]──► Return error to user
            ▼
-    infer_semantic_schema(data_summary, user_hints=None)
+    infer_semantic_schema(data_summary, file_path, user_hints=None)
            │
            ├──[Ambiguous inference]──► Flag for user review
            ▼
@@ -121,7 +121,7 @@ Phase 1: Data Processing
     │  │         │                                                   │ │
     │  │         ├──[PASS]──────────────────────────► EXIT LOOP ─────┼─┼──► (proceed to quality)
     │  │         │                                                   │ │
-    │  │         ├──[FIXABLE]──► preprocess_data(file, schema)       │ │
+    │  │         ├──[FIXABLE]──► preprocess_data(file, schema, output_dir) │ │
     │  │         │                      │                            │ │
     │  │         │                      ├─► Update current_file_path │ │
     │  │         │                      └─► (loop back to validate)◄─┘ │
@@ -146,17 +146,17 @@ Phase 1: Data Processing
     └──────────────────────────────────────────────────────────────────┘
            │
            ▼
-    request_user_confirmation(proposed_schema, format_result, quality_result)
+    request_user_confirmation(proposed_schema, format_result, quality_result, confirmed, confirmed_schema, user_modifications, B, seed)
            │
-           ├──[User modifies schema]──► Loop back to infer_schema(user_hints=...)
+           ├──[confirmed=False]──► Keep awaiting confirmation; user may revise and resubmit
            │
-           ├──[User rejects entirely]──► Ask clarifying questions, re-infer
+           ├──[confirmed=True]──► Persist confirmed_schema + B/seed
            ▼
     (Data is ready for Phase 2)
 
 Phase 2: Computation
 ────────────────────────
-    execute_spectral_ranking(config: EngineConfig)
+    execute_spectral_ranking(config: EngineConfig, session_work_dir)
            │
            ├──[R script error]──► Parse error, suggest fixes
            ├──[Convergence warning]──► Include in results
@@ -164,13 +164,13 @@ Phase 2: Computation
 
 Phase 3: Output Generation
 ────────────────────────
-    generate_report(results, session)
+    generate_visualizations(results, viz_types, artifact_dir)
            │
            ▼
-    generate_visualizations(results, viz_types)
+    generate_report(results, session_meta, plots)
            │
            ▼
-    answer_question(question, session)   [User Q&A Loop - multiple iterations]
+    answer_question(question, results, citation_blocks, quotes=None, session_context=None)   [User Q&A Loop - multiple iterations]
 
 Q&A Availability (cross-phase):
 - Users can ask OmniRank Agent questions at **any time**, not only after report generation.
@@ -247,7 +247,7 @@ Following Context Engineering best practices from Anthropic and Manus:
 
 - **`infer_semantic_schema`**
   - Purpose: Infer data format and semantic metadata for user verification
-  - Input: `data_summary: DataSummary, user_hints: Optional[str] = None`
+  - Input: `data_summary: DataSummary, file_path: str, user_hints: Optional[str] = None`
   - Output: `{success: bool, format: str, format_evidence: str, schema: Optional[SemanticSchema], error: Optional[str]}`
   - Note: `format` is one of `"pointwise"`, `"pairwise"`, or `"multiway"`; `SemanticSchema = {bigbetter: int, ranking_items: List[str], indicator_col: Optional[str], indicator_values: List[str]}`
 
@@ -263,39 +263,39 @@ Following Context Engineering best practices from Anthropic and Manus:
 
 - **`preprocess_data`**
   - Purpose: Restructure data to R-compatible format (format fixes)
-  - Input: `file_path: str, schema: SemanticSchema`
+  - Input: `file_path: str, schema: SemanticSchema, output_dir: str`
   - Output: `{preprocessed_csv_path: str, transformation_log: List[str], row_count: int, dropped_rows: int}`
 
 #### User Interaction Tool (1)
 
 - **`request_user_confirmation`**
   - Purpose: Explicit user interaction point for schema confirmation
-  - Input: `proposed_schema: SemanticSchema, format_result: FormatValidationResult, quality_result: QualityValidationResult`
-  - Output: `{confirmed: bool, confirmed_schema: SemanticSchema, user_modifications: List[str]}`
+  - Input: `proposed_schema: SemanticSchema, format_result: FormatValidationResult, quality_result: QualityValidationResult, confirmed: bool, confirmed_schema: Optional[SemanticSchema], user_modifications: Optional[List[str]], B: int, seed: int`
+  - Output: `{confirmed: bool, confirmed_schema: SemanticSchema, user_modifications: List[str], B: int, seed: int}`
 
 #### Engine Tool (1)
 
 - **`execute_spectral_ranking`**
   - Purpose: Invoke R script for spectral computation
-  - Input: `config: EngineConfig`
+  - Input: `config: EngineConfig, session_work_dir: str`
   - Output: `{success: bool, results: Optional[RankingResults], error: Optional[str], trace: ExecutionTrace}`
 
 #### Analysis Tools (3)
 
 - **`generate_report`**
   - Purpose: Generate structured analysis report
-  - Input: `results: RankingResults, session: SessionMemory`
+  - Input: `results: RankingResults, session_meta: Dict[str, Any], plots: List[PlotSpec]`
   - Output: `{markdown: str, key_findings: Dict[str, Any], artifacts: List[ArtifactRef], hints: List[HintSpec], citation_blocks: List[CitationBlock]}`
 
 - **`generate_visualizations`**
   - Purpose: Create ranking visualizations
-  - Input: `results: RankingResults, viz_types: List[str]`
+  - Input: `results: RankingResults, viz_types: List[str], artifact_dir: str`
   - Output: `{plots: List[PlotSpec], errors: List[str]}`
   - Note: `PlotSpec = {type: str, data: dict, config: dict, svg_path: str, block_id: str, caption_plain: str, caption_academic: str, hint_ids: List[str]}`
 
 - **`answer_question`**
   - Purpose: Answer user follow-up questions
-  - Input: `question: str, session: SessionMemory, quotes: Optional[List[QuotePayload]]`
+  - Input: `question: str, results: Optional[RankingResults], citation_blocks: Dict[str, str], quotes: Optional[List[QuotePayload]] = None, session_context: Optional[Dict[str, Any]] = None`
   - Output: `{answer: str, supporting_evidence: List[str], used_citation_block_ids: List[str]}`
   - Note: Must work in **all session stages**; default to session-first evidence (`results/session/quotes`). External literature retrieval is strictly gated to deep method-detail questions and only from the single approved paper (`https://arxiv.org/html/2308.02918`).
 
@@ -335,6 +335,7 @@ def read_data_file(file_path: str) -> ReadDataFileResult:
 ```python
 def infer_semantic_schema(
     data_summary: DataSummary, 
+    file_path: str,
     user_hints: Optional[str] = None
 ) -> SemanticSchemaResult:
     """
@@ -377,6 +378,7 @@ def infer_semantic_schema(
     
     Parameters:
         data_summary: Lightweight data summary from read_data_file
+        file_path: CSV path used by heuristic fallback and structural checks
         user_hints: Optional natural language hints from user when re-inferring
                     after rejection (e.g., "the Score column represents accuracy")
     
@@ -460,7 +462,7 @@ def validate_data_quality(
          Rationale: Below this threshold, spectral estimation is unstable and statistical inference (CIs) may be less reliable.
        
     2. Errors (Blocking):
-       - **Connectivity Check**: Verify comparison graph strong connectivity using networkx.
+       - **Connectivity Check**: Verify comparison graph connectivity (undirected comparability graph) using networkx.
          Rationale: Disconnected components make global scores mathematically incomparable, preventing a valid global ranking.
        - **Data Integrity**: 
          - Fewer than 2 items present (after preprocessing).
@@ -482,7 +484,7 @@ def validate_data_quality(
 
 **Theoretical Basis**:
 - **Sparsity Threshold ($n \log n$):** Defines the phase transition for graph connectivity and statistical reliability. According to *Assumption 4* and *Theorem 4* in `.agent/literature/spectral_ranking_inferences.md`, this sample complexity is necessary for the spectral estimator to concentrate sufficiently for valid inference (Gaussian multiplier bootstrap).
-- **Connectivity:** A necessary condition for Markov chain ergodicity. As per *Section 2.2* in `.agent/literature/spectral_ranking_inferences.md`, strong connectivity ensures a unique stationary distribution; if disconnected, the ranking scores of different components are mathematically incomparable.
+- **Connectivity:** A necessary condition for globally identifiable ranking. In current implementation, data are converted to an undirected comparability graph and checked with `nx.is_connected`; if disconnected, component scores are mathematically incomparable.
 
 #### Tool: `preprocess_data`
 
@@ -555,7 +557,12 @@ def preprocess_data(
 def request_user_confirmation(
     proposed_schema: SemanticSchema,
     format_result: FormatValidationResult,
-    quality_result: QualityValidationResult
+    quality_result: QualityValidationResult,
+    confirmed: bool,
+    confirmed_schema: Optional[SemanticSchema] = None,
+    user_modifications: Optional[List[str]] = None,
+    B: int = 2000,
+    seed: int = 42,
 ) -> ConfirmationResult:
     """
     Explicit user interaction point for schema and configuration confirmation.
@@ -586,18 +593,19 @@ def request_user_confirmation(
         - confirmed: bool (True if user approves, False if user cancels)
         - confirmed_schema: SemanticSchema (original or modified)
         - user_modifications: List of changes made by user
+        - B: User-confirmed bootstrap iterations
+        - seed: User-confirmed random seed
     
-    Error Handling:
-        If user rejects the schema entirely, the agent should:
-        1. Ask clarifying questions about the data
-        2. Re-run infer_semantic_schema with user hints
-        3. Re-enter validation loop with updated schema
+    Runtime Behavior (current code):
+        If user rejects confirmation (`confirmed=False`), session remains in
+        `awaiting_confirmation`. The backend does not auto-trigger re-inference;
+        the UI/client decides whether to call infer again with user hints.
     
     Design Rationale:
         Confirmation happens AFTER validation ensures:
         1. User sees validated, R-ready data structure
         2. User makes informed decision with full validation context
-        3. Schema modifications trigger re-validation (loop back)
+        3. Schema + B/seed choices are persisted explicitly in confirmation payload
         4. Audit trail includes user decision point
     """
 ```
@@ -607,7 +615,7 @@ def request_user_confirmation(
 #### Tool: `execute_spectral_ranking`
 
 ```python
-def execute_spectral_ranking(config: EngineConfig) -> ExecutionResult:
+def execute_spectral_ranking(config: EngineConfig, session_work_dir: str) -> ExecutionResult:
     """
     Deterministic tool that invokes spectral_ranking.R.
     
@@ -621,6 +629,7 @@ def execute_spectral_ranking(config: EngineConfig) -> ExecutionResult:
     - selected_indicator_values: Optional filter for indicator segments
     - B: Bootstrap iterations (default 2000)
     - seed: Random seed (default 42)
+    - session_work_dir: Session-scoped workspace directory for filtered input/output artifacts
     
     Returns:
         ExecutionResult containing:
@@ -643,13 +652,14 @@ def execute_spectral_ranking(config: EngineConfig) -> ExecutionResult:
 ```python
 def generate_report(
     results: RankingResults, 
-    session: SessionMemory
+    session_meta: Dict[str, Any],
+    plots: List[PlotSpec]
 ) -> ReportOutput:
     """
     Generate a publication-ready markdown report from RankingResults.
 
     Implementation: Report narrative and recommendations are generated by LLM
-    using session results and the writing contract below.
+    using ranking results + session metadata + generated plot metadata.
 
     Audience-first, single-page progressive disclosure contract (Deep Research style):
     - The entire report must render as ONE continuous page (single scroll) with
@@ -684,12 +694,6 @@ def generate_report(
        - Mandatory items (kept brief): estimator definition, bootstrap CI recipe,
          CI level, seed, B, filtering rules, data coverage, limitations
 
-    5) Reproducibility (inline, actionable)
-       - EngineConfig snapshot and run metadata (timestamps, versions if available)
-       - Paths to generated artifacts (tables/figures) and how to regenerate them
-       - If full technical detail is needed, link to deterministic artifacts
-         (e.g., JSON summaries, SVGs) rather than adding hidden sections.
-
     Citable quoting (mainstream LLM client behavior):
     - The rendered report must support "select -> click Quote -> insert into composer".
     - Every citable unit (paragraph, bullet cluster, table snippet, figure caption)
@@ -703,7 +707,7 @@ def generate_report(
       Notes:
       - block_id MUST be stable within the report (deterministic given inputs).
       - kind SHOULD be one of: "summary" | "result" | "comparison" | "method" |
-        "limitation" | "repro" | "figure" | "table".
+        "limitation" | "figure" | "table".
       - Do not hide information behind collapsible sections; tooltips/popovers are
         allowed only for micro-explanations (HintSpec) and do not change the
         single-page requirement.
@@ -723,7 +727,8 @@ def generate_report(
 ```python
 def generate_visualizations(
     results: RankingResults, 
-    viz_types: List[str]
+    viz_types: List[str],
+    artifact_dir: str
 ) -> VisualizationOutput:
     """
     Create publication-ready, deterministic SVG figures from RankingResults.
@@ -746,6 +751,7 @@ def generate_visualizations(
     Parameters:
         results: RankingResults from execute_spectral_ranking
         viz_types: List of visualization types to generate
+        artifact_dir: Session-scoped output directory for SVG artifacts
 
     Output conventions (for accessibility and academic style):
     - Use a colorblind-safe palette; never rely on color alone for meaning
@@ -778,17 +784,19 @@ def generate_visualizations(
 ```python
 def answer_question(
     question: str,
-    session: SessionMemory,
-    quotes: Optional[List["QuotePayload"]] = None
+    results: Optional[RankingResults],
+    citation_blocks: Dict[str, str],
+    quotes: Optional[List["QuotePayload"]] = None,
+    session_context: Optional[Dict[str, Any]] = None,
 ) -> AnswerOutput:
     """
     Answers user follow-up questions using session-first evidence and controlled
     method knowledge retrieval.
     
     This tool MUST be callable in any stage. It accesses:
-    - session.current_results (if available) for item-level rank/CI answers
-    - session.data_summary / schema / status for pre-run stage-aware answers
-    - session/report quote blocks for quote-grounded interpretation
+    - results (if available) for item-level rank/CI answers
+    - session_context (status/schema/warnings) for pre-run stage-aware answers
+    - citation_blocks + quotes for quote-grounded interpretation
     - method reference context only when deep method-detail retrieval is triggered
       (see retrieval policy below).
 
@@ -798,14 +806,14 @@ def answer_question(
       for numerical verification and caveats.
     
     Context Retrieval Strategy (priority order):
-    1. Result Cache: For ranking/score queries
+    1. Result Payload: For ranking/score queries
        - "Is Model A better than B?" -> Compare theta_hat and integer CIs; avoid treating CI overlap as a formal test
        
-    2. Data State: For data property queries
-       - "How many comparisons?" -> Check session.data_summary
+    2. Session Context: For stage/status queries
+       - "Why can't I compare models yet?" -> Check `session_context.status` and validation fields
        
-    3. Execution Trace: For process queries
-       - "Did it converge?" -> Check session.execution_trace
+    3. Quote Grounding: For quote-based interpretation
+       - "What does this quoted paragraph imply?" -> Use provided quote + block evidence first
 
     4. External Method Context (gated): For deep method-detail questions only
        - Never fetch external sources for ordinary ranking/comparison/status Q&A.
@@ -813,18 +821,15 @@ def answer_question(
          (e.g., assumptions, derivation, asymptotics, proof-level explanation),
          or explicit source/citation requests.
 
-    External Retrieval Policy (allowlist + caching):
+    External Retrieval Policy (single allowlist + simple cache):
     - Approved source (single allowlist):
       "Spectral Ranking Inferences based on General Multiway Comparisons"
       URL: https://arxiv.org/html/2308.02918
     - Retrieval flow:
-      a) Check in-memory/session cache for previously prepared method context
-      b) Check local file cache `.agent/literature/spectral_ranking_inferences.md`
-      c) Only if still missing and trigger=true, perform a bounded network read
-         from the approved URL and extract only method-relevant snippets
+      a) If trigger=true, fetch method context directly from the approved URL
+      b) Cache normalized snippets in-memory to avoid repeated network reads
     - Cache update:
-      Store normalized snippets for reuse during the same session to reduce
-      latency and token overhead.
+      Store normalized snippets for reuse during the same process/session to reduce latency.
     - Failure handling:
       If online retrieval fails, answer with available internal context, state
       that source retrieval was unavailable, and do not fabricate quotes.
