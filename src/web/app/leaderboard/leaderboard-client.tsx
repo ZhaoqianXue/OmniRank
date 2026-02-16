@@ -1381,14 +1381,14 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
       <div className="relative z-10 pt-16 md:pt-20">
         <section className={cn(sectionWrapperClass, "mb-5")}>
           <div className="p-4 md:p-6">
-            <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">
-              Omni<span className="text-primary">Rank</span> LLM Leaderboard
-            </h1>
-            <p className="mt-3 max-w-4xl text-sm text-muted-foreground md:text-base">
-              Ranking top LLMs with Spectral Ranking Algorithm across LMSYS Arena (human preferences) and Hugging Face (standardized benchmarks), delivering statistically robust head-to-head ranking, multi-source evaluation, customizable benchmark-based views, and model-vs-top-LLMs comparison with statistical ranking output.
-            </p>
-          </div>
-        </section>
+	            <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">
+	              Omni<span className="text-primary">Rank</span> LLM Leaderboard
+	            </h1>
+	            <p className="mt-3 max-w-4xl text-sm text-muted-foreground md:text-base">
+	              Multi-source LLM rankings from votes & benchmarks, powered by OmniRank.
+	            </p>
+	          </div>
+	        </section>
 
         <section id="choose-data-source" className={cn(sectionWrapperClass, "mb-7")}>
           <div className="grid gap-3 lg:grid-cols-2">
