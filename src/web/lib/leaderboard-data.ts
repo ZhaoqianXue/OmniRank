@@ -82,7 +82,7 @@ const ARENA_MATRIX_FILE = path.join(
   "arena_elo_full.csv",
 );
 
-const EXAMPLE_ARENA_FILE = path.join(LEADERBOARD_DATA_ROOT, "examples", "example_arena_style.csv");
+const EXAMPLE_ARENA_FILE = path.join(REPO_ROOT, "data", "examples", "example_data_pairwise.csv");
 
 let cachedHfBaseMethods: SpectralMethod[] | null = null;
 let cachedArenaBaseMethods: SpectralMethod[] | null = null;

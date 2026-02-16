@@ -132,7 +132,7 @@ export default function LandingPage() {
               <p className="mx-auto mt-4 w-fit max-w-none whitespace-nowrap text-center font-[family-name:var(--font-space-mono)] text-sm tracking-[-0.04em] [word-spacing:-0.1em] text-muted-foreground md:text-base">
                 An agentic AI platform for{" "}
                 <a
-                  href="https://doi.org/10.1287/opre.2023.0439"
+                  href="https://arxiv.org/html/2308.02918"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary underline underline-offset-2 hover:text-primary/80"

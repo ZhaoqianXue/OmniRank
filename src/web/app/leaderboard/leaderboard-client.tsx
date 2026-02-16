@@ -41,6 +41,8 @@ interface LeaderboardClientProps {
 }
 
 type SortDirection = "asc" | "desc";
+type HfBenchmarkKey = "ifeval" | "bbh" | "math" | "gpqa" | "musr" | "mmlu_pro";
+type CustomBenchmarkScores = Partial<Record<HfBenchmarkKey, number>> & { average_score: number };
 
 interface TableColumn {
   key: string;
@@ -61,18 +63,27 @@ interface CustomSummary {
   ciTwoSided: [number, number];
   ciLeft: number;
   ciUniformLeft: number;
-  benchmarkScores: Record<string, number>;
+  benchmarkScores: CustomBenchmarkScores;
 }
 
 type DetailPanelKey = "upload" | "compare" | "what" | "how";
 
 const sectionWrapperClass = "mx-auto w-full max-w-[1400px] px-4 md:px-8";
 
-const DETAIL_PANEL_ITEMS: Array<{ key: DetailPanelKey; title: string; id: string }> = [
-  { key: "upload", title: "Upload Your Arena Results", id: "upload-your-arena-results" },
-  { key: "compare", title: "Compare Your Model with Hugging Face Leaderboard", id: "compare-with-your-model" },
-  { key: "what", title: "What is OmniRank LLM Leaderboard?", id: "what-is-omnirank" },
-  { key: "how", title: "How This Leaderboard is Calculated", id: "how-this-leaderboard-is-calculated" },
+const DETAIL_PANEL_ITEMS: Array<{ key: DetailPanelKey; title: string; id: string; icon: typeof Sparkles }> = [
+  { key: "upload", title: "Compare Your Arena Results", id: "upload-your-arena-results", icon: FileSpreadsheet },
+  { key: "compare", title: "Compare Your Model with Hugging Face Leaderboard", id: "compare-with-your-model", icon: BarChart3 },
+  { key: "what", title: "What is OmniRank LLM Leaderboard", id: "what-is-omnirank", icon: Sparkles },
+  { key: "how", title: "How This Leaderboard is Calculated", id: "how-this-leaderboard-is-calculated", icon: Code2 },
+];
+
+const CUSTOM_BENCHMARK_FIELDS: Array<{ label: HuggingFaceBenchmarkLabel; key: HfBenchmarkKey }> = [
+  { label: "IFEval", key: "ifeval" },
+  { label: "BBH", key: "bbh" },
+  { label: "MATH", key: "math" },
+  { label: "GPQA", key: "gpqa" },
+  { label: "MUSR", key: "musr" },
+  { label: "MMLU-Pro", key: "mmlu_pro" },
 ];
 
 function scrollToSection(id: string): void {
@@ -119,10 +130,12 @@ function cloneMethod(method: SpectralMethod): SpectralMethod {
 function buildCustomRankingResult(
   baselineMethods: SpectralMethod[],
   modelName: string,
-  benchmarkScores: Record<string, number>,
+  benchmarkScores: Partial<Record<HfBenchmarkKey, number>>,
+  selectedKeys: HfBenchmarkKey[],
 ): { methods: SpectralMethod[]; summary: CustomSummary } {
   const methods = baselineMethods.map(cloneMethod);
-  const averageScore = Object.values(benchmarkScores).reduce((sum, value) => sum + value, 0) / 6;
+  const selectedScores = selectedKeys.map((key) => benchmarkScores[key] ?? 0);
+  const averageScore = selectedScores.reduce((sum, value) => sum + value, 0) / Math.max(selectedScores.length, 1);
 
   const existingAverageScores = methods.map((method) => getAverageScore(method));
   const extendedAverageScores = [...existingAverageScores, averageScore].sort((a, b) => b - a);
@@ -154,6 +167,11 @@ function buildCustomRankingResult(
   const ciRight = Math.min(totalModels, spectralRank + 3);
   const ciUniformLeft = Math.max(1, spectralRank - 2);
 
+  const customBenchmarkScores: CustomBenchmarkScores = { average_score: averageScore };
+  for (const key of selectedKeys) {
+    customBenchmarkScores[key] = benchmarkScores[key] ?? 0;
+  }
+
   const customMethod: SpectralMethod = {
     name: modelName,
     rank: spectralRank,
@@ -161,15 +179,7 @@ function buildCustomRankingResult(
     ci_two_sided: [ciLeft, ciRight],
     ci_left: ciLeft,
     ci_uniform_left: ciUniformLeft,
-    benchmark_scores: {
-      ifeval: benchmarkScores.ifeval,
-      bbh: benchmarkScores.bbh,
-      math: benchmarkScores.math,
-      gpqa: benchmarkScores.gpqa,
-      musr: benchmarkScores.musr,
-      mmlu_pro: benchmarkScores.mmlu_pro,
-      average_score: averageScore,
-    },
+    benchmark_scores: customBenchmarkScores,
   };
 
   const finalMethods = [...shiftedMethods, customMethod].sort((a, b) => a.rank - b.rank);
@@ -184,7 +194,7 @@ function buildCustomRankingResult(
       ciTwoSided: [ciLeft, ciRight],
       ciLeft,
       ciUniformLeft,
-      benchmarkScores: customMethod.benchmark_scores ?? {},
+      benchmarkScores: customBenchmarkScores,
     },
   };
 }
@@ -1131,9 +1141,6 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
   const [activeDetailPanel, setActiveDetailPanel] = useState<DetailPanelKey>("upload");
 
   const [arenaMethods, setArenaMethods] = useState<SpectralMethod[]>(initialData.arena.methods);
-  const [huggingFaceBaselineMethods, setHuggingFaceBaselineMethods] = useState<SpectralMethod[]>(
-    initialData.huggingFace.methods,
-  );
   const [huggingFaceMethods, setHuggingFaceMethods] = useState<SpectralMethod[]>(
     initialData.huggingFace.methods,
   );
@@ -1165,7 +1172,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
   const [highlightModel, setHighlightModel] = useState<string | null>(null);
 
   const [customModelName, setCustomModelName] = useState("");
-  const [customScores, setCustomScores] = useState<Record<keyof Omit<CustomSummary["benchmarkScores"], "average_score">, string>>({
+  const [customScores, setCustomScores] = useState<Record<HfBenchmarkKey, string>>({
     ifeval: "50",
     bbh: "50",
     math: "50",
@@ -1173,9 +1180,19 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
     musr: "50",
     mmlu_pro: "50",
   });
+  const [customBenchmarkSelection, setCustomBenchmarkSelection] = useState<Record<HuggingFaceBenchmarkLabel, boolean>>({
+    IFEval: true,
+    BBH: true,
+    MATH: true,
+    GPQA: true,
+    MUSR: true,
+    "MMLU-Pro": true,
+  });
   const [customRunning, setCustomRunning] = useState(false);
   const [customProgress, setCustomProgress] = useState(0);
   const [customSummary, setCustomSummary] = useState<CustomSummary | null>(null);
+  const [customComparisonMethods, setCustomComparisonMethods] = useState<SpectralMethod[] | null>(null);
+  const [customComparisonLabels, setCustomComparisonLabels] = useState<HuggingFaceBenchmarkLabel[] | null>(null);
   const [customError, setCustomError] = useState<string | null>(null);
   const didInitArenaSelectionRef = useRef(false);
   const didInitHfSelectionRef = useRef(false);
@@ -1187,6 +1204,10 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
   const selectedHfLabels = useMemo(
     () => HF_BENCHMARK_LABELS.filter((label) => hfSelection[label]),
     [hfSelection],
+  );
+  const selectedCustomLabels = useMemo(
+    () => HF_BENCHMARK_LABELS.filter((label) => customBenchmarkSelection[label]),
+    [customBenchmarkSelection],
   );
 
   useEffect(() => {
@@ -1268,10 +1289,11 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
         throw new Error(payload.error ?? "Failed to load Hugging Face combination results.");
       }
 
-      setHuggingFaceBaselineMethods(payload.methods);
       setHuggingFaceMethods(payload.methods);
       setHighlightModel(null);
       setCustomSummary(null);
+      setCustomComparisonMethods(null);
+      setCustomComparisonLabels(null);
     } catch (error) {
       setHfError(error instanceof Error ? error.message : "Failed to load Hugging Face combination results.");
     } finally {
@@ -1316,25 +1338,22 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
   };
 
   const runCustomRanking = async () => {
-    const modelName = customModelName.trim();
-    if (!modelName) {
-      setCustomError("Please fill in your model name and all benchmark scores.");
+    const modelName = customModelName.trim() || "Your Model";
+    if (!customModelName.trim()) {
+      setCustomModelName(modelName);
+    }
+
+    if (selectedCustomLabels.length < 2) {
+      setCustomError("Please select at least two benchmarks.");
       return;
     }
 
-    const duplicate = huggingFaceBaselineMethods.some(
-      (method) => method.name.toLowerCase() === modelName.toLowerCase(),
-    );
-    if (duplicate) {
-      setCustomError("Model name already exists in the leaderboard. Please use a different name.");
-      return;
-    }
-
-    const parsedScores: Record<string, number> = {};
-    for (const [key, value] of Object.entries(customScores)) {
-      const parsed = Number.parseFloat(value);
+    const selectedKeys = selectedCustomLabels.map((label) => HF_LABEL_TO_KEY[label] as HfBenchmarkKey);
+    const parsedScores: Partial<Record<HfBenchmarkKey, number>> = {};
+    for (const key of selectedKeys) {
+      const parsed = Number.parseFloat(customScores[key]);
       if (!Number.isFinite(parsed)) {
-        setCustomError("Please fill in your model name and all benchmark scores.");
+        setCustomError("Please fill in all selected benchmark scores.");
         return;
       }
       parsedScores[key] = parsed;
@@ -1357,17 +1376,39 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
       }, 1500);
     });
 
-    const { methods, summary } = buildCustomRankingResult(
-      huggingFaceBaselineMethods,
-      modelName,
-      parsedScores,
-    );
+    try {
+      const keys = selectedKeys.join(",");
+      const response = await fetch(`/api/leaderboard/combination?mode=huggingface&keys=${encodeURIComponent(keys)}`);
+      const payload = (await response.json()) as { methods?: SpectralMethod[]; error?: string };
 
-    setHuggingFaceMethods(methods);
-    setHighlightModel(modelName);
-    setCustomSummary(summary);
-    setCustomProgress(100);
-    setCustomRunning(false);
+      if (!response.ok || !payload.methods) {
+        throw new Error(payload.error ?? "Failed to load selected benchmark combination.");
+      }
+
+      const duplicateInSelected = payload.methods.some(
+        (method) => method.name.toLowerCase() === modelName.toLowerCase(),
+      );
+      if (duplicateInSelected) {
+        throw new Error("Model name already exists in the leaderboard. Please use a different name.");
+      }
+
+      const computed = buildCustomRankingResult(
+        payload.methods,
+        modelName,
+        parsedScores,
+        selectedKeys,
+      );
+
+      setCustomComparisonMethods(computed.methods);
+      setCustomComparisonLabels(selectedCustomLabels);
+      setCustomSummary(computed.summary);
+      setCustomProgress(100);
+    } catch (error) {
+      setCustomError(error instanceof Error ? error.message : "Failed to run comparison.");
+      setCustomProgress(0);
+    } finally {
+      setCustomRunning(false);
+    }
   };
 
   return (
@@ -1552,43 +1593,47 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
         </section>
 
         <section id="leaderboard-detail-tabs" className={cn(sectionWrapperClass, "mb-5")}>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {DETAIL_PANEL_ITEMS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => {
-                  setActiveDetailPanel(item.key);
-                  if (item.key === "upload") {
-                    setActiveMode("arena");
-                  } else if (item.key === "compare") {
-                    setActiveMode("huggingface");
-                  }
-                }}
-                className={cn(
-                  "rounded-2xl border px-4 py-4 text-left transition-all",
-                  activeDetailPanel === item.key
-                    ? "border-primary bg-card/85 shadow-[0_14px_32px_rgba(0,0,0,0.28)]"
-                    : "border-border/70 bg-card/45 hover:border-primary/45",
-                )}
-              >
-                <p className="text-base font-semibold">{item.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {activeDetailPanel === item.key ? "Expanded below" : "Click to view details"}
-                </p>
-              </button>
-            ))}
+          <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-[1fr_1.3fr_1fr_1fr]">
+            {DETAIL_PANEL_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  title={item.title}
+                  onClick={() => {
+                    setActiveDetailPanel(item.key);
+                    if (item.key === "upload") {
+                      setActiveMode("arena");
+                    } else if (item.key === "compare") {
+                      setActiveMode("huggingface");
+                    }
+                  }}
+                  className={cn(
+                    "h-12 rounded-lg border px-3 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                    activeDetailPanel === item.key
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border/70 bg-card/35 text-foreground/85 hover:border-primary/45 hover:bg-card/55",
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5 shrink-0 text-primary/85" />
+                    <p className="whitespace-nowrap text-[12px] font-semibold leading-none lg:text-[13px]">{item.title}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </section>
 
         <section className={cn(sectionWrapperClass, "mb-8")}>
           {activeDetailPanel === "upload" ? (
             <div id="upload-your-arena-results" className="space-y-4 px-1 md:px-2">
-              <h3 className="text-2xl font-semibold">Upload Your Arena Results</h3>
-              <p className="max-w-4xl text-sm text-muted-foreground md:text-base">
+              <h3 className="text-2xl font-semibold">Compare Your Arena Results</h3>
+              <p className="max-w-4xl text-xs text-muted-foreground md:text-sm">
                 Run a standalone OmniRank leaderboard on collected Arena-style battles. Results remain separate from the built-in LMSYS leaderboard.
               </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <ul className="space-y-2 text-xs text-muted-foreground md:text-sm">
                 <li><strong className="text-foreground">File format:</strong> Arena-style CSV of pairwise battles. Include a task tag column (e.g., <code>Task</code>) and consistent model columns.</li>
                 <li><strong className="text-foreground">Row data:</strong> One battle per row. Winner = <code>1.0</code>, loser = <code>0.0</code>, all other models = <code>NaN</code>.</li>
                 <li><strong className="text-foreground">Result:</strong> OmniRank scores, ranks, and confidence intervals for models in your file only.</li>
@@ -1636,12 +1681,15 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
               </div>
 
               <div>
-                <Button variant="outline" asChild>
-                  <Link href="/workspace" target="_blank" rel="noopener noreferrer">
-                    Go to Ranking Page (Use Example or Upload Data)
+                <Link
+                  href="/workspace"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full bg-primary/80 px-3.5 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/72"
+                >
+                    Open Workspace to Upload & Rank
                     <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </Button>
+                </Link>
               </div>
             </div>
           ) : null}
@@ -1649,8 +1697,8 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
           {activeDetailPanel === "compare" ? (
             <div id="compare-with-your-model" className="space-y-4 px-1 md:px-2">
               <h3 className="text-2xl font-semibold">Compare Your Model with Hugging Face Leaderboard</h3>
-              <p className="max-w-4xl text-sm text-muted-foreground md:text-base">
-                Enter a model name and six benchmark scores (0-100). We re-rank against the current Top 100 locally in this page.
+              <p className="max-w-4xl text-xs text-muted-foreground md:text-sm">
+                Select benchmarks, then fill scores (0-100) for selected ones only. We run OmniRank on the selected subset.
               </p>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -1664,66 +1712,56 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="custom-ifeval">IFEval (%)</Label>
-                  <Input
-                    id="custom-ifeval"
-                    value={customScores.ifeval}
-                    onChange={(event) => setCustomScores((previous) => ({ ...previous, ifeval: event.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="custom-bbh">BBH (%)</Label>
-                  <Input
-                    id="custom-bbh"
-                    value={customScores.bbh}
-                    onChange={(event) => setCustomScores((previous) => ({ ...previous, bbh: event.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="custom-math">MATH (%)</Label>
-                  <Input
-                    id="custom-math"
-                    value={customScores.math}
-                    onChange={(event) => setCustomScores((previous) => ({ ...previous, math: event.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="custom-gpqa">GPQA (%)</Label>
-                  <Input
-                    id="custom-gpqa"
-                    value={customScores.gpqa}
-                    onChange={(event) => setCustomScores((previous) => ({ ...previous, gpqa: event.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="custom-musr">MUSR (%)</Label>
-                  <Input
-                    id="custom-musr"
-                    value={customScores.musr}
-                    onChange={(event) => setCustomScores((previous) => ({ ...previous, musr: event.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="custom-mmlu-pro">MMLU-Pro (%)</Label>
-                  <Input
-                    id="custom-mmlu-pro"
-                    value={customScores.mmlu_pro}
-                    onChange={(event) => setCustomScores((previous) => ({ ...previous, mmlu_pro: event.target.value }))}
-                  />
-                </div>
+                {CUSTOM_BENCHMARK_FIELDS.map((field) => {
+                  const selected = customBenchmarkSelection[field.label];
+                  return (
+                    <div key={field.key}>
+                      <div className="mb-1 flex items-center gap-2">
+                        <input
+                          id={`use-${field.key}`}
+                          type="checkbox"
+                          checked={selected}
+                          onChange={(event) => {
+                            setCustomBenchmarkSelection((previous) => ({
+                              ...previous,
+                              [field.label]: event.target.checked,
+                            }));
+                          }}
+                        />
+                        <Label
+                          htmlFor={`custom-${field.key}`}
+                          className={cn(!selected && "text-muted-foreground")}
+                        >
+                          {field.label} (%)
+                        </Label>
+                      </div>
+                      <Input
+                        id={`custom-${field.key}`}
+                        value={customScores[field.key]}
+                        disabled={!selected}
+                        placeholder={selected ? "" : "Unselected"}
+                        onChange={(event) =>
+                          setCustomScores((previous) => ({ ...previous, [field.key]: event.target.value }))
+                        }
+                      />
+                    </div>
+                  );
+                })}
+                <p className="md:col-span-2 text-xs text-muted-foreground">
+                  Selected benchmarks: {selectedCustomLabels.length} (minimum 2 required).
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={clearCustomInputs}>Clear</Button>
-                <Button onClick={runCustomRanking} disabled={customRunning}>Run OmniRank</Button>
-                {customError ? <span className="text-sm text-red-300">{customError}</span> : null}
+                <Button onClick={runCustomRanking} disabled={customRunning}>Rank</Button>
+                {customError ? <span className="text-xs text-red-300 md:text-sm">{customError}</span> : null}
               </div>
 
               {customRunning ? (
                 <div className="rounded-xl border border-border/70 bg-background/40 p-4">
                   <h4 className="text-lg font-semibold">Analyzing Your Model</h4>
-                  <p className="text-sm text-muted-foreground">Running OmniRank algorithm... Progress: {customProgress.toFixed(0)}%</p>
+                  <p className="text-xs text-muted-foreground md:text-sm">Running OmniRank algorithm... Progress: {customProgress.toFixed(0)}%</p>
                   <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
                     <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${customProgress}%` }} />
                   </div>
@@ -1731,46 +1769,80 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
               ) : null}
 
               {customSummary ? (
-                <div className="rounded-xl border border-border/70 bg-background/35 p-4">
-                  <h4 className="text-xl font-semibold">Your Model Summary</h4>
-                  <p className="text-sm text-muted-foreground">{customSummary.modelName}</p>
-
-                  <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-lg border border-border/60 bg-background/35 p-3">
-                      <div className="text-sm text-muted-foreground">OmniRank</div>
-                      <div className="text-3xl font-semibold text-primary">{customSummary.rank}</div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/35 p-3">
-                      <div className="text-sm text-muted-foreground">Average Score Rank</div>
-                      <div className="text-3xl font-semibold">{customSummary.scoreRank}</div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/35 p-3">
-                      <div className="text-sm text-muted-foreground">θ-hat Score</div>
-                      <div className="text-2xl font-semibold">{customSummary.thetaHat.toFixed(4)}</div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/35 p-3">
-                      <div className="text-sm text-muted-foreground">95% CI</div>
-                      <div className="text-2xl font-semibold">[{Math.round(customSummary.ciTwoSided[0])}, {Math.round(customSummary.ciTwoSided[1])}]</div>
-                    </div>
+                <div className="rounded-xl border border-border/70 bg-background/35 p-3">
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-semibold">Your Model Summary</h4>
+                    <p className="text-[11px] text-muted-foreground">{customSummary.modelName}</p>
                   </div>
 
-                  <h5 className="mt-4 text-base font-semibold">Benchmark Performance</h5>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    {[
-                      ["IFEval", customSummary.benchmarkScores.ifeval],
-                      ["BBH", customSummary.benchmarkScores.bbh],
-                      ["MATH", customSummary.benchmarkScores.math],
-                      ["GPQA", customSummary.benchmarkScores.gpqa],
-                      ["MUSR", customSummary.benchmarkScores.musr],
-                      ["MMLU-Pro", customSummary.benchmarkScores.mmlu_pro],
-                      ["Average", customSummary.benchmarkScores.average_score],
-                    ].map(([label, value]) => (
-                      <div key={label} className="rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm">
-                        <div className="text-muted-foreground">{label}</div>
-                        <div className="font-semibold text-foreground">{Number(value).toFixed(2)}%</div>
+                  <div className="mt-2 rounded-lg border border-primary/45 bg-primary/14 px-3 py-2">
+                    <div className="text-[11px] uppercase tracking-wide text-primary/85">OmniRank</div>
+                    <div className="mt-0.5 text-3xl font-bold leading-none text-primary">#{customSummary.rank}</div>
+                  </div>
+
+                  <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,1fr)_240px]">
+                    <div className="rounded-lg border border-border/60 bg-background/45 p-2.5">
+                      <div className="flex items-center gap-3 text-[11px]">
+                        <div>
+                          <span className="text-muted-foreground">95% CI</span>
+                          <span className="ml-1 font-semibold text-foreground">
+                            [{Math.round(customSummary.ciTwoSided[0])}, {Math.round(customSummary.ciTwoSided[1])}]
+                          </span>
+                        </div>
+                        <div className="h-3 w-px bg-border/70" />
+                        <div>
+                          <span className="text-muted-foreground">Benchmarks</span>
+                          <span className="ml-1 font-semibold text-foreground">{customComparisonLabels?.length ?? 0}</span>
+                        </div>
                       </div>
-                    ))}
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {(customComparisonLabels ?? []).map((label) => (
+                          <span
+                            key={label}
+                            className="rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[11px] text-muted-foreground"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-border/60 bg-background/45 p-2">
+                      <div className="mb-1 text-[11px] font-medium text-muted-foreground">Scores</div>
+                      <div className="space-y-1">
+                        {(customComparisonLabels ?? []).map((label) => {
+                          const value = customSummary.benchmarkScores[HF_LABEL_TO_KEY[label] as HfBenchmarkKey];
+                          return (
+                            <div key={label} className="flex items-center justify-between text-[11px]">
+                              <span className="text-muted-foreground">{label}</span>
+                              <span className="font-semibold text-foreground">
+                                {typeof value === "number" ? `${value.toFixed(2)}%` : "N/A"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
+
+                  {customComparisonMethods && customComparisonLabels ? (
+                    <div className="mt-4 border-t border-border/60 pt-3">
+                      <h5 className="text-xs font-semibold">Comparison Table</h5>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Top 100 with your model added for local comparison.
+                      </p>
+                      <div className="mt-3">
+                        <TopThreeLegend className="leaderboard-top-3-legend--embedded mb-3" />
+                        <RankingTable
+                          key={`custom-huggingface-${customSummary.modelName}-${customComparisonLabels.join("|")}-${customComparisonMethods.length}`}
+                          mode="huggingface"
+                          methods={customComparisonMethods}
+                          selectedLabels={customComparisonLabels}
+                          highlightModel={customSummary.modelName}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -1778,8 +1850,8 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
 
           {activeDetailPanel === "what" ? (
             <div id="what-is-omnirank" className="space-y-6 px-1 md:px-2">
-              <h3 className="text-2xl font-semibold">What is OmniRank LLM Leaderboard?</h3>
-              <p className="max-w-4xl text-sm text-muted-foreground md:text-base">
+              <h3 className="text-2xl font-semibold">What is OmniRank LLM Leaderboard</h3>
+              <p className="max-w-4xl text-xs text-muted-foreground md:text-sm">
                 OmniRank is an end-to-end ranking view built on spectral ranking principles, designed to turn benchmark and preference data into statistically grounded leaderboard decisions.
               </p>
               <div className="grid gap-6 md:grid-cols-2">
@@ -1789,7 +1861,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   </div>
                   <div>
                     <h4 className="text-lg font-semibold">What This Leaderboard Does</h4>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
                       Provides robust LLM rankings from pairwise and benchmark data, with confidence intervals and benchmark-aware ranking views.
                     </p>
                   </div>
@@ -1800,7 +1872,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   </div>
                   <div>
                     <h4 className="text-lg font-semibold">OmniRank vs Regular Ranking</h4>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
                       OmniRank uses network-based comparisons and uncertainty quantification, while simple averaging ignores interaction structure and ranking confidence.
                     </p>
                   </div>
@@ -1811,7 +1883,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   </div>
                   <div>
                     <h4 className="text-lg font-semibold">Key Features</h4>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
                       Multi-source leaderboards, customizable benchmark subsets, confidence intervals, and side-by-side comparison between OmniRank and average-score ranking.
                     </p>
                   </div>
@@ -1822,7 +1894,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   </div>
                   <div>
                     <h4 className="text-lg font-semibold">Decision-Ready Output</h4>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
                       Use the table and model-comparison tools to evaluate ranking stability, inspect benchmark-level behavior, and compare your model against strong baselines.
                     </p>
                   </div>
@@ -1845,7 +1917,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                       </div>
                       <div>
                         <h5 className="text-lg font-semibold">Step 1: Data Source</h5>
-                        <ul className="mt-1 space-y-2 text-sm text-muted-foreground">
+                        <ul className="mt-1 space-y-2 text-xs text-muted-foreground md:text-sm">
                           <li><strong className="text-foreground">Dataset:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/lmarena-ai/arena-human-preference-140k" target="_blank" rel="noreferrer">lmarena-ai/arena-human-preference-140k</a></li>
                           <li><strong className="text-foreground">Data Scale:</strong> 135,634 battle records, 53 unique models, about 1.61 GB.</li>
                           <li><strong className="text-foreground">Collection:</strong> Anonymous crowd preferences on Chatbot Arena.</li>
@@ -1860,8 +1932,8 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                       </div>
                       <div>
                         <h5 className="text-lg font-semibold">Step 2: Virtual Benchmarks</h5>
-                        <p className="mt-1 text-sm text-muted-foreground">Each battle is categorized into 7 virtual benchmarks based on content, metadata, and Arena definitions.</p>
-                        <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">Each battle is categorized into 7 virtual benchmarks based on content, metadata, and Arena definitions.</p>
+                        <ul className="mt-2 space-y-2 text-xs text-muted-foreground md:text-sm">
                           <li>Creative Writing, Math, Instruction Following, Coding</li>
                           <li>Hard Prompt, Longer Query, Multi-Turn</li>
                         </ul>
@@ -1877,7 +1949,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                       </div>
                       <div>
                         <h5 className="text-lg font-semibold">Step 3: BT-MLE Modeling</h5>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">
                           We use the Bradley-Terry model (MLE of Elo) for robust static-model scoring. BT-MLE is more stable for static LLMs than online Elo updates.
                         </p>
                         <p className="mt-2 text-xs text-muted-foreground">
@@ -1892,7 +1964,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                       </div>
                       <div>
                         <h5 className="text-lg font-semibold">Step 4: OmniRank</h5>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">
                           Selected virtual benchmark scores (1 to 7) are combined into one robust leaderboard through spectral ranking with bootstrap uncertainty quantification.
                         </p>
                       </div>
@@ -1909,7 +1981,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                       </div>
                       <div>
                         <h5 className="text-lg font-semibold">Step 1: Data Collection & Preparation</h5>
-                        <ul className="mt-1 space-y-2 text-sm text-muted-foreground">
+                        <ul className="mt-1 space-y-2 text-xs text-muted-foreground md:text-sm">
                           <li><strong className="text-foreground">Data Source:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/open-llm-leaderboard/requests" target="_blank" rel="noreferrer">Open LLM Leaderboard Dataset</a>.</li>
                           <li><strong className="text-foreground">Data Cleaning:</strong> keep 6 core benchmark scores and key metadata, filter incomplete models, then take Top 100.</li>
                           <li><strong className="text-foreground">Data Transformation:</strong> convert model-per-row format into a benchmark-vs-model matrix for OmniRank.</li>
@@ -1922,7 +1994,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                       </div>
                       <div>
                         <h5 className="text-lg font-semibold">Step 2: OmniRank</h5>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">
                           Scores from selected benchmarks (2 to 6) are merged by OmniRank. A tournament-network view estimates model power scores and bootstrap confidence intervals.
                         </p>
                       </div>
