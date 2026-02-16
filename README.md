@@ -98,8 +98,9 @@ Render Blueprint is defined in `render.yaml` at repo root.
 - `omnirank-backend`:
   - Runtime: Docker (`Dockerfile.backend`)
   - Health check: `/health`
-  - Persistent disk mounted at `/opt/render/project/src/runtime_data`
-  - Session workspace path set with `OMNIRANK_SESSION_DIR=/opt/render/project/src/runtime_data/sessions`
+  - Persistent disk mounted at `/opt/render/project/src/data`
+  - Session workspace path set with `OMNIRANK_SESSION_DIR=/opt/render/project/src/data/sessions`
+  - Built-in example datasets read from `OMNIRANK_EXAMPLE_DATA_DIR=/opt/render/project/bundled_examples`
 - `omnirank-frontend`:
   - Runtime: Node
   - Root directory: `src/web`
@@ -112,6 +113,7 @@ Required env vars on Render:
   - `OPENAI_API_KEY` (secret)
   - `OPENAI_MODEL` (default in blueprint: `gpt-5-mini`)
   - `CORS_ORIGINS` (comma-separated frontend origins)
+  - `OMNIRANK_EXAMPLE_DATA_DIR` (default in blueprint: `/opt/render/project/bundled_examples`)
 - Frontend:
   - `NEXT_PUBLIC_API_URL` (public HTTPS URL of backend service)
   - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (Google OAuth Web client ID)

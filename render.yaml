@@ -14,6 +14,8 @@ services:
         value: gpt-5-mini
       - key: CORS_ORIGINS
         value: https://omnirank.onrender.com,http://localhost:3000,http://127.0.0.1:3000
+      - key: OMNIRANK_EXAMPLE_DATA_DIR
+        value: /opt/render/project/bundled_examples
       - key: OMNIRANK_SESSION_DIR
         value: /opt/render/project/src/data/sessions
     disk:

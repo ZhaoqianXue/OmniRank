@@ -24,6 +24,13 @@ COPY src ./src
 COPY shared ./shared
 COPY data ./data
 
+# Keep a non-mounted copy of examples so volume mounts under /data
+# cannot shadow built-in datasets.
+RUN mkdir -p /opt/render/project/bundled_examples \
+    && cp -r /opt/render/project/src/data/examples/. /opt/render/project/bundled_examples/
+
+ENV OMNIRANK_EXAMPLE_DATA_DIR=/opt/render/project/bundled_examples
+
 EXPOSE 10000
 
 CMD ["sh", "-c", "uvicorn main:app --app-dir src/api --host 0.0.0.0 --port ${PORT:-10000}"]
