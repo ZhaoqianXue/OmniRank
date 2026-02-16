@@ -261,7 +261,7 @@ def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
             block_id=block_id,
             caption_plain="Lines show rank uncertainty intervals; points show inferred rank.",
             caption_academic="Forest plot of 95% rank confidence intervals with rank point estimates.",
-            hint_ids=["hint-ci", "hint-rank-interpretation"],
+            hint_ids=["hint-ci"],
         )
 
     max_name_len = max(len(name) for name in names)
@@ -354,7 +354,7 @@ def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
         block_id=block_id,
         caption_plain="Horizontal lines show 95% rank confidence intervals; dots show point ranks.",
         caption_academic="Forest plot of rank confidence intervals with rank point estimates for each item.",
-        hint_ids=["hint-ci", "hint-rank-interpretation"],
+        hint_ids=["hint-ci"],
     )
 
 

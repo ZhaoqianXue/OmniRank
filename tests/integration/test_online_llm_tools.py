@@ -64,7 +64,7 @@ def test_online_generate_report_and_answer_question():
         plots=[],
     )
     assert "<section data-omni-block-id=" in report.markdown
-    assert len(report.citation_blocks) >= 4
+    assert len(report.citation_blocks) >= 3
 
     summary_block = report.citation_blocks[0]
     answer = answer_question(

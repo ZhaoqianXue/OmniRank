@@ -356,26 +356,30 @@ function GlossaryPanel({ hints }: { hints: HintSpec[] }) {
 
   return (
     <div className="mt-8 border border-border/30 rounded-lg overflow-hidden">
-      <div className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-foreground/80 bg-muted/10">
-        <span className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-primary/70" />
+      <div className="w-full flex items-center gap-2 px-4 py-3 bg-muted/10">
+        <span className="inline-block h-5 w-1 rounded-full bg-primary" />
+        <span className="text-lg font-semibold text-foreground">
           Terms and Definitions
         </span>
+        <BookOpen className="h-4 w-4 text-primary/70 ml-1" />
       </div>
-      <div className="px-4 pb-4 grid gap-3 sm:grid-cols-2">
+      <div className="px-4 pb-4 flex flex-col gap-3">
         {hints.map((hint) => (
           <div
             key={hint.hint_id}
-            className="rounded-lg border border-border/20 bg-muted/10 p-3"
+            className="rounded-lg border border-white/20 bg-[#070e19] p-3 text-white"
           >
             <div className="flex items-center gap-1.5 mb-1">
-              <Info className="h-3.5 w-3.5 text-primary/60" />
-              <span className="text-xs font-semibold text-foreground/80">{hint.title}</span>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-auto">
+              <Info className="h-3.5 w-3.5 text-white/70" />
+              <span className="text-xs font-semibold text-white">{hint.title}</span>
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 h-4 ml-auto border-white/35 text-white bg-white/10"
+              >
                 {hint.kind}
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">{hint.body}</p>
+            <p className="text-xs text-white leading-relaxed">{hint.body}</p>
           </div>
         ))}
       </div>

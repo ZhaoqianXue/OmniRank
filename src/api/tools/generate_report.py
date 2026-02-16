@@ -202,51 +202,6 @@ def _render_ranking_table(results: RankingResults) -> str:
     return "\n".join(lines)
 
 
-def _build_ranking_interpretation(results: RankingResults, analysis: dict[str, Any]) -> str:
-    """Build structured interpretation with tier, uncertainty, and usage guidance."""
-    tiers = analysis["clusters"]
-    near_ties = analysis["near_ties_with_top"]
-    largest_gap = analysis.get("largest_gap")
-    top_item = results.items[analysis["order"][0]]
-
-    tier_lines = []
-    for idx, cluster in enumerate(tiers, start=1):
-        items_md = ", ".join(f"**{item}**" for item in cluster)
-        tier_lines.append(
-            f"- **Tier {idx}** ({len(cluster)} item{'s' if len(cluster) != 1 else ''}): {items_md}"
-        )
-
-    uncertainty_lines = [
-        (
-            f"- **Top-position stability**: Uncertain; **{top_item}** overlaps with "
-            + ", ".join(f"**{item}**" for item in near_ties)
-            + "."
-        )
-        if near_ties
-        else f"- **Top-position stability**: Strong; **{top_item}** has no CI overlap with the next-ranked item.",
-        (
-            f"- **Largest separation**: **{largest_gap['from']} -> {largest_gap['to']}** "
-            f"(score gap {largest_gap['gap']:.4f})."
-            if largest_gap
-            else "- **Largest separation**: Not available."
-        ),
-    ]
-
-    interpretation = (
-        "### Tier Structure\n"
-        + "\n".join(tier_lines)
-        + "\n\n"
-        + "### Uncertainty Signals\n"
-        + "\n".join(uncertainty_lines)
-        + "\n\n"
-        + "### Practical Reading Guide\n"
-        + "- Prefer **tier-level** interpretation when CIs overlap.\n"
-        + "- Use point estimates to break ties only as a **tentative** signal.\n"
-        + "- Treat CI overlap as uncertainty context, not a formal significance test."
-    )
-    return interpretation
-
-
 # ---------------------------------------------------------------------------
 # Narrative builder (LLM + fallback)
 # ---------------------------------------------------------------------------
@@ -459,39 +414,6 @@ _HINTS: list[HintSpec] = [
         kind=HintKind.CAVEAT,
         sources=[],
     ),
-    HintSpec(
-        hint_id="hint-spectral-ranking",
-        title="Spectral Ranking Method",
-        body=(
-            "Constructs a Markov chain from comparison data and estimates "
-            "preference scores from its stationary distribution. Provides "
-            "minimax-optimal ranking inference for multiway comparisons."
-        ),
-        kind=HintKind.METHOD,
-        sources=[],
-    ),
-    HintSpec(
-        hint_id="hint-bootstrap",
-        title="Gaussian Multiplier Bootstrap",
-        body=(
-            "A resampling method using Gaussian multipliers to approximate "
-            "the sampling distribution of the spectral estimator, enabling "
-            "CI construction without distributional assumptions."
-        ),
-        kind=HintKind.METHOD,
-        sources=[],
-    ),
-    HintSpec(
-        hint_id="hint-rank-interpretation",
-        title="Rank Interpretation",
-        body=(
-            "Ranks are derived from ordering theta_hat values. Rank 1 = "
-            "highest preference score. When CIs overlap, rank ordering is "
-            "uncertain and should be interpreted cautiously."
-        ),
-        kind=HintKind.DEFINITION,
-        sources=[],
-    ),
 ]
 
 
@@ -544,27 +466,11 @@ def generate_report(
             "ranks": results.ranks,
         },
     )
-    result_detail_bid = _stable_block_id(
-        "result-detail",
-        {
-            "n_items": len(results.items),
-            "n_clusters": analysis["n_clusters"],
-            "near_ties_with_top": analysis["near_ties_with_top"],
-        },
-    )
-    methods_bid = _stable_block_id(
-        "method",
-        {"B": session_meta.get("B", 2000), "seed": session_meta.get("seed", 42)},
-    )
-    limitation_bid = _stable_block_id(
-        "limitation", {"n_items": len(results.items)}
-    )
-
     # ── Construct named section markdowns ────────────────────────────────
     summary_md = _section(
         summary_bid,
         "summary",
-        f"### Executive Summary\n\n{narrative['summary']}",
+        f"## Executive Summary\n\n{narrative['summary']}",
     )
     result_md = _section(
         result_bid,
@@ -576,23 +482,6 @@ def generate_report(
         "table",
         ranking_table,
     )
-    ranking_interpretation_md = _build_ranking_interpretation(render_results, analysis)
-    result_detail_md = _section(
-        result_detail_bid,
-        "result",
-        f"### Ranking Interpretation\n\n{ranking_interpretation_md}",
-    )
-    methods_md = _section(
-        methods_bid,
-        "method",
-        f"## Methodology\n\n{narrative['methods']}",
-    )
-    limitation_md = _section(
-        limitation_bid,
-        "limitation",
-        f"### Limitations and Assumptions\n\n{narrative['limitations']}",
-    )
-
     # ── Figures (interleaved in the narrative) ───────────────────────────
     figure_mds: list[str] = []
     figure_blocks: list[CitationBlock] = []
@@ -612,7 +501,7 @@ def generate_report(
         figure_title = "Ranking Confidence Interval Plot" if plot.type == "ci_forest" else cap_plain
 
         fig_body = (
-            f"**{figure_title}**\n\n"
+            f"## {figure_title}\n\n"
             f"![{figure_title}]({plot.svg_path})\n\n"
             f"*{cap_acad}*"
         )
@@ -644,11 +533,8 @@ def generate_report(
         result_md,
         table_md,
         summary_md,
-        result_detail_md,
         *figure_mds,
     ]
-    parts.append("---")
-    parts.extend([methods_md, limitation_md])
 
     full_markdown = "\n\n".join(parts)
 
@@ -667,15 +553,7 @@ def generate_report(
             kind=CitationKind.RESULT,
             markdown=result_md,
             text="Ranking results section",
-            hint_ids=["hint-rank-interpretation"],
-            artifact_paths=[],
-        ),
-        CitationBlock(
-            block_id=result_detail_bid,
-            kind=CitationKind.RESULT,
-            markdown=result_detail_md,
-            text=narrative["results_narrative"],
-            hint_ids=["hint-theta-hat", "hint-ci", "hint-rank-interpretation"],
+            hint_ids=[],
             artifact_paths=[],
         ),
         CitationBlock(
@@ -683,32 +561,11 @@ def generate_report(
             kind=CitationKind.TABLE,
             markdown=table_md,
             text="Ranking table",
-            hint_ids=["hint-theta-hat", "hint-ci", "hint-rank-interpretation"],
+            hint_ids=["hint-theta-hat", "hint-ci"],
             artifact_paths=[],
         ),
         *figure_blocks,
     ]
-
-    citation_blocks.extend(
-        [
-            CitationBlock(
-                block_id=methods_bid,
-                kind=CitationKind.METHOD,
-                markdown=methods_md,
-                text=narrative["methods"],
-                hint_ids=["hint-spectral-ranking", "hint-bootstrap"],
-                artifact_paths=[],
-            ),
-            CitationBlock(
-                block_id=limitation_bid,
-                kind=CitationKind.LIMITATION,
-                markdown=limitation_md,
-                text=narrative["limitations"],
-                hint_ids=["hint-ci", "hint-ci-overlap"],
-                artifact_paths=[],
-            ),
-        ]
-    )
 
     # ── Key findings (machine-readable) ──────────────────────────────────
     key_findings: dict[str, Any] = {

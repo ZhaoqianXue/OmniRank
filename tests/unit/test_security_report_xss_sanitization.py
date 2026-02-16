@@ -29,4 +29,4 @@ def test_generate_report_escapes_untrusted_content():
 
     assert "<script>" not in report.markdown
     assert "&lt;script&gt;" in report.markdown
-    assert "onerror=alert" in report.markdown  # text is preserved as escaped content
+    assert "onerror=alert" not in report.markdown

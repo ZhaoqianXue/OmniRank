@@ -78,17 +78,21 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
     assert "<section data-omni-block-id=" in report.markdown
     assert 'data-omni-kind="summary"' in report.markdown
     assert 'data-omni-kind="table"' in report.markdown
-    assert 'data-omni-kind="method"' in report.markdown
-    assert 'data-omni-kind="limitation"' in report.markdown
+    assert 'data-omni-kind="method"' not in report.markdown
+    assert 'data-omni-kind="limitation"' not in report.markdown
     assert 'data-omni-kind="repro"' not in report.markdown
     assert "### Full Ranking Table" not in report.markdown
+    assert "### Ranking Interpretation" not in report.markdown
+    assert "## Methodology" not in report.markdown
+    assert "### Limitations and Assumptions" not in report.markdown
     assert "CI Width" not in report.markdown
     assert "Gap to #1" not in report.markdown
     assert report.markdown.find("## Ranking Results") < report.markdown.find("| Rank | Item | Confidence Interval | Score (θ̂) |")
-    assert report.markdown.find("| Rank | Item | Confidence Interval | Score (θ̂) |") < report.markdown.find("### Executive Summary")
+    assert report.markdown.find("| Rank | Item | Confidence Interval | Score (θ̂) |") < report.markdown.find("## Executive Summary")
     assert "| 1 | A | [1, 2] | 0.6000 |" in report.markdown
     assert len(report.citation_blocks) > 0
     assert len(report.hints) > 0
+    assert all(hint.title != "Rank Interpretation" for hint in report.hints)
 
 
 def test_answer_question_without_quotes():
