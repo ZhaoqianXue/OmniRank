@@ -19,12 +19,14 @@ interface ForestPlotProps {
   className?: string;
 }
 
-// Color scale from light violet (best) to deep violet (worst)
+const CHART_BG = "#070e19";
+
+// Color scale from light blue (best) to deep blue (worst)
 const getColor = (rank: number, total: number) => {
   const ratio = (rank - 1) / Math.max(1, total - 1);
-  const r = Math.round(197 + ratio * (105 - 197));
-  const g = Math.round(186 + ratio * (86 - 186));
-  const b = Math.round(246 + ratio * (171 - 246));
+  const r = Math.round(225 + ratio * (28 - 225));
+  const g = Math.round(239 + ratio * (68 - 239));
+  const b = Math.round(255 + ratio * (116 - 255));
   return `rgb(${r}, ${g}, ${b})`;
 };
 
@@ -102,54 +104,68 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
   }, [items]);
 
   // Dynamic height based on number of items
-  const chartHeight = Math.max(300, items.length * 40 + 80);
+  const chartHeight = Math.max(320, items.length * 42 + 96);
+  const yAxisWidth = useMemo(() => {
+    const maxNameLength = items.reduce((max, item) => Math.max(max, item.name.length), 0);
+    return Math.min(220, Math.max(90, maxNameLength * 7 + 18));
+  }, [items]);
 
   return (
-    <div className={className} style={{ width: "100%", minHeight: chartHeight }}>
-      <ResponsiveContainer width="100%" height={chartHeight}>
+    <div
+      className={className}
+      style={{
+        width: "100%",
+        minHeight: chartHeight,
+        backgroundColor: CHART_BG,
+        borderRadius: 12,
+        padding: 12,
+      }}
+    >
+      <ResponsiveContainer width="100%" height={chartHeight - 52}>
         <ComposedChart
           data={chartData}
           layout="vertical"
-          margin={{ top: 20, right: 30, left: 80, bottom: 40 }}
+          margin={{ top: 12, right: 28, left: 16, bottom: 26 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="hsl(var(--border))"
-            opacity={0.3}
+            stroke="rgba(255,255,255,0.45)"
+            opacity={0.45}
             horizontal={true}
             vertical={true}
           />
           <XAxis
             type="number"
             domain={[minRank, maxRank]}
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            tickLine={{ stroke: "hsl(var(--border))" }}
+            tick={{ fill: "#f7fbff", fontSize: 12, fontWeight: 700 }}
+            axisLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            tickLine={{ stroke: "rgba(255,255,255,0.8)" }}
             label={{
               value: "Rank (95% CI)",
               position: "bottom",
-              fill: "hsl(var(--muted-foreground))",
+              fill: "#f7fbff",
               fontSize: 12,
-              offset: 20,
+              fontWeight: 700,
+              offset: 16,
             }}
             tickFormatter={(value) => Math.round(value).toString()}
           />
           <YAxis
             type="category"
             dataKey="name"
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            tickLine={{ stroke: "hsl(var(--border))" }}
-            width={70}
+            tick={{ fill: "#ffffff", fontSize: 12, fontWeight: 700 }}
+            axisLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            tickLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            width={yAxisWidth}
           />
           <Tooltip content={<CustomTooltip />} />
 
           {/* Reference line at median rank */}
           <ReferenceLine
             x={(items.length + 1) / 2}
-            stroke="hsl(var(--muted-foreground))"
+            stroke="rgba(255,255,255,0.92)"
             strokeDasharray="3 3"
-            opacity={0.5}
+            opacity={0.9}
           />
 
           {/* CI bars - rendered as horizontal lines for each item */}
@@ -195,20 +211,20 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
       </ResponsiveContainer>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-6 mt-2 text-xs text-muted-foreground">
+      <div className="mt-2 flex items-center justify-center gap-6 text-xs font-semibold text-[#f8fbff]">
         <div className="flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 16 16">
             <polygon
               points="8,2 14,8 8,14 2,8"
-              fill="hsl(var(--foreground))"
-              stroke="hsl(var(--background))"
+              fill="#f8fbff"
+              stroke="rgba(8,34,61,0.75)"
               strokeWidth={1}
             />
           </svg>
           <span>Point Estimate</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-1 bg-primary/70 rounded" />
+          <div className="h-1 w-4 rounded bg-[#f8fbff]/90" />
           <span>95% Confidence Interval</span>
         </div>
       </div>

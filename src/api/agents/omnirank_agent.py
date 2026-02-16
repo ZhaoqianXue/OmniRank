@@ -366,6 +366,17 @@ class OmniRankAgent:
                 "selected_items_count": len(session.config.selected_items or []),
             }
 
+        for record in reversed(session.tool_call_history):
+            if record.tool_name != "infer_semantic_schema" or not record.success:
+                continue
+            raw_format = record.outputs.get("format")
+            if not isinstance(raw_format, str):
+                continue
+            normalized_format = raw_format.strip().lower()
+            if normalized_format in {"pairwise", "multiway"}:
+                context["inferred_format"] = normalized_format
+                break
+
         if session.current_results is not None:
             context["has_results"] = True
             context["n_items"] = len(session.current_results.items)

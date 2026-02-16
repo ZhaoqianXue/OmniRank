@@ -33,9 +33,26 @@ def test_generate_visualizations_deterministic_svg(tmp_path: Path):
         bytes_a = Path(plot_a.svg_path).read_bytes()
         bytes_b = Path(plot_b.svg_path).read_bytes()
         assert bytes_a == bytes_b
+        assert b"<svg" in bytes_a
+        assert b"matplotlib" not in bytes_a.lower()
         assert plot_a.block_id
         assert plot_a.caption_plain
         assert plot_a.caption_academic
+
+    ranking_bar = next(plot for plot in first.plots if plot.type == "ranking_bar")
+    ci_forest = next(plot for plot in first.plots if plot.type == "ci_forest")
+
+    assert ranking_bar.config["x_label"] == "theta_hat"
+    assert ranking_bar.config["ci_axis"] == "rank"
+    assert ranking_bar.data["scores"] == [0.6, 0.3, -0.1]
+    assert ranking_bar.data["rank_ci_lower"] == [1.0, 1.0, 2.0]
+    assert ranking_bar.data["rank_ci_upper"] == [2.0, 3.0, 3.0]
+
+    assert ci_forest.config["x_label"] == "rank"
+    assert ci_forest.config["point"] == "rank"
+    assert ci_forest.data["rank_point"] == [1, 2, 3]
+    assert ci_forest.data["ci_lower"] == [1.0, 1.0, 2.0]
+    assert ci_forest.data["ci_upper"] == [2.0, 3.0, 3.0]
 
 
 def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path: Path):
@@ -98,6 +115,93 @@ def test_answer_question_works_before_analysis_results_are_ready():
 
     assert "Conclusion:" not in answer.answer
     assert "Session status: uploaded." in answer.answer
+
+
+def test_answer_question_capability_question_calls_llm(monkeypatch):
+    calls = {"count": 0}
+
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            calls["count"] += 1
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "You can analyze pairwise comparison data with two items per record.",
+                "evidence": ["Use item_a/item_b and winner fields."],
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="What types of ranking data can I analyze?",
+        results=None,
+        citation_blocks={},
+        quotes=[],
+        session_context={"status": "idle", "has_results": False, "inferred_format": "pairwise"},
+    )
+
+    lower_answer = answer.answer.lower()
+    assert "pairwise" in lower_answer
+    assert "two items" in lower_answer
+    assert calls["count"] == 1
+
+
+def test_answer_question_capability_question_repairs_wrong_three_plus_claim(monkeypatch):
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "You need 3+ items per contest for ranking.",
+                "evidence": ["3+ items are required in each row."],
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="What types of ranking data can I analyze?",
+        results=None,
+        citation_blocks={},
+        quotes=[],
+        session_context={"status": "idle", "has_results": False, "inferred_format": "pairwise"},
+    )
+
+    lower_answer = answer.answer.lower()
+    assert "3+" not in lower_answer
+    assert "two items" in lower_answer
+
+
+def test_answer_question_capability_question_respects_one_sentence(monkeypatch):
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "Pairwise data with two items is supported. Extra sentence should be removed.",
+                "evidence": ["This should be dropped."],
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="One sentence: what data formats are supported?",
+        results=None,
+        citation_blocks={},
+        quotes=[],
+        session_context={"status": "idle", "has_results": False},
+    )
+
+    assert "\n" not in answer.answer
+    assert answer.answer.startswith("Pairwise data with two items is supported.")
 
 
 def test_answer_question_integerizes_ci_from_llm_output(monkeypatch):

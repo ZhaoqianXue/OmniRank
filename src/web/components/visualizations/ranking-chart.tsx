@@ -9,7 +9,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ErrorBar,
   Cell,
   ReferenceLine,
 } from "recharts";
@@ -21,12 +20,14 @@ interface RankingChartProps {
   className?: string;
 }
 
-// Color scale from light violet (best) to deep violet (worst)
+const CHART_BG = "#070e19";
+
+// Color scale from light blue (best) to deep blue (worst)
 const getColor = (rank: number, total: number) => {
   const ratio = (rank - 1) / Math.max(1, total - 1);
-  const r = Math.round(197 + ratio * (105 - 197));
-  const g = Math.round(186 + ratio * (86 - 186));
-  const b = Math.round(246 + ratio * (171 - 246));
+  const r = Math.round(225 + ratio * (26 - 225));
+  const g = Math.round(239 + ratio * (66 - 239));
+  const b = Math.round(255 + ratio * (115 - 255));
   return `rgb(${r}, ${g}, ${b})`;
 };
 
@@ -62,91 +63,97 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: unknow
 export function RankingChart({ items, className }: RankingChartProps) {
   // Prepare data for the chart - sort by rank
   const chartData = useMemo(() => {
-    return [...items]
-      .sort((a, b) => a.rank - b.rank)
-      .map((item) => ({
-        ...item,
-        // Calculate error bar values (difference from theta_hat to CI bounds)
-        // For visual purposes, we'll show score uncertainty
-        errorLower: Math.abs(item.theta_hat - (item.theta_hat - 0.3)),
-        errorUpper: Math.abs((item.theta_hat + 0.3) - item.theta_hat),
-      }));
+    return [...items].sort((a, b) => a.rank - b.rank);
+  }, [items]);
+
+  const chartHeight = useMemo(() => Math.max(300, items.length * 42 + 72), [items.length]);
+  const yAxisWidth = useMemo(() => {
+    const maxNameLength = items.reduce((max, item) => Math.max(max, item.name.length), 0);
+    return Math.min(220, Math.max(90, maxNameLength * 7 + 18));
   }, [items]);
 
   // Calculate domain for Y axis
   const { minScore, maxScore } = useMemo(() => {
+    if (items.length === 0) {
+      return { minScore: -1, maxScore: 1 };
+    }
     const scores = items.map((i) => i.theta_hat);
     const min = Math.min(...scores);
     const max = Math.max(...scores);
-    const padding = (max - min) * 0.1;
+    const span = Math.max(0.2, max - min);
+    const padding = span * 0.12;
     return {
-      minScore: min - padding - 0.3,
-      maxScore: max + padding + 0.3,
+      minScore: min - padding,
+      maxScore: max + padding,
     };
   }, [items]);
 
   return (
-    <div className={className} style={{ width: "100%", minHeight: 300 }}>
-      <ResponsiveContainer width="100%" height={300}>
+    <div
+      className={className}
+      style={{
+        width: "100%",
+        minHeight: chartHeight,
+        backgroundColor: CHART_BG,
+        borderRadius: 12,
+        padding: 12,
+      }}
+    >
+      <ResponsiveContainer width="100%" height={chartHeight - 24}>
         <BarChart
           data={chartData}
           layout="vertical"
-          margin={{ top: 20, right: 30, left: 80, bottom: 20 }}
+          margin={{ top: 12, right: 28, left: 16, bottom: 20 }}
+          barCategoryGap={8}
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="hsl(var(--border))"
-            opacity={0.3}
+            stroke="rgba(255,255,255,0.45)"
+            opacity={0.45}
           />
           <XAxis
             type="number"
             domain={[minScore, maxScore]}
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            tickLine={{ stroke: "hsl(var(--border))" }}
+            tick={{ fill: "#f7fbff", fontSize: 12, fontWeight: 700 }}
+            axisLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            tickLine={{ stroke: "rgba(255,255,255,0.8)" }}
             label={{
               value: "Score (θ̂)",
               position: "bottom",
-              fill: "hsl(var(--muted-foreground))",
+              fill: "#f7fbff",
               fontSize: 12,
+              fontWeight: 700,
             }}
           />
           <YAxis
             type="category"
             dataKey="name"
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            tickLine={{ stroke: "hsl(var(--border))" }}
-            width={70}
+            tick={{ fill: "#ffffff", fontSize: 12, fontWeight: 700 }}
+            axisLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            tickLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            width={yAxisWidth}
           />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine
             x={0}
-            stroke="hsl(var(--muted-foreground))"
+            stroke="rgba(255,255,255,0.9)"
             strokeDasharray="3 3"
-            opacity={0.5}
+            opacity={0.9}
           />
           <Bar
             dataKey="theta_hat"
             radius={[0, 4, 4, 0]}
             animationDuration={800}
             animationEasing="ease-out"
+            barSize={22}
           >
             {chartData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
                 fill={getColor(entry.rank, items.length)}
-                fillOpacity={0.85}
+                fillOpacity={0.95}
               />
             ))}
-            <ErrorBar
-              dataKey="errorUpper"
-              width={4}
-              strokeWidth={2}
-              stroke="hsl(var(--foreground))"
-              opacity={0.6}
-              direction="x"
-            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>

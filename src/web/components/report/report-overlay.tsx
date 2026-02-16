@@ -15,6 +15,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ForestPlot, RankingChart } from "@/components/visualizations";
 import { cn } from "@/lib/utils";
 import {
   artifactUrl,
@@ -23,6 +24,7 @@ import {
   type HintSpec,
   type PlotSpec,
   type QuotePayload,
+  type RankingItem,
   type RankingResults,
   type ReportOutput,
   type SemanticSchema,
@@ -96,9 +98,66 @@ const SECTION_STYLES: Record<string, string> = {
 /* Custom Markdown components                                                  */
 /* -------------------------------------------------------------------------- */
 
+function parseStringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const out: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") return null;
+    out.push(entry);
+  }
+  return out;
+}
+
+function parseNumberArray(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  const out: number[] = [];
+  for (const entry of value) {
+    const numberValue = typeof entry === "number" ? entry : Number(entry);
+    if (!Number.isFinite(numberValue)) return null;
+    out.push(numberValue);
+  }
+  return out;
+}
+
+function rankingItemsFromPlot(plot: PlotSpec): RankingItem[] | null {
+  const names = parseStringArray(plot.data["names"]);
+  if (!names || names.length === 0) return null;
+
+  const thetaHat = parseNumberArray(plot.data["theta_hat"]) ?? parseNumberArray(plot.data["scores"]);
+  const rankPoint = parseNumberArray(plot.data["rank_point"]) ?? parseNumberArray(plot.data["ranks"]);
+  const ciLower = parseNumberArray(plot.data["ci_lower"]) ?? parseNumberArray(plot.data["rank_ci_lower"]);
+  const ciUpper = parseNumberArray(plot.data["ci_upper"]) ?? parseNumberArray(plot.data["rank_ci_upper"]);
+
+  if (!thetaHat || !rankPoint || !ciLower || !ciUpper) return null;
+  if (
+    thetaHat.length !== names.length ||
+    rankPoint.length !== names.length ||
+    ciLower.length !== names.length ||
+    ciUpper.length !== names.length
+  ) {
+    return null;
+  }
+
+  return names.map((name, index) => {
+    const lower = Math.round(ciLower[index]);
+    const upper = Math.round(ciUpper[index]);
+    const rank = Math.round(rankPoint[index]);
+    return {
+      name,
+      theta_hat: thetaHat[index],
+      rank,
+      ci_lower: lower,
+      ci_upper: upper,
+      ci_two_sided: [lower, upper],
+    };
+  });
+}
+
 function buildMarkdownComponents(
   artifactPathToUrl: Map<string, string>,
   figureUrls: Map<string, string>,
+  plotsBySource: Map<string, PlotSpec>,
+  rankingItems: RankingItem[],
   reportMetaBadges?: ReactNode,
 ): Components {
   const getHeadingText = (node: ReactNode): string => {
@@ -247,11 +306,41 @@ function buildMarkdownComponents(
         artifactPathToUrl.get(filename) ||
         Array.from(figureUrls.entries()).find(([, url]) => source.includes(url))?.[1] ||
         source;
+
+      const normalizedFilename = normalizedSrc.split("/").pop() || normalizedSrc;
+      const matchedPlot =
+        plotsBySource.get(source) ||
+        plotsBySource.get(filename) ||
+        plotsBySource.get(normalizedSrc) ||
+        plotsBySource.get(normalizedFilename);
+
+      if (matchedPlot) {
+        const interactiveItems =
+          rankingItems.length > 0 ? rankingItems : rankingItemsFromPlot(matchedPlot) || [];
+
+        if (interactiveItems.length > 0) {
+          if (matchedPlot.type === "ranking_bar") {
+            return (
+              <div className="my-2 overflow-hidden rounded-xl p-0">
+                <RankingChart items={interactiveItems} className="w-full" />
+              </div>
+            );
+          }
+          if (matchedPlot.type === "ci_forest") {
+            return (
+              <div className="my-2 overflow-hidden rounded-xl p-0">
+                <ForestPlot items={interactiveItems} className="w-full" />
+              </div>
+            );
+          }
+        }
+      }
+
       return (
         <img
           src={normalizedSrc}
           alt={alt || "report figure"}
-          className="w-full rounded-xl border border-border/30 bg-background/90 p-2 my-2 shadow-md"
+          className="my-2 w-full rounded-xl border border-border/30"
         />
       );
     },
@@ -349,6 +438,37 @@ export function ReportOverlay({
     return map;
   }, [artifacts, reportOutput?.artifacts, sessionId]);
 
+  const plotsBySource = useMemo(() => {
+    const map = new Map<string, PlotSpec>();
+    const plotsByBlockId = new Map(plots.map((plot) => [plot.block_id, plot] as const));
+
+    for (const plot of plots) {
+      const source = plot.svg_path;
+      const filename = source.split("/").pop() || source;
+      map.set(source, plot);
+      map.set(filename, plot);
+    }
+
+    for (const [blockId, url] of figureUrls) {
+      const plot = plotsByBlockId.get(blockId);
+      if (!plot) continue;
+      map.set(url, plot);
+      const filename = url.split("/").pop() || url;
+      map.set(filename, plot);
+    }
+
+    for (const [source, url] of artifactPathToUrl) {
+      const filename = source.split("/").pop() || source;
+      const plot = map.get(source) || map.get(filename);
+      if (!plot) continue;
+      map.set(url, plot);
+      const urlFilename = url.split("/").pop() || url;
+      map.set(urlFilename, plot);
+    }
+
+    return map;
+  }, [artifactPathToUrl, figureUrls, plots]);
+
   const reportMetaBadges = useMemo(
     () => (
       <>
@@ -375,8 +495,8 @@ export function ReportOverlay({
   /* ── Markdown components ─────────────────────────────────────────────── */
 
   const mdComponents = useMemo(
-    () => buildMarkdownComponents(artifactPathToUrl, figureUrls, reportMetaBadges),
-    [artifactPathToUrl, figureUrls, reportMetaBadges],
+    () => buildMarkdownComponents(artifactPathToUrl, figureUrls, plotsBySource, results?.items || [], reportMetaBadges),
+    [artifactPathToUrl, figureUrls, plotsBySource, reportMetaBadges, results?.items],
   );
   const renderedMarkdown = useMemo(
     () => (

@@ -32,6 +32,17 @@ _CONCISE_KEYWORDS = (
     "one line",
 )
 _ONE_SENTENCE_KEYWORDS = ("one sentence", "single sentence")
+_DATA_CAPABILITY_DIRECT_PHRASES = (
+    "what types of ranking data can i analyze",
+    "what type of ranking data can i analyze",
+    "what ranking data can i analyze",
+    "what data can i analyze",
+    "what data formats are supported",
+    "what input format",
+    "supported data format",
+)
+_DATA_CAPABILITY_FORMAT_TOKENS = ("data", "format", "input", "file")
+_DATA_CAPABILITY_INTENT_TOKENS = ("type", "types", "support", "supported", "analyze", "accept", "ingest")
 
 _METHOD_KEYWORDS = (
     "method",
@@ -109,6 +120,15 @@ def _wants_concise(question: str) -> bool:
 def _wants_one_sentence(question: str) -> bool:
     lower_q = question.lower()
     return any(keyword in lower_q for keyword in _ONE_SENTENCE_KEYWORDS)
+
+
+def _is_data_capability_question(question: str) -> bool:
+    lower_q = question.lower()
+    if any(phrase in lower_q for phrase in _DATA_CAPABILITY_DIRECT_PHRASES):
+        return True
+    has_format_signal = any(token in lower_q for token in _DATA_CAPABILITY_FORMAT_TOKENS)
+    has_intent_signal = any(token in lower_q for token in _DATA_CAPABILITY_INTENT_TOKENS)
+    return has_format_signal and has_intent_signal
 
 
 def _sanitize_text_field(text: str) -> str:
@@ -397,7 +417,7 @@ def _session_evidence(session_context: dict[str, Any] | None) -> list[str]:
     evidence: list[str] = []
     status = str(session_context.get("status") or "").strip()
     if status:
-        evidence.append(f"Current stage: {status}.")
+        evidence.append(f"Session status: {status}.")
 
     schema = session_context.get("schema")
     if isinstance(schema, dict):
@@ -413,6 +433,68 @@ def _session_evidence(session_context: dict[str, Any] | None) -> list[str]:
         evidence.append(f"Current warning: {warnings[0]}")
 
     return evidence[:3]
+
+
+def _normalize_inferred_format(session_context: dict[str, Any] | None) -> str | None:
+    if not session_context:
+        return None
+    raw = session_context.get("inferred_format")
+    if not isinstance(raw, str):
+        raw = session_context.get("format")
+    if not isinstance(raw, str):
+        return None
+    normalized = raw.strip().lower()
+    return normalized if normalized in {"pairwise", "multiway"} else None
+
+
+def _claims_three_plus_required(text: str) -> bool:
+    lowered = text.lower()
+    has_three_plus = any(
+        token in lowered
+        for token in ("3+", "3 or more", "three or more", "three+", ">=3")
+    )
+    has_requirement = any(
+        token in lowered
+        for token in ("required", "require", "requires", "must", "necessary", "need", "needs")
+    )
+    return has_three_plus and has_requirement
+
+
+def _enforce_capability_consistency(
+    *,
+    question: str,
+    session_context: dict[str, Any] | None,
+    conclusion: str,
+    supporting_evidence: list[str],
+) -> tuple[str, list[str]]:
+    if not _is_data_capability_question(question):
+        return conclusion, supporting_evidence
+
+    inferred_format = _normalize_inferred_format(session_context)
+    if inferred_format != "pairwise":
+        return conclusion, supporting_evidence
+
+    normalized_conclusion = _sanitize_text_field(conclusion)
+    normalized_evidence = _dedupe_nonempty(supporting_evidence, max_items=2)
+
+    if _claims_three_plus_required(normalized_conclusion):
+        normalized_conclusion = "OmniRank supports pairwise comparison data where each record compares exactly two items."
+    elif "two items" not in normalized_conclusion.lower() and "two-item" not in normalized_conclusion.lower():
+        normalized_conclusion = (
+            normalized_conclusion.rstrip(".")
+            + ". Pairwise data compares exactly two items per record."
+        )
+
+    filtered_evidence: list[str] = []
+    for line in normalized_evidence:
+        if _claims_three_plus_required(line):
+            continue
+        filtered_evidence.append(line)
+
+    if not filtered_evidence:
+        filtered_evidence = ["Each pairwise row should represent one A-vs-B comparison."]
+
+    return normalized_conclusion, filtered_evidence[:2]
 
 
 def _fallback_without_results(
@@ -626,7 +708,7 @@ def answer_question(
             "one_sentence": wants_one_sentence,
             "max_sections": 2 if wants_one_sentence else (3 if wants_concise else 3),
             "max_bullets_per_section": 2,
-            "target_length_words": 50 if wants_one_sentence else (80 if wants_concise else 120),
+            "target_length_words": 35 if wants_one_sentence else (65 if wants_concise else 90),
         },
         "results": (
             {
@@ -664,6 +746,13 @@ def answer_question(
                 ]
             else:
                 supporting_evidence = ["Derived from ranking outputs (rank, theta_hat, and confidence intervals)."]
+
+        conclusion, supporting_evidence = _enforce_capability_consistency(
+            question=question,
+            session_context=session_context,
+            conclusion=conclusion,
+            supporting_evidence=supporting_evidence,
+        )
 
         note_value = llm_output.get("note")
         note = _sanitize_text_field(str(note_value)) if isinstance(note_value, str) and note_value.strip() else None

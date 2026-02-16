@@ -609,10 +609,11 @@ def generate_report(
         )
         cap_plain = plot.caption_plain or plot.type
         cap_acad = plot.caption_academic or plot.type
+        figure_title = "Ranking Confidence Interval Plot" if plot.type == "ci_forest" else cap_plain
 
         fig_body = (
-            f"**Figure {idx}: {cap_plain}**\n\n"
-            f"![{cap_plain}]({plot.svg_path})\n\n"
+            f"**{figure_title}**\n\n"
+            f"![{figure_title}]({plot.svg_path})\n\n"
             f"*{cap_acad}*"
         )
         fig_md = _section(fig_bid, "figure", fig_body)
@@ -623,7 +624,7 @@ def generate_report(
                 block_id=fig_bid,
                 kind=CitationKind.FIGURE,
                 markdown=fig_md,
-                text=f"Figure {idx}: {cap_acad}",
+                text=f"{figure_title}: {cap_acad}",
                 hint_ids=plot.hint_ids,
                 artifact_paths=[plot.svg_path],
             )
