@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from agents.prompt_loader import load_prompt_section, load_system_prompt
+from core.usage_tracker import get_active_usage_user_sub, get_usage_tracker
 
 
 JSON_BLOCK_PATTERN = re.compile(r"```json\s*(\{.*\})\s*```", re.DOTALL)
@@ -77,6 +78,7 @@ class OmniLLMClient:
                     max_output_tokens=max_completion_tokens,
                     reasoning={"effort": "minimal"},
                 )
+                self._record_usage(response)
                 content = self._extract_content(response)
                 parsed = self._parse_json(content)
                 if not isinstance(parsed, dict):
@@ -90,6 +92,17 @@ class OmniLLMClient:
 
         message = self._normalize_error(last_error) if last_error is not None else "Unknown LLM error."
         raise LLMCallError(message)
+
+    def _record_usage(self, response: Any) -> None:
+        """Best-effort usage ledger update. Never blocks normal inference."""
+        try:
+            usage = getattr(response, "usage", None)
+            if usage is None:
+                return
+            user_sub = get_active_usage_user_sub()
+            get_usage_tracker().record_response_usage(user_sub=user_sub, model=self.model, usage=usage)
+        except Exception:  # noqa: BLE001
+            return
 
     @staticmethod
     def _extract_content(response: Any) -> str:

@@ -24,7 +24,7 @@ export const AnalysisCompleteBubble = memo(function AnalysisCompleteBubble({
   return (
     <div
       className={cn(
-        "relative max-w-[90%] px-4 py-4 rounded-2xl shadow-sm border text-sm bg-background border-primary/30 rounded-bl-sm",
+        "relative min-w-0 w-full max-w-sm px-4 py-4 rounded-2xl shadow-sm border text-sm bg-background border-primary/30 rounded-bl-sm",
         className
       )}
     >
@@ -61,11 +61,13 @@ export const AnalysisCompleteBubble = memo(function AnalysisCompleteBubble({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full justify-start h-auto py-2 px-3 text-left text-xs font-normal bg-background hover:bg-primary/10 hover:text-foreground border-primary/25 hover:border-primary/40"
+                  className="w-full min-w-0 items-start justify-start h-auto py-2 px-3 text-left text-xs font-normal whitespace-normal bg-background hover:bg-primary/10 hover:text-foreground border-primary/25 hover:border-primary/40"
                   onClick={() => onAskQuestion?.(question)}
                 >
-                  <span className="text-primary mr-2">→</span>
-                  {question}
+                  <span className="text-primary mr-2 mt-0.5 shrink-0">→</span>
+                  <span className="min-w-0 break-words whitespace-normal leading-relaxed">
+                    {question}
+                  </span>
                 </Button>
               </motion.div>
             ))}

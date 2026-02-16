@@ -12,7 +12,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from agents.omnirank_agent import OmniRankAgent
@@ -20,6 +20,7 @@ from core.schemas import (
     ConfirmResponse,
     ConfirmRequest,
     DataPreview,
+    DailyUsageResponse,
     InferRequest,
     InferResponse,
     QuestionResponse,
@@ -34,6 +35,7 @@ from core.schemas import (
     UploadResponse,
 )
 from core.session_memory import get_session_store
+from core.usage_tracker import get_usage_tracker, usage_user_scope
 from tools.answer_question import answer_question as answer_question_tool
 
 logger = logging.getLogger(__name__)
@@ -52,6 +54,7 @@ run_executor = ThreadPoolExecutor(max_workers=2)
 _run_jobs_lock = Lock()
 _run_jobs: dict[str, dict[str, Any]] = {}
 _ACTIVE_RUN_JOB_STATUSES = {RunJobStatus.QUEUED, RunJobStatus.RUNNING}
+USER_SUB_HEADER = "x-omnirank-user-sub"
 
 
 def _set_run_job_state(job_id: str, **updates: Any) -> None:
@@ -75,6 +78,30 @@ def _has_active_run_job(session_id: str) -> bool:
             job["session_id"] == session_id and job["status"] in _ACTIVE_RUN_JOB_STATUSES
             for job in _run_jobs.values()
         )
+
+
+def _extract_user_sub(http_request: Request) -> str | None:
+    raw = http_request.headers.get(USER_SUB_HEADER, "").strip()
+    if not raw:
+        return None
+    return raw
+
+
+def _resolve_session_user_sub(session: Any, http_request: Request) -> str | None:
+    header_user_sub = _extract_user_sub(http_request)
+    session_user_sub = getattr(session, "user_sub", None)
+
+    if session_user_sub and header_user_sub and session_user_sub != header_user_sub:
+        raise HTTPException(status_code=403, detail="Session is bound to a different user.")
+
+    if session_user_sub:
+        return session_user_sub
+
+    if header_user_sub:
+        session.user_sub = header_user_sub
+        return header_user_sub
+
+    return None
 
 
 def _run_session_job(session_id: str, job_id: str, request: RunRequest) -> None:
@@ -102,12 +129,13 @@ def _run_session_job(session_id: str, job_id: str, request: RunRequest) -> None:
 
     try:
         update_progress(0.01, "Preparing run task...")
-        response = agent.run(
-            session=session,
-            selected_items=request.selected_items,
-            selected_indicator_values=request.selected_indicator_values,
-            progress_callback=update_progress,
-        )
+        with usage_user_scope(session.user_sub):
+            response = agent.run(
+                session=session,
+                selected_items=request.selected_items,
+                selected_indicator_values=request.selected_indicator_values,
+                progress_callback=update_progress,
+            )
         store.update_session(session)
 
         if response.success:
@@ -143,7 +171,7 @@ def _run_session_job(session_id: str, job_id: str, request: RunRequest) -> None:
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(http_request: Request, file: UploadFile = File(...)):
     """Upload CSV file and create session."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -156,6 +184,7 @@ async def upload_file(file: UploadFile = File(...)):
     content = await file.read()
     store = get_session_store()
     session = store.create_session()
+    session.user_sub = _extract_user_sub(http_request)
 
     saved_path = store.save_file(session.session_id, file.filename, content)
     session.filename = Path(saved_path).name
@@ -168,7 +197,7 @@ async def upload_file(file: UploadFile = File(...)):
 
 
 @router.post("/upload/example/{example_id}", response_model=UploadResponse)
-async def upload_example(example_id: str):
+async def upload_example(example_id: str, http_request: Request):
     """Upload one built-in example dataset into a new session."""
     if example_id not in EXAMPLE_DATASETS:
         raise HTTPException(status_code=404, detail=f"Unknown example id: {example_id}")
@@ -181,6 +210,7 @@ async def upload_example(example_id: str):
     content = source_path.read_bytes()
     store = get_session_store()
     session = store.create_session()
+    session.user_sub = _extract_user_sub(http_request)
     saved_path = store.save_file(session.session_id, filename, content)
 
     session.filename = Path(saved_path).name
@@ -192,13 +222,22 @@ async def upload_example(example_id: str):
     return UploadResponse(session_id=session.session_id, filename=session.filename)
 
 
+@router.get("/usage/daily", response_model=DailyUsageResponse)
+async def get_daily_usage(http_request: Request):
+    """Get today's backend-tracked usage for the current user."""
+    user_sub = _extract_user_sub(http_request)
+    snapshot = get_usage_tracker().get_daily_snapshot(user_sub=user_sub)
+    return DailyUsageResponse(**snapshot)
+
+
 @router.get("/preview/{session_id}", response_model=DataPreview)
-async def get_preview(session_id: str):
+async def get_preview(session_id: str, http_request: Request):
     """Get full CSV rows for client-side pagination preview."""
     store = get_session_store()
     session = store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    _resolve_session_user_sub(session, http_request)
     if not session.current_file_path:
         raise HTTPException(status_code=400, detail="Session has no uploaded file")
 
@@ -226,34 +265,37 @@ async def get_preview(session_id: str):
 
 
 @router.post("/sessions/{session_id}/infer", response_model=InferResponse)
-async def infer_session(session_id: str, request: InferRequest):
+async def infer_session(session_id: str, payload: InferRequest, http_request: Request):
     """Run infer phase: read -> infer -> format loop -> quality validation."""
     store = get_session_store()
     session = store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    response = agent.infer(session=session, user_hints=request.user_hints)
+    user_sub = _resolve_session_user_sub(session, http_request)
+    with usage_user_scope(user_sub):
+        response = agent.infer(session=session, user_hints=payload.user_hints)
     store.update_session(session)
     return response
 
 
 @router.post("/sessions/{session_id}/confirm", response_model=ConfirmResponse)
-async def confirm_session(session_id: str, request: ConfirmRequest):
+async def confirm_session(session_id: str, payload: ConfirmRequest, http_request: Request):
     """Persist user confirmation and schema adjustments."""
     store = get_session_store()
     session = store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    _resolve_session_user_sub(session, http_request)
 
     try:
         confirmation = agent.confirm(
             session=session,
-            confirmed=request.confirmed,
-            confirmed_schema=request.confirmed_schema,
-            user_modifications=request.user_modifications,
-            B=request.B,
-            seed=request.seed,
+            confirmed=payload.confirmed,
+            confirmed_schema=payload.confirmed_schema,
+            user_modifications=payload.user_modifications,
+            B=payload.B,
+            seed=payload.seed,
         )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -263,18 +305,20 @@ async def confirm_session(session_id: str, request: ConfirmRequest):
 
 
 @router.post("/sessions/{session_id}/run", response_model=RunResponse)
-async def run_session(session_id: str, request: RunRequest):
+async def run_session(session_id: str, payload: RunRequest, http_request: Request):
     """Run confirmed session through engine + visualization + report."""
     store = get_session_store()
     session = store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    user_sub = _resolve_session_user_sub(session, http_request)
 
-    response = agent.run(
-        session=session,
-        selected_items=request.selected_items,
-        selected_indicator_values=request.selected_indicator_values,
-    )
+    with usage_user_scope(user_sub):
+        response = agent.run(
+            session=session,
+            selected_items=payload.selected_items,
+            selected_indicator_values=payload.selected_indicator_values,
+        )
     store.update_session(session)
 
     if not response.success:
@@ -283,12 +327,13 @@ async def run_session(session_id: str, request: RunRequest):
 
 
 @router.post("/sessions/{session_id}/run/start", response_model=RunStartResponse)
-async def start_run_session(session_id: str, request: RunRequest):
+async def start_run_session(session_id: str, payload: RunRequest, http_request: Request):
     """Start run in a background worker and return job id for polling."""
     store = get_session_store()
     session = store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    _resolve_session_user_sub(session, http_request)
 
     if session.status not in {SessionStatus.CONFIRMED, SessionStatus.COMPLETED}:
         raise HTTPException(status_code=400, detail=f"Session is not runnable in state {session.status.value}.")
@@ -308,13 +353,19 @@ async def start_run_session(session_id: str, request: RunRequest):
             "error": None,
         }
 
-    run_executor.submit(_run_session_job, session_id, job_id, request)
+    run_executor.submit(_run_session_job, session_id, job_id, payload)
     return RunStartResponse(job_id=job_id, status=RunJobStatus.QUEUED, progress=0.0, message="Run job queued.")
 
 
 @router.get("/sessions/{session_id}/run/{job_id}", response_model=RunJobStatusResponse)
-async def get_run_status(session_id: str, job_id: str):
+async def get_run_status(session_id: str, job_id: str, http_request: Request):
     """Get async run job status and optional final result."""
+    store = get_session_store()
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    _resolve_session_user_sub(session, http_request)
+
     job = _get_run_job_state(job_id)
     if job is None or job.get("session_id") != session_id:
         raise HTTPException(status_code=404, detail="Run job not found")
@@ -331,15 +382,17 @@ async def get_run_status(session_id: str, job_id: str):
 
 
 @router.post("/sessions/{session_id}/question", response_model=QuestionResponse)
-async def ask_question(session_id: str, request: QuestionRequest):
+async def ask_question(session_id: str, payload: QuestionRequest, http_request: Request):
     """Answer follow-up question with optional quote payloads."""
     store = get_session_store()
     session = store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    user_sub = _resolve_session_user_sub(session, http_request)
 
     try:
-        answer = agent.answer(session=session, question=request.question, quotes=request.quotes)
+        with usage_user_scope(user_sub):
+            answer = agent.answer(session=session, question=payload.question, quotes=payload.quotes)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -348,37 +401,43 @@ async def ask_question(session_id: str, request: QuestionRequest):
 
 
 @router.post("/question", response_model=QuestionResponse)
-async def ask_question_global(request: QuestionRequest):
+async def ask_question_global(payload: QuestionRequest, http_request: Request):
     """Answer question with optional session context; supports no-session chat."""
-    if request.session_id:
+    user_sub = _extract_user_sub(http_request)
+
+    if payload.session_id:
         store = get_session_store()
-        session = store.get_session(request.session_id)
+        session = store.get_session(payload.session_id)
         if session is None:
             raise HTTPException(status_code=404, detail="Session not found")
+        user_sub = _resolve_session_user_sub(session, http_request)
         try:
-            answer = agent.answer(session=session, question=request.question, quotes=request.quotes)
+            with usage_user_scope(user_sub):
+                answer = agent.answer(session=session, question=payload.question, quotes=payload.quotes)
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         store.update_session(session)
         return QuestionResponse(answer=answer)
 
-    answer = answer_question_tool(
-        question=request.question,
-        results=None,
-        citation_blocks={},
-        quotes=request.quotes,
-        session_context={"status": "idle", "has_results": False},
-    )
+    with usage_user_scope(user_sub):
+        answer = answer_question_tool(
+            question=payload.question,
+            results=None,
+            citation_blocks={},
+            quotes=payload.quotes,
+            session_context={"status": "idle", "has_results": False},
+        )
     return QuestionResponse(answer=answer)
 
 
 @router.get("/sessions/{session_id}/artifacts/{artifact_id}")
-async def get_artifact(session_id: str, artifact_id: str):
+async def get_artifact(session_id: str, artifact_id: str, http_request: Request):
     """Download artifact by id."""
     store = get_session_store()
     session = store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    _resolve_session_user_sub(session, http_request)
 
     meta = session.artifacts.get(artifact_id)
     if meta is None:
@@ -393,20 +452,24 @@ async def get_artifact(session_id: str, artifact_id: str):
 
 
 @router.get("/sessions/{session_id}", response_model=SessionSnapshotResponse)
-async def get_session_snapshot(session_id: str):
+async def get_session_snapshot(session_id: str, http_request: Request):
     """Return full session snapshot with artifact descriptors."""
     store = get_session_store()
     session = store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    _resolve_session_user_sub(session, http_request)
 
     return SessionSnapshotResponse(session=session.to_snapshot(), artifacts=session.artifact_descriptors())
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str):
+async def delete_session(session_id: str, http_request: Request):
     """Delete session and associated temporary files."""
     store = get_session_store()
+    session = store.get_session(session_id)
+    if session is not None:
+        _resolve_session_user_sub(session, http_request)
     if not store.delete_session(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
     return {"status": "deleted", "session_id": session_id}

@@ -139,6 +139,35 @@ const RUN_JOB_POLL_INTERVAL_MS = 600;
 const RUN_JOB_TIMEOUT_MS = 10 * 60 * 1000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function clearSessionDataState(
+  prev: OmniRankState,
+  overrides: Partial<OmniRankState> = {}
+): OmniRankState {
+  return {
+    ...prev,
+    sessionId: null,
+    status: "idle",
+    dataSource: null,
+    exampleDataInfo: null,
+    dataPreview: null,
+    filename: null,
+    schema: null,
+    warnings: [],
+    formatResult: null,
+    qualityResult: null,
+    config: null,
+    results: null,
+    reportOutput: null,
+    plots: [],
+    artifacts: [],
+    isReportVisible: true,
+    progress: 0,
+    progressMessage: "",
+    error: null,
+    ...overrides,
+  };
+}
+
 export function useOmniRank() {
   const [state, setState] = useState<OmniRankState>(initialState);
 
@@ -271,10 +300,19 @@ export function useOmniRank() {
     [addMessage, updateWorkingMessageProgress]
   );
 
+  const cleanupSession = useCallback(async (sessionId: string | null | undefined) => {
+    if (!sessionId) return;
+    try {
+      await deleteSession(sessionId);
+    } catch {
+      // Ignore cleanup failures.
+    }
+  }, []);
+
   const handleUpload = useCallback(
     async (file: File) => {
-      setState((prev) => ({
-        ...prev,
+      const previousSessionId = state.sessionId;
+      setState((prev) => clearSessionDataState(prev, {
         status: "uploading",
         filename: file.name,
         dataSource: "upload",
@@ -294,6 +332,7 @@ export function useOmniRank() {
       });
 
       try {
+        await cleanupSession(previousSessionId);
         const upload = await uploadFile(file);
         await prepareSession(upload.session_id, upload.filename, "upload", null, workingMessage.id);
         setState((prev) => ({ ...prev, progress: 0.6 }));
@@ -304,7 +343,7 @@ export function useOmniRank() {
         return;
       }
     },
-    [addMessage, prepareSession]
+    [addMessage, cleanupSession, prepareSession, state.sessionId]
   );
 
   const loadExampleData = useCallback(
@@ -317,8 +356,8 @@ export function useOmniRank() {
         return;
       }
 
-      setState((prev) => ({
-        ...prev,
+      const previousSessionId = state.sessionId;
+      setState((prev) => clearSessionDataState(prev, {
         status: "uploading",
         filename: exampleInfo.filename,
         dataSource: "example",
@@ -338,6 +377,7 @@ export function useOmniRank() {
       });
 
       try {
+        await cleanupSession(previousSessionId);
         const upload = await apiLoadExampleData(exampleId);
         await prepareSession(upload.session_id, upload.filename, "example", exampleInfo, workingMessage.id);
       } catch (error) {
@@ -347,11 +387,18 @@ export function useOmniRank() {
         return;
       }
     },
-    [addMessage, prepareSession]
+    [addMessage, cleanupSession, prepareSession, state.sessionId]
   );
 
   const startAnalysis = useCallback(
     async (config: AnalysisConfig) => {
+      if (!config) {
+        const errorMessage = "Analysis config is required before starting ranking";
+        setState((prev) => ({ ...prev, status: "error", error: errorMessage }));
+        addMessage("system", `Error: ${errorMessage}`);
+        return;
+      }
+
       if (!state.sessionId || !state.schema) {
         const errorMessage = "Session and schema are required before analysis";
         setState((prev) => ({ ...prev, status: "error", error: errorMessage }));
@@ -525,42 +572,20 @@ export function useOmniRank() {
     [state.sessionId]
   );
 
-  const cancelData = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      sessionId: null,
-      status: "idle",
-      dataSource: null,
-      exampleDataInfo: null,
-      dataPreview: null,
-      filename: null,
-      schema: null,
-      warnings: [],
-      formatResult: null,
-      qualityResult: null,
-      config: null,
-      results: null,
-      reportOutput: null,
-      plots: [],
-      artifacts: [],
-      progress: 0,
-      progressMessage: "",
-      error: null,
-    }));
-    addMessage("system", "Data selection cancelled.");
-  }, [addMessage]);
+  const cancelData = useCallback(async () => {
+    const sessionToDelete = state.sessionId;
+    setState((prev) => clearSessionDataState(prev));
+    addMessage("system", "Current session data selection has been cleared. You can upload again.");
+    await cleanupSession(sessionToDelete);
+  }, [addMessage, cleanupSession, state.sessionId]);
 
   const reset = useCallback(async (options?: ResetOptions) => {
     const shouldDeleteCurrentSession = options?.deleteCurrentSession ?? true;
-    if (shouldDeleteCurrentSession && state.sessionId) {
-      try {
-        await deleteSession(state.sessionId);
-      } catch {
-        // Ignore cleanup failures.
-      }
+    if (shouldDeleteCurrentSession) {
+      await cleanupSession(state.sessionId);
     }
     setState(createInitialOmniRankState());
-  }, [state.sessionId]);
+  }, [cleanupSession, state.sessionId]);
 
   const toggleReportVisibility = useCallback(() => {
     setState((prev) => ({ ...prev, isReportVisible: !prev.isReportVisible }));

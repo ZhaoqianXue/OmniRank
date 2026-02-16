@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { isValidElement, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BookOpen,
@@ -101,6 +101,19 @@ function buildMarkdownComponents(
   figureUrls: Map<string, string>,
   reportMetaBadges?: ReactNode,
 ): Components {
+  const getHeadingText = (node: ReactNode): string => {
+    if (typeof node === "string" || typeof node === "number") {
+      return String(node);
+    }
+    if (Array.isArray(node)) {
+      return node.map((child) => getHeadingText(child)).join("");
+    }
+    if (isValidElement(node)) {
+      return getHeadingText(node.props.children);
+    }
+    return "";
+  };
+
   return {
     /* ── Sections (kind-aware styling) ─────────────────────────────────── */
     section: (props: ComponentPropsWithoutRef<"section"> & { children?: ReactNode }) => {
@@ -122,16 +135,29 @@ function buildMarkdownComponents(
     },
 
     /* ── Headings ──────────────────────────────────────────────────────── */
-    h1: ({ children }) => (
-      <header className="pb-4 mb-2 border-b border-primary/30 flex flex-wrap items-start justify-between gap-3">
-        <h1 className="text-2xl font-bold leading-tight">
-          <span className="gradient-text">{children}</span>
-        </h1>
-        {reportMetaBadges ? (
-          <div className="flex flex-wrap items-center justify-end gap-2">{reportMetaBadges}</div>
-        ) : null}
-      </header>
-    ),
+    h1: ({ children }) => {
+      const headingText = getHeadingText(children).replace(/\s+/g, " ").trim();
+      const isOmniRankReportTitle = headingText === "OmniRank Report";
+
+      return (
+        <header className="pb-4 mb-2 border-b border-primary/30 flex flex-wrap items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold leading-tight text-white">
+            {isOmniRankReportTitle ? (
+              <>
+                <span className="text-white">Omni</span>
+                <span className="text-white">Rank</span>
+                <span className="text-white"> Report</span>
+              </>
+            ) : (
+              <span className="text-white">{children}</span>
+            )}
+          </h1>
+          {reportMetaBadges ? (
+            <div className="flex flex-wrap items-center justify-end gap-2">{reportMetaBadges}</div>
+          ) : null}
+        </header>
+      );
+    },
     h2: ({ children }) => (
       <h2 className="text-lg font-semibold text-foreground mt-0 mb-3 flex items-center gap-2">
         <span className="inline-block h-5 w-1 rounded-full bg-primary" />

@@ -52,6 +52,7 @@ class SessionMemory:
     """In-memory state for one analysis session."""
 
     session_id: str
+    user_sub: Optional[str] = None
     status: SessionStatus = SessionStatus.IDLE
     filename: Optional[str] = None
     original_file_path: Optional[str] = None

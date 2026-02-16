@@ -115,7 +115,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         layout
-        className="flex w-full gap-2 mb-4 items-end flex-row"
+        className="flex min-w-0 w-full gap-2 mb-4 items-end flex-row"
       >
         <MessageIcon role="assistant" />
         <DataAgentWorkingBubble
@@ -134,7 +134,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         layout
-        className="flex w-full gap-2 mb-4 items-end flex-row"
+        className="flex min-w-0 w-full gap-2 mb-4 items-end flex-row"
       >
         <MessageIcon role="assistant" />
         <AnalysisCompleteBubble
@@ -153,7 +153,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         layout
-        className="flex w-full gap-2 mb-4 items-end flex-row"
+        className="flex min-w-0 w-full gap-2 mb-4 items-end flex-row"
       >
         <MessageIcon role="assistant" />
         <RankingPreviewBubble
@@ -179,7 +179,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         layout
-        className="flex w-full gap-2 mb-4 items-end flex-row"
+        className="flex min-w-0 w-full gap-2 mb-4 items-end flex-row"
       >
         <MessageIcon role="assistant" />
         <div className="relative max-w-[90%] px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm border text-sm bg-background border-border/60 text-foreground">
@@ -209,7 +209,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
       exit={{ opacity: 0, y: -10 }}
       layout
       className={cn(
-        "flex w-full gap-2 mb-4 items-end",
+        "flex min-w-0 w-full gap-2 mb-4 items-end",
         isUser ? "flex-row-reverse" : "flex-row"
       )}
     >

@@ -298,6 +298,19 @@ class UploadResponse(BaseModel):
     filename: str
 
 
+class DailyUsageResponse(BaseModel):
+    """Per-user daily usage snapshot."""
+
+    date: str
+    limit_usd: float = Field(ge=0.0)
+    used_usd: float = Field(ge=0.0)
+    progress_percent: float = Field(ge=0.0, le=100.0)
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+    pricing_configured: bool = True
+
+
 class InferRequest(BaseModel):
     """Infer request payload."""
 

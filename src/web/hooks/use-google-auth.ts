@@ -49,6 +49,8 @@ interface GoogleUserInfoResponse {
   picture?: string;
 }
 
+const USER_DISMISSED_AUTH_ERRORS = ["popup_closed", "popup_closed_by_user", "access_denied"];
+
 interface StoredGoogleAuth {
   user: GoogleUser;
 }
@@ -156,6 +158,13 @@ async function fetchGoogleUserInfo(accessToken: string): Promise<GoogleUser> {
   };
 }
 
+function isUserDismissedAuthError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) return false;
+  return USER_DISMISSED_AUTH_ERRORS.some((token) => normalized.includes(token));
+}
+
 export function useGoogleAuth() {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
@@ -244,6 +253,10 @@ export function useGoogleAuth() {
 
       return true;
     } catch (loginError) {
+      if (isUserDismissedAuthError(loginError)) {
+        setError(null);
+        return false;
+      }
       const message = loginError instanceof Error ? loginError.message : "Google login failed.";
       setError(message);
       return false;

@@ -15,10 +15,10 @@ services:
       - key: CORS_ORIGINS
         value: https://omnirank.onrender.com,http://localhost:3000,http://127.0.0.1:3000
       - key: OMNIRANK_SESSION_DIR
-        value: /opt/render/project/src/runtime_data/sessions
+        value: /opt/render/project/src/data/sessions
     disk:
       name: runtime-data
-      mountPath: /opt/render/project/src/runtime_data
+      mountPath: /opt/render/project/src/data
       sizeGB: 1
 
   - type: web

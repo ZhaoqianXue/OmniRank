@@ -7,6 +7,7 @@ import type {
   ConfirmResponse,
   DataPreview,
   DataSummary,
+  DailyUsageResponse,
   FormatValidationResult,
   HintSpec,
   InferResponse,
@@ -28,6 +29,7 @@ export type {
   ConfirmResponse,
   DataPreview,
   DataSummary,
+  DailyUsageResponse,
   FormatValidationResult,
   HintSpec,
   InferResponse,
@@ -45,9 +47,23 @@ export type {
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+let activeUserSub: string | null = null;
 
 function apiEndpoint(path: string): string {
   return `${API_URL}${path}`;
+}
+
+function withUserHeader(init: RequestInit): RequestInit {
+  const headers = new Headers(init.headers ?? undefined);
+  if (activeUserSub) {
+    headers.set("X-OmniRank-User-Sub", activeUserSub);
+  }
+  return { ...init, headers };
+}
+
+export function setApiUserSub(userSub: string | null | undefined): void {
+  const normalized = userSub?.trim();
+  activeUserSub = normalized ? normalized : null;
 }
 
 function networkFailureMessage(path: string, error: unknown): string {
@@ -70,7 +86,7 @@ function networkFailureMessage(path: string, error: unknown): string {
 
 async function fetchApi(path: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(apiEndpoint(path), init);
+    return await fetch(apiEndpoint(path), withUserHeader(init));
   } catch (error) {
     throw new Error(networkFailureMessage(path, error));
   }
@@ -211,6 +227,11 @@ export async function loadExampleData(exampleId: string): Promise<UploadResponse
 export async function getDataPreview(sessionId: string): Promise<DataPreview> {
   const response = await fetchApi(`/api/preview/${sessionId}`, {});
   return parseResponse<DataPreview>(response, "Failed to fetch data preview");
+}
+
+export async function getDailyUsage(): Promise<DailyUsageResponse> {
+  const response = await fetchApi("/api/usage/daily", {});
+  return parseResponse<DailyUsageResponse>(response, "Failed to fetch daily usage");
 }
 
 export async function inferSession(sessionId: string, userHints?: string): Promise<InferResponse> {

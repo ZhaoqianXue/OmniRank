@@ -114,9 +114,10 @@ export function FileUpload({
               size="icon"
               className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
               onClick={onCancel}
+              title="Clear current session data"
             >
               <X className="h-4 w-4" />
-              <span className="sr-only">Remove file</span>
+              <span className="sr-only">Clear current session data</span>
             </Button>
           )}
         </div>

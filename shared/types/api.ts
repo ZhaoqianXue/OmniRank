@@ -222,6 +222,17 @@ export interface UploadResponse {
   filename: string;
 }
 
+export interface DailyUsageResponse {
+  date: string;
+  limit_usd: number;
+  used_usd: number;
+  progress_percent: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  pricing_configured: boolean;
+}
+
 export interface InferRequest {
   user_hints?: string;
 }
