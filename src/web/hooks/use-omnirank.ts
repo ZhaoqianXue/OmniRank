@@ -52,7 +52,7 @@ export interface ChatMessage {
       warnings: ValidationWarning[];
       formatResult?: FormatValidationResult | null;
       qualityResult?: QualityValidationResult | null;
-      detectedFormat?: "pointwise" | "pairwise" | "multiway";
+      detectedFormat?: "pairwise" | "multiway";
     };
   workingData?: {
     completedSteps: number;

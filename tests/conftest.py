@@ -43,9 +43,9 @@ def disable_llm_for_non_online_tests(monkeypatch, request):
 # =============================================================================
 
 @pytest.fixture
-def example_pointwise_data():
-    """Load example pointwise data."""
-    data_path = Path(__file__).parent.parent / "data" / "examples" / "example_data_pointwise.csv"
+def example_multiway_scores_data():
+    """Load example multiway score-matrix data."""
+    data_path = Path(__file__).parent.parent / "data" / "examples" / "example_data_multiway_scores.csv"
     return data_path.read_bytes()
 
 
@@ -57,8 +57,8 @@ def example_pairwise_data():
 
 
 @pytest.fixture
-def pointwise_df():
-    """Create a sample pointwise DataFrame for testing."""
+def multiway_scores_df():
+    """Create a sample multiway score-matrix DataFrame for testing."""
     data = {
         'sample_id': ['s1', 's2', 's3', 's4', 's5'],
         'model_A': [0.85, 0.78, 0.92, 0.88, 0.75],

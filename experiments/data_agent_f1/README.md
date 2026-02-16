@@ -17,19 +17,19 @@ This experiment corresponds to **Section 3.2 Data Agent** of the OmniRank paper,
 ### Function 1: Format Recognition & Standardization
 
 **Definition from writing.md:**
-> The agent automatically identifies the structure of uploaded data (e.g., Pointwise, Pairwise, Multiway) and performs lightweight standardization to ensure compatibility with the spectral engine (`spectral_ranking.R`). Instead of enforcing a rigid conversion to a single format, it adapts to the input structure, preserving the original data fidelity while ensuring it meets the engine's interface requirements.
+> The agent automatically identifies the structure of uploaded data (e.g., Pairwise, Multiway) and performs lightweight standardization to ensure compatibility with the spectral engine (`spectral_ranking.R`). Instead of enforcing a rigid conversion to a single format, it adapts to the input structure, preserving the original data fidelity while ensuring it meets the engine's interface requirements.
 
 **Implementation Details:**
 
 | Task | Description |
 |------|-------------|
-| **Format Detection** | Classify input data into one of three formats: Pointwise (dense numeric matrix), Pairwise (sparse 0/1/NaN comparison matrix), or Multiway (rank position matrix) |
+| **Format Detection** | Classify input data into one of three formats: Multiway (dense numeric matrix), Pairwise (sparse 0/1/NaN comparison matrix), or Multiway (rank position matrix) |
 | **Engine Compatibility Assessment** | Determine if the spectral engine can process the data directly without transformation |
 | **Standardization Decision** | Decide whether standardization is needed (none/standardize/reject) based on data structure |
 
 **Data Format Definitions:**
 
-1. **Pointwise Format**
+1. **Multiway Format**
    - Dense numeric matrix where each row is a sample/observation
    - Columns represent items being ranked (e.g., models, products)
    - Cell values are scores/metrics for that item on that sample
@@ -87,7 +87,7 @@ This experiment corresponds to **Section 4.2.1 Format Recognition & Standardizat
 > **Purpose**: Assess the Data Agent's ability to automatically identify and handle diverse data formats.
 >
 > **What to include**:
-> - **Test Datasets**: Pointwise, Pairwise, and Multiway formats
+> - **Test Datasets**: Multiway, Pairwise, and Multiway formats
 > - **Metrics**: Format detection accuracy (precision/recall per format type)
 > - **Results**: Overall accuracy percentage, confusion matrix if applicable
 
@@ -95,7 +95,7 @@ This experiment corresponds to **Section 4.2.1 Format Recognition & Standardizat
 
 | Target | Description | Labels |
 |--------|-------------|--------|
-| **Format Detection** | Correctly identify data format | pointwise, pairwise, multiway, invalid |
+| **Format Detection** | Correctly identify data format | pairwise, multiway, invalid |
 | **Engine Compatibility** | Assess if spectral engine can process directly | compatible, incompatible |
 | **Standardization Decision** | Decide required action | none, standardize, reject |
 
@@ -119,7 +119,7 @@ The experiment uses 41 synthetic datasets across 5 difficulty categories:
 
 | Format | Count | Examples |
 |--------|-------|----------|
-| Pointwise | 19 | Benchmark scores, product ratings, survey responses |
+| Multiway | 19 | Benchmark scores, product ratings, survey responses |
 | Pairwise | 9 | Tennis matches (winner/loser), chess games (0/1 matrix) |
 | Multiway | 9 | Horse races, league standings |
 | Invalid | 4 | Single column, all-text data |
@@ -139,8 +139,8 @@ The experiment uses 41 synthetic datasets across 5 difficulty categories:
 | Dataset ID | Challenge | Expected Format | Why Difficult |
 |------------|-----------|-----------------|---------------|
 | `amb_2way_*` | 2-item races | Multiway | Only values 1,2 per row - looks like pairwise |
-| `amb_binary_*` | Binary success/failure | Pointwise | All 0/1 values - identical to pairwise encoding |
-| `amb_pointwise_sparse_*` | Missing values | Pointwise | Sparsity pattern resembles pairwise |
+| `amb_binary_*` | Binary success/failure | Multiway | All 0/1 values - identical to pairwise encoding |
+| `amb_multiway_sparse_*` | Missing values | Multiway | Sparsity pattern resembles pairwise |
 
 **Realworld Datasets (require semantic understanding):**
 
@@ -162,7 +162,7 @@ class RuleBasedDetector:
         # Rule 1: < 2 numeric columns -> invalid
         # Rule 2: > 50% NaN + only 0/1 values -> pairwise
         # Rule 3: Consecutive integers 1..k -> multiway
-        # Rule 4: Default -> pointwise
+        # Rule 4: Default -> multiway
 ```
 
 ### 3.6 Metrics
@@ -192,7 +192,7 @@ class RuleBasedDetector:
 
 | Format | Precision | Recall | F1 | Support |
 |--------|-----------|--------|-----|---------|
-| Pointwise | 0.792 | 1.000 | 0.884 | 19 |
+| Multiway | 0.792 | 1.000 | 0.884 | 19 |
 | Pairwise | 0.900 | 1.000 | 0.947 | 9 |
 | Multiway | 1.000 | 0.778 | 0.875 | 9 |
 | Invalid | 0.000 | 0.000 | 0.000 | 4 |
@@ -216,8 +216,8 @@ class RuleBasedDetector:
 | Ground Truth | Predicted | Datasets |
 |--------------|-----------|----------|
 | multiway → pairwise | 1 | amb_2way_02 |
-| multiway → pointwise | 1 | real_league_01 |
-| invalid → pointwise | 4 | inv_single_col_01/02, inv_all_text_01/02 |
+| multiway → multiway | 1 | real_league_01 |
+| invalid → multiway | 4 | inv_single_col_01/02, inv_all_text_01/02 |
 
 **Failure Modes:**
 
@@ -304,7 +304,7 @@ Results are saved to `runs/YYYYMMDD_HHMMSS/`:
   
   "evaluation_targets": {
     "format_detection": {
-      "labels": ["pointwise", "pairwise", "multiway", "invalid"]
+      "labels": ["pairwise", "multiway", "invalid"]
     },
     "engine_compatibility": {
       "labels": ["compatible", "incompatible"]
@@ -342,7 +342,7 @@ The Data Agent uses a structured system prompt with embedded domain knowledge:
 You are a Data Schema Analyst for OmniRank...
 
 ## Data Formats
-### Pointwise Format
+### Multiway Format
 - Dense numeric matrix...
 
 ### Pairwise Format

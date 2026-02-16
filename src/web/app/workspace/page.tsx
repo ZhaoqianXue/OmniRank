@@ -295,7 +295,6 @@ export default function Home() {
     () => sortHistoryEntries(historyEntries),
     [historyEntries]
   );
-
   const activeHistoryEntry = useMemo(
     () => sortedHistoryEntries.find((entry) => entry.id === activeChatId) || null,
     [activeChatId, sortedHistoryEntries]
@@ -335,7 +334,6 @@ export default function Home() {
     }
     return deriveConversationTitle(state);
   }, [activeHistoryEntry, isLoggedIn, state]);
-
   const loginButtonDisabled = isAuthLoading || (!isLoggedIn && !isGoogleConfigured);
   const visibleGoogleAuthError = useMemo(() => {
     if (!googleAuthError) return null;
@@ -930,19 +928,21 @@ export default function Home() {
 
                 <CardContent className="flex-1 flex flex-col min-h-0">
                   {isIdle && !hasData && (
-                    <div className="space-y-4 mb-4">
-                      <FileUpload
-                        onUpload={handleUpload}
-                        mode="dropzone"
-                        isUploading={false}
-                        isUploaded={false}
-                        filename={null}
-                      />
-                      <ExampleDataSelector
-                        examples={exampleDatasets}
-                        onSelect={loadExampleData}
-                        disabled={false}
-                      />
+                    <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                      <div className="space-y-4 pb-4">
+                        <FileUpload
+                          onUpload={handleUpload}
+                          mode="dropzone"
+                          isUploading={false}
+                          isUploaded={false}
+                          filename={null}
+                        />
+                        <ExampleDataSelector
+                          examples={exampleDatasets}
+                          onSelect={loadExampleData}
+                          disabled={false}
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -1006,7 +1006,7 @@ export default function Home() {
                 <div className="flex items-center justify-center py-2 px-3 border-b border-border/40 min-h-[48px] shrink-0">
                   <div className="text-sm font-bold flex items-center justify-center gap-2 min-w-0">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#FFD700] animate-pulse" />
-                    <span className="truncate">{activeConversationTitle}</span>
+                    <span className="truncate" title={activeConversationTitle}>OmniRank Agent</span>
                   </div>
                 </div>
 

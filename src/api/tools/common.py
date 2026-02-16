@@ -88,6 +88,69 @@ def find_long_item_value_columns(df: pd.DataFrame) -> tuple[str | None, str | No
     return item_col, value_col
 
 
+def analyze_long_item_value_pairwise(df: pd.DataFrame) -> dict[str, Any]:
+    """Analyze whether long item/value rows encode pairwise logs."""
+    item_col, value_col = find_long_item_value_columns(df)
+    result: dict[str, Any] = {
+        "detected": False,
+        "item_column": item_col,
+        "value_column": value_col,
+        "group_id_column": None,
+        "group_count": 0,
+        "share_groups_with_two_items": 0.0,
+        "value_binary_ratio": 0.0,
+        "unique_items": [],
+    }
+    if not item_col or not value_col:
+        return result
+
+    item_values = df[item_col].dropna().astype(str).str.strip()
+    unique_items = sorted({value for value in item_values.tolist() if value})
+    result["unique_items"] = unique_items
+    if len(unique_items) < 2:
+        return result
+
+    numeric_values = pd.to_numeric(df[value_col], errors="coerce").dropna()
+    if len(numeric_values) > 0:
+        result["value_binary_ratio"] = float(numeric_values.isin([0.0, 1.0]).mean())
+
+    id_candidates = [col for col in df.columns if col not in {item_col, value_col}]
+    best_id_col: str | None = None
+    best_share_two = 0.0
+    best_group_count = 0
+    for id_col in id_candidates:
+        group_df = df[[id_col, item_col]].dropna(subset=[id_col, item_col]).copy()
+        if group_df.empty:
+            continue
+        group_df[item_col] = group_df[item_col].astype(str).str.strip()
+        group_df = group_df[group_df[item_col] != ""]
+        if group_df.empty:
+            continue
+        per_group_items = group_df.groupby(id_col)[item_col].nunique()
+        if per_group_items.empty:
+            continue
+        share_two_items = float((per_group_items == 2).mean())
+        group_count = int(len(per_group_items))
+        if share_two_items > best_share_two or (share_two_items == best_share_two and group_count > best_group_count):
+            best_share_two = share_two_items
+            best_group_count = group_count
+            best_id_col = id_col
+
+    result["group_id_column"] = best_id_col
+    result["group_count"] = best_group_count
+    result["share_groups_with_two_items"] = best_share_two
+
+    if (
+        best_id_col is not None
+        and best_group_count >= 2
+        and best_share_two >= 0.9
+        and result["value_binary_ratio"] >= 0.95
+    ):
+        result["detected"] = True
+
+    return result
+
+
 def read_table(file_path: str) -> pd.DataFrame:
     """Read a CSV file with strict path validation."""
     path = Path(file_path)
@@ -120,7 +183,7 @@ def safe_numeric(series: pd.Series) -> pd.Series:
 
 
 def detect_format_from_df(df: pd.DataFrame) -> tuple[str, str]:
-    """Detect pointwise/pairwise/multiway using structural patterns."""
+    """Detect pairwise/multiway using structural patterns."""
     lower_cols = [c.lower() for c in df.columns]
     if any(col.startswith("rank_") for col in lower_cols):
         return "multiway", "Detected rank_* columns indicating multiway comparisons."
@@ -132,6 +195,14 @@ def detect_format_from_df(df: pd.DataFrame) -> tuple[str, str]:
         unique_items = sorted({*left_values.tolist(), *right_values.tolist()} - {""})
         if len(unique_items) >= 2:
             return "pairwise", "Detected pairwise long format columns (item_a/item_b style)."
+
+    long_pairwise = analyze_long_item_value_pairwise(df)
+    if long_pairwise["detected"]:
+        group_col = str(long_pairwise.get("group_id_column") or "group_id")
+        return (
+            "pairwise",
+            f"Detected long pairwise logs (item/value) grouped by '{group_col}' with two items per comparison.",
+        )
 
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     if len(numeric_cols) >= 3:
@@ -163,7 +234,7 @@ def detect_format_from_df(df: pd.DataFrame) -> tuple[str, str]:
         if share_two >= 0.7 and value_set.issubset({0, 1, 0.0, 1.0}):
             return "pairwise", "Rows mostly contain two 0/1 comparison entries, indicating pairwise data."
 
-    return "pointwise", "Detected dense numeric score matrix consistent with pointwise data."
+    return "multiway", "Detected dense numeric score matrix consistent with multiway comparisons."
 
 
 def infer_bigbetter(df: pd.DataFrame, ranking_items: list[str], user_hints: str | None = None) -> int:

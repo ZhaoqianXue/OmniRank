@@ -87,7 +87,7 @@ The diagram shows a stacked layer architecture:
   SECTION A - Format Definitions:
   - Box titled "Data Formats"
   - Three format cards:
-    - "Pointwise: Dense numeric matrix, items as columns"
+    - "Multiway: Dense numeric matrix, items as columns"
     - "Pairwise: Sparse 0/1 matrix, head-to-head comparisons"
     - "Multiway: Rank positions (1st, 2nd, 3rd...)"
   - "Invalid: <2 items, non-numeric, empty"

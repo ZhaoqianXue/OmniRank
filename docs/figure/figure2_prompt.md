@@ -79,7 +79,7 @@ The flowchart is organized vertically showing the hierarchical validation proces
 - Large blue rounded rectangle
 - Label: "Schema Inference"
 - Sub-items listed:
-  - "Infer Format (pointwise/pairwise/multiway)"
+  - "Infer Format (pairwise/multiway)"
   - "Infer BigBetter direction"
   - "Extract Ranking Items"
   - "Detect Indicator Column"

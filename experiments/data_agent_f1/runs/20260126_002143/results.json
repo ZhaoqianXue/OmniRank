@@ -34,7 +34,7 @@
         }
       },
       "per_class_format_metrics": {
-        "pointwise": {
+        "multiway": {
           "precision": {
             "mean": 0.7916666666666666,
             "std": 0.0
@@ -164,7 +164,7 @@
     ]
   ],
   "labels": [
-    "pointwise",
+    "multiway",
     "pairwise",
     "multiway",
     "invalid"

@@ -2,7 +2,7 @@
 Data Agent
 
 Responsible for:
-- Data format detection (pointwise vs pairwise vs multiway)
+- Data format detection (multiway vs pairwise vs multiway)
 - Schema inference (bigbetter, ranking_items, indicator_col)
 - Data validation (connectivity, sparsity checks)
 
@@ -54,14 +54,14 @@ class DataAgent:
 
 You are a Data Schema Analyst for OmniRank, an expert in understanding structured data for spectral ranking analysis. You perform two critical functions:
 
-1. **Format Recognition**: Identify data structure (Pointwise, Pairwise, Multiway)
+1. **Format Recognition**: Identify data structure (Pairwise, Multiway)
 2. **Standardization Assessment**: Determine if data can be directly processed by the spectral engine
 
 # Knowledge Base
 
 ## Data Formats
 
-### Pointwise Format
+### Multiway Format
 - Dense numeric matrix where each row is a sample/observation
 - Columns represent items being ranked (e.g., models, products)
 - Cell values are scores/metrics for that item on that sample
@@ -201,7 +201,7 @@ You are a Data Validation Advisor who explains technical validation results in p
             logger.error(f"Failed to parse CSV: {e}")
             return (
                 InferredSchema(
-                    format=DataFormat.POINTWISE,
+                    format=DataFormat.MULTIWAY,
                     bigbetter=1,
                     ranking_items=[],
                     indicator_col=None,
@@ -231,7 +231,7 @@ You are a Data Validation Advisor who explains technical validation results in p
             
             # Hybrid Intelligence: Override LLM format if deterministic validation finds critical structure issues
             for w in warnings:
-                # If we identify that we don't have enough items to rank, it's INVALID, not Pointwise
+                # If we identify that we don't have enough items to rank, it's INVALID, not Multiway
                 if w.severity == "error" and "at least 2 ranking items" in w.message.lower():
                     logger.info("Overriding format to INVALID due to insufficient ranking items")
                     schema.format = DataFormat.INVALID
@@ -328,10 +328,10 @@ You are a Data Validation Advisor who explains technical validation results in p
 Perform two-stage analysis:
 
 ### Stage 1: Format Recognition
-1. FORMAT: Identify data structure (pointwise/pairwise/multiway/invalid) by checking:
+1. FORMAT: Identify data structure (pairwise/multiway/invalid) by checking:
    - INVALID IF: Only 1 numeric column exists (ranking requires >=2 items to compare)
    - Sparsity pattern (pairwise: exactly 2 non-null values per row)
-   - Value types (pairwise: 0/1 only; multiway: unique integers per row; pointwise: continuous scores)
+   - Value types (pairwise: 0/1 only; multiway rank: unique integers per row; multiway score: continuous scores)
    - Column structure and naming patterns
 
 ### Stage 2: Engine Compatibility Assessment
@@ -348,7 +348,7 @@ Perform two-stage analysis:
 
 Respond in EXACTLY this JSON format:
 {{
-    "format": "pointwise" | "pairwise" | "multiway" | "invalid",
+    "format": "pairwise" | "multiway" | "invalid",
     "format_reasoning": "Brief explanation of format detection logic",
     "engine_compatible": true | false,
     "standardization_needed": true | false,
@@ -400,7 +400,6 @@ Respond in EXACTLY this JSON format:
             
             # Convert to InferredSchema
             format_map = {
-                "pointwise": DataFormat.POINTWISE,
                 "pairwise": DataFormat.PAIRWISE,
                 "multiway": DataFormat.MULTIWAY,
             }
@@ -410,7 +409,7 @@ Respond in EXACTLY this JSON format:
                 indicator_values = df[result["indicator_col"]].dropna().unique().tolist()
             
             return InferredSchema(
-                format=format_map.get(result.get("format", "pointwise"), DataFormat.POINTWISE),
+                format=format_map.get(result.get("format", "multiway"), DataFormat.MULTIWAY),
                 bigbetter=result.get("bigbetter", 1),
                 ranking_items=result.get("ranking_items", []),
                 indicator_col=result.get("indicator_col"),
@@ -486,7 +485,7 @@ Respond in EXACTLY this JSON format:
         numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
         
         if len(numeric_cols) < 2:
-            return DataFormat.POINTWISE
+            return DataFormat.MULTIWAY
         
         numeric_df = df[numeric_cols]
         non_null_counts = numeric_df.notna().sum(axis=1)
@@ -500,7 +499,7 @@ Respond in EXACTLY this JSON format:
             if unique_values.issubset({0, 1, 0.0, 1.0}):
                 return DataFormat.PAIRWISE
         
-        return DataFormat.POINTWISE
+        return DataFormat.MULTIWAY
 
     def _infer_bigbetter_heuristic(
         self,

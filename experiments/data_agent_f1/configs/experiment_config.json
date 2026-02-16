@@ -5,9 +5,9 @@
   
   "evaluation_targets": {
     "format_detection": {
-      "description": "Correctly identify data format (pointwise/pairwise/multiway/invalid)",
+      "description": "Correctly identify data format (pairwise/multiway/invalid)",
       "metrics": ["accuracy", "precision", "recall", "f1"],
-      "labels": ["pointwise", "pairwise", "multiway", "invalid"]
+      "labels": ["pairwise", "multiway", "invalid"]
     },
     "engine_compatibility": {
       "description": "Correctly assess whether spectral engine can process data directly",

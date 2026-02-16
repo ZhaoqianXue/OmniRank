@@ -24,7 +24,7 @@ def _require_api_key() -> None:
 def test_online_infer_semantic_schema_llm(tmp_path: Path):
     _require_api_key()
 
-    csv_path = tmp_path / "online_pointwise.csv"
+    csv_path = tmp_path / "online_multiway_scores.csv"
     csv_path.write_text("sample,model_a,model_b,task\ns1,0.9,0.8,code\ns2,0.7,0.6,math\n", encoding="utf-8")
 
     summary_result = read_data_file(str(csv_path))
@@ -39,7 +39,7 @@ def test_online_infer_semantic_schema_llm(tmp_path: Path):
 
     assert schema_result.success is True
     assert schema_result.schema is not None
-    assert schema_result.format.value in {"pointwise", "pairwise", "multiway"}
+    assert schema_result.format.value in {"pairwise", "multiway"}
     assert len(schema_result.schema.ranking_items) >= 2
     assert schema_result.schema.bigbetter in {0, 1}
 

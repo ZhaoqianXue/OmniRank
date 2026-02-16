@@ -83,10 +83,10 @@ class EngineOrchestrator:
         
         # Get schema info
         schema = session.inferred_schema
-        data_format = schema.format if schema else DataFormat.POINTWISE
+        data_format = schema.format if schema else DataFormat.MULTIWAY
         
-        if data_format == DataFormat.POINTWISE:
-            # Pointwise: columns are items, filter columns
+        if data_format == DataFormat.MULTIWAY:
+            # Multiway: columns are items, filter columns
             if config.selected_items:
                 # Keep only selected item columns (preserve non-item columns like indicators)
                 all_items = schema.ranking_items if schema else []

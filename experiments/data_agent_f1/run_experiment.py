@@ -57,7 +57,7 @@ logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Labels
-FORMAT_LABELS = ["pointwise", "pairwise", "multiway", "invalid"]
+FORMAT_LABELS = ["pairwise", "multiway", "invalid"]
 COMPAT_LABELS = ["compatible", "incompatible"]
 ACTION_LABELS = ["none", "standardize", "reject"]
 
@@ -204,9 +204,9 @@ class RuleBasedDetector:
                 needs_std = True
                 break
         
-        # Default: pointwise
+        # Default: multiway
         return {
-            "format": "pointwise",
+            "format": "multiway",
             "engine_compatible": not needs_std,
             "standardization_action": "standardize" if needs_std else "none",
             "reason": "default_dense_numeric",

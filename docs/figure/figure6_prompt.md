@@ -51,7 +51,7 @@ LEFT side - Upload Area:
 RIGHT side - Schema Display:
 - Card titled "Inferred Schema"
 - Content rows:
-  - "Format: Pointwise" (with green checkmark)
+  - "Format: Multiway" (with green checkmark)
   - "Items: 8 models detected"
   - "Indicator: Task (5 categories)"
   - "Direction: Higher is better"

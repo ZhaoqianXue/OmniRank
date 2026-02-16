@@ -3,7 +3,7 @@
 Comprehensive Test Suite for Function 1: Format Recognition & Standardization.
 
 This script tests the Data Agent's ability to:
-1. Correctly identify data formats (Pointwise, Pairwise, Multiway)
+1. Correctly identify data formats (Pairwise, Multiway)
 2. Assess engine compatibility
 3. Trigger standardization only when necessary
 4. Infer correct bigbetter direction
@@ -67,26 +67,26 @@ def define_test_cases(base_dir: Path) -> list[TestCase]:
     
     test_cases = [
         # =====================================================================
-        # Pointwise Format Tests
+        # Multiway Format Tests
         # =====================================================================
         TestCase(
-            name="pointwise_llm_benchmark",
-            filepath=base_dir / "pointwise" / "standard_llm_benchmark.csv",
-            expected_format=DataFormat.POINTWISE,
+            name="multiway_llm_benchmark",
+            filepath=base_dir / "multiway" / "standard_llm_benchmark.csv",
+            expected_format=DataFormat.MULTIWAY,
             expected_bigbetter=1,  # Accuracy scores, higher is better
             description="Standard LLM benchmark with accuracy scores [0,1]"
         ),
         TestCase(
-            name="pointwise_product_ratings",
-            filepath=base_dir / "pointwise" / "product_ratings.csv",
-            expected_format=DataFormat.POINTWISE,
+            name="multiway_product_ratings",
+            filepath=base_dir / "multiway" / "product_ratings.csv",
+            expected_format=DataFormat.MULTIWAY,
             expected_bigbetter=1,  # Ratings, higher is better
             description="Product ratings [1,5] scale"
         ),
         TestCase(
-            name="pointwise_latency",
-            filepath=base_dir / "pointwise" / "latency_measurements.csv",
-            expected_format=DataFormat.POINTWISE,
+            name="multiway_latency",
+            filepath=base_dir / "multiway" / "latency_measurements.csv",
+            expected_format=DataFormat.MULTIWAY,
             expected_bigbetter=0,  # Latency, lower is better
             description="Server latency measurements (lower is better)"
         ),
@@ -147,7 +147,7 @@ def define_test_cases(base_dir: Path) -> list[TestCase]:
         TestCase(
             name="edge_columns_with_spaces",
             filepath=base_dir / "edge_cases" / "columns_with_spaces.csv",
-            expected_format=DataFormat.POINTWISE,
+            expected_format=DataFormat.MULTIWAY,
             expected_bigbetter=1,
             expected_engine_compatible=False,  # Spaces in column names
             expected_standardization_needed=True,
@@ -156,7 +156,7 @@ def define_test_cases(base_dir: Path) -> list[TestCase]:
         TestCase(
             name="edge_special_chars",
             filepath=base_dir / "edge_cases" / "columns_with_special_chars.csv",
-            expected_format=DataFormat.POINTWISE,
+            expected_format=DataFormat.MULTIWAY,
             expected_bigbetter=1,
             expected_engine_compatible=False,  # Special chars in column names
             expected_standardization_needed=True,
@@ -165,28 +165,28 @@ def define_test_cases(base_dir: Path) -> list[TestCase]:
         TestCase(
             name="edge_minimal_data",
             filepath=base_dir / "edge_cases" / "minimal_data.csv",
-            expected_format=DataFormat.POINTWISE,
+            expected_format=DataFormat.MULTIWAY,
             expected_bigbetter=1,
             description="Minimal valid data (2 columns, 5 rows)"
         ),
         TestCase(
             name="edge_ambiguous_format",
             filepath=base_dir / "edge_cases" / "ambiguous_format.csv",
-            expected_format=DataFormat.POINTWISE,  # Most likely interpretation
+            expected_format=DataFormat.MULTIWAY,  # Most likely interpretation
             expected_bigbetter=1,  # Ratings interpretation
-            description="Ambiguous data that could be pointwise or multiway"
+            description="Ambiguous data that could be multiway or multiway"
         ),
         TestCase(
             name="edge_mixed_numeric",
             filepath=base_dir / "edge_cases" / "mixed_numeric_types.csv",
-            expected_format=DataFormat.POINTWISE,
+            expected_format=DataFormat.MULTIWAY,
             expected_bigbetter=1,
             description="Mixed integer and float numeric columns"
         ),
         TestCase(
             name="edge_many_non_numeric",
             filepath=base_dir / "edge_cases" / "many_non_numeric_columns.csv",
-            expected_format=DataFormat.POINTWISE,
+            expected_format=DataFormat.MULTIWAY,
             expected_bigbetter=1,
             description="Many non-numeric columns (engine should auto-filter)"
         ),

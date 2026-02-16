@@ -11,7 +11,6 @@ from pydantic import BaseModel, ConfigDict, Field
 class ComparisonFormat(str, Enum):
     """Supported comparison formats."""
 
-    POINTWISE = "pointwise"
     PAIRWISE = "pairwise"
     MULTIWAY = "multiway"
 

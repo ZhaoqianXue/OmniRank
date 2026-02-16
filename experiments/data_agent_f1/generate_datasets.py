@@ -10,7 +10,7 @@ Generates realistic test datasets across five difficulty categories:
 - Real-world: Formats based on actual internet data sources
 
 Each dataset has ground truth labels for:
-- expected_format: pointwise|pairwise|multiway|invalid
+- expected_format: pairwise|multiway|invalid
 - expected_engine_compatible: whether spectral engine can process directly
 - expected_standardization_action: none|standardize|reject
 - difficulty: easy|medium|hard
@@ -53,9 +53,9 @@ def print_progress(current: int, total: int, category: str, message: str):
 # Category A: Standard Datasets (Clean, Unambiguous)
 # =============================================================================
 
-def generate_standard_pointwise(dataset_id: int) -> tuple[pd.DataFrame, dict]:
+def generate_standard_multiway(dataset_id: int) -> tuple[pd.DataFrame, dict]:
     """
-    Standard pointwise: Dense numeric matrix, clear column names.
+    Standard multiway: Dense numeric matrix, clear column names.
     Difficulty: EASY - should be correctly identified.
     """
     n_items = random.randint(4, 12)
@@ -90,9 +90,9 @@ def generate_standard_pointwise(dataset_id: int) -> tuple[pd.DataFrame, dict]:
     df = df[cols]
     
     return df, {
-        "dataset_id": f"std_pointwise_{dataset_id:02d}",
+        "dataset_id": f"std_multiway_{dataset_id:02d}",
         "category": "standard",
-        "expected_format": "pointwise",
+        "expected_format": "multiway",
         "expected_engine_compatible": True,
         "expected_standardization_action": "none",
         "difficulty": "easy",
@@ -200,10 +200,10 @@ def generate_standard_multiway(dataset_id: int) -> tuple[pd.DataFrame, dict]:
 # Category B: Ambiguous Datasets (Edge Cases)
 # =============================================================================
 
-def generate_ambiguous_pointwise_sparse(dataset_id: int) -> tuple[pd.DataFrame, dict]:
+def generate_ambiguous_multiway_sparse(dataset_id: int) -> tuple[pd.DataFrame, dict]:
     """
-    Pointwise with some missing values - could look like pairwise.
-    Difficulty: MEDIUM - has some NaN values but is still pointwise.
+    Multiway with some missing values - could look like pairwise.
+    Difficulty: MEDIUM - has some NaN values but is still multiway.
     """
     n_items = random.randint(5, 10)
     n_samples = random.randint(40, 150)
@@ -223,14 +223,14 @@ def generate_ambiguous_pointwise_sparse(dataset_id: int) -> tuple[pd.DataFrame, 
     df = pd.DataFrame(data)
     
     return df, {
-        "dataset_id": f"amb_pointwise_sparse_{dataset_id:02d}",
+        "dataset_id": f"amb_multiway_sparse_{dataset_id:02d}",
         "category": "ambiguous",
-        "expected_format": "pointwise",
+        "expected_format": "multiway",
         "expected_engine_compatible": True,
         "expected_standardization_action": "none",
         "difficulty": "medium",
         "sparsity_percent": random.uniform(15, 30),
-        "description": "Pointwise with missing values - could be confused with pairwise",
+        "description": "Multiway with missing values - could be confused with pairwise",
     }
 
 
@@ -273,7 +273,7 @@ def generate_ambiguous_small_multiway(dataset_id: int) -> tuple[pd.DataFrame, di
 
 def generate_ambiguous_mixed_scale(dataset_id: int) -> tuple[pd.DataFrame, dict]:
     """
-    Pointwise with different value scales per column (percentages vs decimals).
+    Multiway with different value scales per column (percentages vs decimals).
     Difficulty: MEDIUM - values have different scales.
     """
     n_items = random.randint(4, 8)
@@ -298,18 +298,18 @@ def generate_ambiguous_mixed_scale(dataset_id: int) -> tuple[pd.DataFrame, dict]
     return df, {
         "dataset_id": f"amb_mixed_scale_{dataset_id:02d}",
         "category": "ambiguous",
-        "expected_format": "pointwise",
+        "expected_format": "multiway",
         "expected_engine_compatible": True,
         "expected_standardization_action": "none",
         "difficulty": "medium",
-        "description": "Pointwise with mixed scales (0-1 and 0-100)",
+        "description": "Multiway with mixed scales (0-1 and 0-100)",
     }
 
 
-def generate_ambiguous_binary_pointwise(dataset_id: int) -> tuple[pd.DataFrame, dict]:
+def generate_ambiguous_binary_multiway(dataset_id: int) -> tuple[pd.DataFrame, dict]:
     """
-    Pointwise with binary values (success/failure counts) - looks like pairwise.
-    Difficulty: HARD - all values are 0/1 but it's actually pointwise.
+    Multiway with binary values (success/failure counts) - looks like pairwise.
+    Difficulty: HARD - all values are 0/1 but it's actually multiway.
     """
     n_items = random.randint(5, 10)
     n_samples = random.randint(60, 200)
@@ -328,11 +328,11 @@ def generate_ambiguous_binary_pointwise(dataset_id: int) -> tuple[pd.DataFrame, 
     return df, {
         "dataset_id": f"amb_binary_{dataset_id:02d}",
         "category": "ambiguous",
-        "expected_format": "pointwise",
+        "expected_format": "multiway",
         "expected_engine_compatible": True,
         "expected_standardization_action": "none",
         "difficulty": "hard",
-        "description": "Binary success/failure pointwise - could be confused with pairwise",
+        "description": "Binary success/failure multiway - could be confused with pairwise",
     }
 
 
@@ -340,9 +340,9 @@ def generate_ambiguous_binary_pointwise(dataset_id: int) -> tuple[pd.DataFrame, 
 # Category C: Transposed Datasets
 # =============================================================================
 
-def generate_transposed_pointwise(dataset_id: int) -> tuple[pd.DataFrame, dict]:
+def generate_transposed_multiway(dataset_id: int) -> tuple[pd.DataFrame, dict]:
     """
-    Pointwise with items as rows and samples as columns.
+    Multiway with items as rows and samples as columns.
     This is a transposed structure - items should be columns.
     Difficulty: HARD - requires recognizing transposition.
     """
@@ -363,14 +363,14 @@ def generate_transposed_pointwise(dataset_id: int) -> tuple[pd.DataFrame, dict]:
     df = pd.DataFrame(data)
     
     return df, {
-        "dataset_id": f"trans_pointwise_{dataset_id:02d}",
+        "dataset_id": f"trans_multiway_{dataset_id:02d}",
         "category": "transposed",
-        "expected_format": "pointwise",  # After transposition
+        "expected_format": "multiway",  # After transposition
         "expected_engine_compatible": True,  # Can process as-is
         "expected_standardization_action": "none",  # Engine may handle it
         "difficulty": "hard",
         "actual_structure": "items_as_rows",
-        "description": "Transposed pointwise - items as rows, samples as columns",
+        "description": "Transposed multiway - items as rows, samples as columns",
     }
 
 
@@ -481,7 +481,7 @@ def generate_invalid_empty_or_tiny(dataset_id: int) -> tuple[pd.DataFrame, dict]
     return df, {
         "dataset_id": f"inv_tiny_{dataset_id:02d}",
         "category": "invalid",
-        "expected_format": "pointwise",  # Structure is recognizable
+        "expected_format": "multiway",  # Structure is recognizable
         "expected_engine_compatible": False,
         "expected_standardization_action": "reject",
         "difficulty": "medium",
@@ -587,7 +587,7 @@ def generate_realworld_tennis_matches(dataset_id: int) -> tuple[pd.DataFrame, di
 def generate_realworld_product_ratings(dataset_id: int) -> tuple[pd.DataFrame, dict]:
     """
     E-commerce product ratings format (like Amazon, Kaggle datasets).
-    Real-world pointwise format with messy column names and mixed types.
+    Real-world multiway format with messy column names and mixed types.
     """
     n_products = random.randint(5, 15)
     n_reviews = random.randint(50, 200)
@@ -608,7 +608,7 @@ def generate_realworld_product_ratings(dataset_id: int) -> tuple[pd.DataFrame, d
     return df, {
         "dataset_id": f"real_product_{dataset_id:02d}",
         "category": "realworld",
-        "expected_format": "pointwise",
+        "expected_format": "multiway",
         "expected_engine_compatible": False,  # Column names have spaces/special chars
         "expected_standardization_action": "standardize",
         "difficulty": "medium",
@@ -695,7 +695,7 @@ def generate_realworld_benchmark_messy(dataset_id: int) -> tuple[pd.DataFrame, d
     return df, {
         "dataset_id": f"real_benchmark_{dataset_id:02d}",
         "category": "realworld",
-        "expected_format": "pointwise",
+        "expected_format": "multiway",
         "expected_engine_compatible": False,  # Column names have special chars
         "expected_standardization_action": "standardize",
         "difficulty": "medium",
@@ -708,7 +708,7 @@ def generate_realworld_benchmark_messy(dataset_id: int) -> tuple[pd.DataFrame, d
 def generate_realworld_survey_likert(dataset_id: int) -> tuple[pd.DataFrame, dict]:
     """
     Survey data with Likert scale responses (1-5 or 1-7).
-    Real-world pointwise format from survey platforms.
+    Real-world multiway format from survey platforms.
     """
     n_items = random.randint(4, 10)
     n_respondents = random.randint(50, 300)
@@ -731,7 +731,7 @@ def generate_realworld_survey_likert(dataset_id: int) -> tuple[pd.DataFrame, dic
     return df, {
         "dataset_id": f"real_survey_{dataset_id:02d}",
         "category": "realworld",
-        "expected_format": "pointwise",
+        "expected_format": "multiway",
         "expected_engine_compatible": True,
         "expected_standardization_action": "none",
         "difficulty": "easy",
@@ -803,18 +803,18 @@ def generate_realworld_chess_elo(dataset_id: int) -> tuple[pd.DataFrame, dict]:
 
 GENERATORS = {
     "standard": [
-        (generate_standard_pointwise, 3),
+        (generate_standard_multiway, 3),
         (generate_standard_pairwise, 3),
         (generate_standard_multiway, 3),
     ],
     "ambiguous": [
-        (generate_ambiguous_pointwise_sparse, 2),
+        (generate_ambiguous_multiway_sparse, 2),
         (generate_ambiguous_small_multiway, 2),
         (generate_ambiguous_mixed_scale, 2),
-        (generate_ambiguous_binary_pointwise, 2),
+        (generate_ambiguous_binary_multiway, 2),
     ],
     "transposed": [
-        (generate_transposed_pointwise, 2),
+        (generate_transposed_multiway, 2),
         (generate_transposed_multiway, 2),
     ],
     "invalid": [

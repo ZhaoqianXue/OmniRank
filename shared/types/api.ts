@@ -3,7 +3,7 @@
  * Contract-first shared types for frontend and backend.
  */
 
-export type ComparisonFormat = "pointwise" | "pairwise" | "multiway";
+export type ComparisonFormat = "pairwise" | "multiway";
 
 export interface DataSummary {
   columns: string[];

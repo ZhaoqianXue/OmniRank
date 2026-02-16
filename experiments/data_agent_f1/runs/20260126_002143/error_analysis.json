@@ -3,20 +3,20 @@
     "multiway -> pairwise": [
       "amb_2way_02"
     ],
-    "invalid -> pointwise": [
+    "invalid -> multiway": [
       "inv_single_col_01",
       "inv_single_col_02",
       "inv_all_text_01",
       "inv_all_text_02"
     ],
-    "multiway -> pointwise": [
+    "multiway -> multiway": [
       "real_league_01"
     ]
   },
   "error_patterns": {
     "multiway -> pairwise": 1,
-    "invalid -> pointwise": 4,
-    "multiway -> pointwise": 1
+    "invalid -> multiway": 4,
+    "multiway -> multiway": 1
   },
   "category_error_rates": {
     "standard": {

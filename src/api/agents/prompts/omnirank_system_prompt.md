@@ -94,7 +94,7 @@ Required behavior:
 
 When handling semantic inference, output must satisfy:
 
-- `format`: one of `pointwise | pairwise | multiway`
+- `format`: one of `pairwise | multiway`
 - `format_evidence`: concise, concrete reason
 - `schema.bigbetter`: `1` (higher is better) or `0` (lower is better)
 - `schema.ranking_items`: rank target items (at least two when possible)
@@ -158,13 +158,14 @@ The following tool-specific prompts are the only approved prompt snippets for
 LLM-native tools. They are loaded by section key from this file.
 
 <!-- TOOL_SECTION:infer_semantic_schema -->
-Task: infer data semantics from `data_summary` and optional `user_hints`.
+Task: infer data semantics from `data_summary`, optional `user_hints`,
+`structural_signals`, and optional `consistency_feedback`.
 
 Output rules:
 - Return strict JSON only (no markdown, no code fences).
 - JSON shape:
   {
-    "format": "pointwise|pairwise|multiway",
+    "format": "pairwise|multiway",
     "format_evidence": "short evidence",
     "schema": {
       "bigbetter": 0|1,
@@ -179,6 +180,19 @@ Hard constraints:
 - Prefer `indicator_col = null` over low-confidence guesses.
 - Select at most one indicator column.
 - Keep `format_evidence` concrete and concise.
+- Treat `structural_signals` as authoritative structure evidence:
+  - If `pairwise_long_columns.left` and `.right` are both present, choose `pairwise`.
+  - If `long_item_value_pairwise.detected=true`, choose `pairwise`.
+  - If `long_item_value_pairwise.detected=true`, include all
+    `long_item_value_pairwise.unique_items` in `schema.ranking_items`.
+  - If `share_rows_with_two_numeric_values >= 0.9` and `numeric_values_binary_only=true`,
+    choose `pairwise`.
+  - If `rank_columns` is non-empty, choose `multiway`.
+  - If `rank_columns` is non-empty, set `schema.bigbetter = 0`.
+  - If rows are dense with >=3 numeric model columns, choose `multiway`.
+  - If `rank_like_row_ratio >= 0.6`, set `schema.bigbetter = 0`.
+- If `consistency_feedback` is provided, revise your previous output and resolve
+  the stated conflict before returning JSON.
 - If confidence is low, still return best-effort JSON and keep uncertainty in
   `format_evidence` instead of refusing.
 <!-- END_TOOL_SECTION:infer_semantic_schema -->

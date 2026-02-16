@@ -45,7 +45,10 @@ router = APIRouter(tags=["omnirank"])
 EXAMPLE_DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "examples"
 EXAMPLE_DATASETS: dict[str, str] = {
     "pairwise": "example_data_pairwise.csv",
-    "pointwise": "example_data_pointwise.csv",
+    "pairwise_human_logs": "example_data_pairwise_human_logs.csv",
+    "multiway_scores": "example_data_multiway_scores.csv",
+    "multiway_latency": "example_data_multiway_latency.csv",
+    "multiway_rank_columns": "example_data_multiway_rank_columns.csv",
     "multiway": "example_data_multiway.csv",
 }
 

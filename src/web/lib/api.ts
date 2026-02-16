@@ -151,7 +151,7 @@ export interface ExampleDataInfo {
   filename: string;
   title: string;
   description: string;
-  format: "pointwise" | "pairwise" | "multiway";
+  format: "pairwise" | "multiway";
 }
 
 export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
@@ -170,28 +170,68 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     format: "pairwise",
   },
   {
-    id: "pointwise",
-    filename: "example_data_pointwise.csv",
-    title: "Model Performance Scores",
+    id: "pairwise_human_logs",
+    filename: "example_data_pairwise_human_logs.csv",
+    title: "Pairwise: Human Preference Logs",
     description:
-      "Performance scores from testing 6 machine learning models. " +
-      "Each row is one test sample, showing how well each model performed (0-1 scale, higher is better). " +
+      "Raw human preference logs in long format. " +
+      "Each comparison has two rows (one per assistant) with value=1 for winner and value=0 for loser. " +
+      "• Items to rank: Orion, Astra, Nova, Pulse, Zenith, Nimbus (6 assistants) " +
+      "• Task types: coding, math, reasoning, safety " +
+      "• 5,040 comparisons / 10,080 log rows " +
+      "• OmniRank auto-preprocesses long logs to ranking-ready pairwise matrix " +
+      "• Goal: Rank assistants from preference outcomes",
+    format: "pairwise",
+  },
+  {
+    id: "multiway_scores",
+    filename: "example_data_multiway_scores.csv",
+    title: "Model Performance Matrix",
+    description:
+      "Side-by-side performance comparisons across 6 machine learning models on shared samples. " +
+      "Each row is one sample with all model values (0-1 scale, higher is better). " +
       "• Items to rank: model_1 through model_6 (6 ML models) " +
-      "• 165 test samples " +
-      "• Values: Accuracy scores from 0 to 1 " +
-      "• Goal: Find which model performs best across all test cases",
-    format: "pointwise",
+      "• 164 test samples " +
+      "• Values: Per-sample evaluation metrics from 0 to 1 " +
+      "• Goal: Find which model performs best overall",
+    format: "multiway",
+  },
+  {
+    id: "multiway_latency",
+    filename: "example_data_multiway_latency.csv",
+    title: "Multiway: System Latency Matrix",
+    description:
+      "Latency benchmarks across six systems under multiple workload scenarios. " +
+      "Each row contains all system latencies for one workload (milliseconds, lower is better). " +
+      "• Items to rank: latency_alpha through latency_zeta (6 systems) " +
+      "• Scenarios: short_context, medium_context, long_context, tool_heavy " +
+      "• 920 workloads " +
+      "• Goal: Identify the fastest system overall and by scenario",
+    format: "multiway",
+  },
+  {
+    id: "multiway_rank_columns",
+    filename: "example_data_multiway_rank_columns.csv",
+    title: "Multiway: Rank-Order Tournaments",
+    description:
+      "Tournament outcomes stored as rank_1 to rank_6 columns. " +
+      "Each row records a full ordering of six candidates for one match. " +
+      "• Items to rank: Alpha, Beta, Gamma, Delta, Epsilon, Zeta " +
+      "• Domains: coding, math, reasoning, safety " +
+      "• 560 matches " +
+      "• Goal: Estimate robust ordering from full rank outcomes",
+    format: "multiway",
   },
   {
     id: "multiway",
     filename: "example_data_multiway.csv",
-    title: "Horse Racing Results",
+    title: "Multiway: Horse Racing Results",
     description:
       "Finish positions from horse races. " +
       "Each row is one race, showing where each horse finished (1st, 2nd, 3rd, etc.). " +
       "• Items to rank: Horse_A through Horse_F (6 horses) " +
       "• Track types: grass, dirt (can filter rankings by track) " +
-      "• 150 races " +
+      "• 620 races " +
       "• Values: Finish positions (1 = first place, lower is better) " +
       "• Goal: Find which horse is the best overall or per track type",
     format: "multiway",

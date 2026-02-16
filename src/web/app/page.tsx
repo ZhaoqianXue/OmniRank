@@ -34,7 +34,7 @@ const workflowSteps: WorkflowStep[] = [
   {
     title: "Upload Your Data",
     description:
-      "Upload your comparison data directly into OmniRank. The platform supports CSV files with various comparison formats including pointwise scores, pairwise outcomes, and multiway rankings.",
+      "Upload your comparison data directly into OmniRank. The platform supports CSV files with pairwise outcomes and multiway rankings.",
   },
   {
     title: "AI-Powered Schema Inference",

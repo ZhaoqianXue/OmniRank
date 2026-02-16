@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import time
 
+import pytest
 from fastapi.testclient import TestClient
 
 from api import routes as api_routes
@@ -41,7 +43,7 @@ def test_full_pipeline_upload_infer_confirm_run_question(monkeypatch):
     monkeypatch.setattr("core.r_executor.RScriptExecutor.run", fake_run)
     client = TestClient(app)
 
-    upload = client.post("/api/upload/example/pointwise")
+    upload = client.post("/api/upload/example/multiway_scores")
     assert upload.status_code == 200
     session_id = upload.json()["session_id"]
 
@@ -117,6 +119,74 @@ def test_full_pipeline_upload_infer_confirm_run_question(monkeypatch):
     answer = qa.json()["answer"]
     assert "answer" in answer
     assert quote_block_id in answer["used_citation_block_ids"]
+
+
+@pytest.mark.parametrize(
+    ("example_id", "expected_format", "expected_bigbetter"),
+    [
+        ("pairwise", "pairwise", 1),
+        ("pairwise_human_logs", "pairwise", 1),
+        ("multiway_scores", "multiway", 1),
+        ("multiway_latency", "multiway", 0),
+        ("multiway_rank_columns", "multiway", 0),
+        ("multiway", "multiway", 0),
+    ],
+)
+def test_example_upload_infer_format_is_stable(example_id: str, expected_format: str, expected_bigbetter: int):
+    client = TestClient(app)
+
+    upload = client.post(f"/api/upload/example/{example_id}")
+    assert upload.status_code == 200
+    session_id = upload.json()["session_id"]
+
+    infer = client.post(f"/api/sessions/{session_id}/infer", json={"user_hints": None})
+    assert infer.status_code == 200
+    body = infer.json()
+
+    assert body["success"] is True
+    assert body["schema_result"]["format"] == expected_format
+    assert body["schema_result"]["schema"]["bigbetter"] == expected_bigbetter
+    if example_id == "pairwise_human_logs":
+        schema = body["schema_result"]["schema"]
+        assert sorted(schema["ranking_items"]) == ["Astra", "Nimbus", "Nova", "Orion", "Pulse", "Zenith"]
+        assert schema["indicator_col"] == "task"
+        assert sorted(schema["indicator_values"]) == ["coding", "math", "reasoning", "safety"]
+
+
+@pytest.mark.parametrize(
+    ("example_id", "expect_preprocessed_file"),
+    [
+        ("pairwise", False),
+        ("pairwise_human_logs", True),
+        ("multiway_scores", False),
+        ("multiway_latency", False),
+        ("multiway_rank_columns", True),
+        ("multiway", False),
+    ],
+)
+def test_example_infer_pipeline_produces_runnable_data(example_id: str, expect_preprocessed_file: bool):
+    client = TestClient(app)
+
+    upload = client.post(f"/api/upload/example/{example_id}")
+    assert upload.status_code == 200
+    session_id = upload.json()["session_id"]
+
+    infer = client.post(f"/api/sessions/{session_id}/infer", json={"user_hints": None})
+    assert infer.status_code == 200
+    body = infer.json()
+
+    assert body["success"] is True
+    assert body["requires_confirmation"] is True
+    assert body["format_result"]["is_ready"] is True
+    assert body["quality_result"]["is_valid"] is True
+
+    preprocessed_path = body["preprocessed_path"]
+    assert isinstance(preprocessed_path, str)
+    assert preprocessed_path
+    assert Path(preprocessed_path).exists()
+
+    if expect_preprocessed_file:
+        assert preprocessed_path.endswith("preprocessed.csv")
 
 
 def test_reject_confirmation_then_reinfer_with_hints(monkeypatch):
@@ -196,7 +266,7 @@ def test_async_run_start_and_status(monkeypatch):
     monkeypatch.setattr(api_routes.agent, "run", fake_async_run)
     client = TestClient(app)
 
-    upload = client.post("/api/upload/example/pointwise")
+    upload = client.post("/api/upload/example/multiway_scores")
     assert upload.status_code == 200
     session_id = upload.json()["session_id"]
 

@@ -3,7 +3,7 @@
 Generate high-quality test datasets for Function 1: Format Recognition & Standardization.
 
 This script creates diverse test cases to validate:
-1. Format Recognition (Pointwise, Pairwise, Multiway)
+1. Format Recognition (Pairwise, Multiway)
 2. Engine Compatibility Assessment
 3. Conditional Standardization Triggers
 
@@ -23,14 +23,14 @@ np.random.seed(42)
 BASE_DIR = Path(__file__).parent
 
 
-def generate_pointwise_datasets():
-    """Generate Pointwise format test datasets."""
-    output_dir = BASE_DIR / "pointwise"
+def generate_multiway_datasets():
+    """Generate Multiway format test datasets."""
+    output_dir = BASE_DIR / "multiway"
     output_dir.mkdir(exist_ok=True)
     
     # =========================================================================
     # Dataset 1: Standard LLM Benchmark Scores
-    # - Clear pointwise format
+    # - Clear multiway format
     # - Column names indicate models
     # - Values are accuracy scores [0, 1]
     # =========================================================================
@@ -331,9 +331,9 @@ def generate_edge_case_datasets():
     print(f"Created: {output_dir / 'minimal_data.csv'}")
     
     # =========================================================================
-    # Edge Case 4: Ambiguous Format (Could be Pointwise or Multiway)
+    # Edge Case 4: Ambiguous Format (Could be Multiway or Multiway)
     # - Dense matrix with integers 1-5
-    # - Could be ratings (pointwise) or partial ranks (multiway)
+    # - Could be ratings (multiway) or partial ranks (multiway)
     # =========================================================================
     n_samples = 40
     data = {
@@ -393,8 +393,8 @@ def main():
     
     total = 0
     
-    print("\n--- Pointwise Datasets ---")
-    total += generate_pointwise_datasets()
+    print("\n--- Multiway Datasets ---")
+    total += generate_multiway_datasets()
     
     print("\n--- Pairwise Datasets ---")
     total += generate_pairwise_datasets()

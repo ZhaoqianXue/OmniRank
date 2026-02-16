@@ -27,7 +27,7 @@ import type {
 
 interface RankingPreviewBubbleProps {
   schema: SemanticSchema;
-  detectedFormat?: "pointwise" | "pairwise" | "multiway";
+  detectedFormat?: "pairwise" | "multiway";
   formatResult?: FormatValidationResult | null;
   qualityResult?: QualityValidationResult | null;
   warnings?: ValidationWarning[];
@@ -240,7 +240,7 @@ export function RankingPreviewBubble({
             <Section title="Ranking Overview">
               <DisplayRow
                 label="Data Format"
-                valueHelpText="How this dataset encodes comparisons: pointwise scores, pairwise matchups, or multiway rankings."
+                valueHelpText="How this dataset encodes comparisons: pairwise matchups or multiway rankings."
               >
                 {detectedFormat || "inferred"}
               </DisplayRow>

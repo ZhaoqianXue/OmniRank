@@ -2,18 +2,17 @@
 
 import { useEffect } from "react";
 
+type MaterialSymbolProps = Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> & {
+  icon: string;
+};
+
 // Ensure Material Symbols font is loaded
 export function MaterialSymbol({ 
   icon, 
   className = "", 
   style = {},
   ...props 
-}: { 
-  icon: string; 
-  className?: string;
-  style?: React.CSSProperties;
-  [key: string]: any;
-}) {
+}: MaterialSymbolProps) {
   useEffect(() => {
     // Dynamically load Material Symbols font if not already loaded
     const linkId = "material-symbols-font";

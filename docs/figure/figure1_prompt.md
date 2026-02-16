@@ -42,7 +42,7 @@ The diagram is organized vertically in 5 horizontal bands:
 - Small labels showing supported formats: "CSV", "Excel"
 - Arrow labeled "Raw Comparison Data" pointing downward to Data Agent
 - Text annotation showing data types:
-  - "Pointwise: Model × Task scores"
+  - "Multiway: Model × Task scores"
   - "Pairwise: Head-to-head results"
   - "Multiway: Top-k rankings"
 
@@ -53,7 +53,7 @@ The diagram is organized vertically in 5 horizontal bands:
   LEFT sub-module: Format Recognition
   - Magnifying glass icon over table
   - Label: "Format Recognition"
-  - Output classification: "pointwise / pairwise / multiway / invalid"
+  - Output classification: "pairwise / multiway / invalid"
   
   CENTER sub-module: Validation Engine
   - Checkmark in shield icon
