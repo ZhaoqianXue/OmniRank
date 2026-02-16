@@ -3,6 +3,10 @@
 .env.local
 .env*.local
 
+# Secrets (never commit)
+.secrets/
+client_secret*.json
+
 # Python
 __pycache__/
 *.pyc
