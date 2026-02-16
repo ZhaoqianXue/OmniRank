@@ -48,12 +48,12 @@ export interface ChatMessage {
   agent?: "data" | "orchestrator" | "analyst";
   type?: "text" | "assistant-thinking" | "data-agent-working" | "ranking-config" | "analysis-complete";
   configData?: {
-      schema: SemanticSchema;
-      warnings: ValidationWarning[];
-      formatResult?: FormatValidationResult | null;
-      qualityResult?: QualityValidationResult | null;
-      detectedFormat?: "pairwise" | "multiway";
-    };
+    schema: SemanticSchema;
+    warnings: ValidationWarning[];
+    formatResult?: FormatValidationResult | null;
+    qualityResult?: QualityValidationResult | null;
+    detectedFormat?: "pairwise" | "multiway";
+  };
   workingData?: {
     completedSteps: number;
     totalSteps: number;
@@ -483,6 +483,9 @@ export function useOmniRank() {
 
         const normalized = normalizeRunResponse(run);
         const snapshot = await getSessionSnapshot(state.sessionId);
+        const rankingItems = normalized.rankingResults?.items ?? [];
+        const topItem = rankingItems[0]?.name ?? "the top item";
+        const runnerUpItem = rankingItems[1]?.name ?? "the runner-up";
 
         setState((prev) => ({
           ...prev,
@@ -500,10 +503,10 @@ export function useOmniRank() {
           type: "analysis-complete",
           analysisCompleteData: {
             suggestedQuestions: [
-              "What is the key takeaway from this ranking?",
-              "Which items are likely in the same uncertainty tier?",
-              "How robust is the top-vs-runner-up ordering under CI overlap?",
-              "What is the highest-priority action I should take from this result?",
+              `Why is ${topItem} ranked first?`,
+              `Is ${topItem} really better than ${runnerUpItem}, or is it too close to tell?`,
+              "Which items are practically tied?",
+              "What should I do based on these results?",
             ],
           },
         });

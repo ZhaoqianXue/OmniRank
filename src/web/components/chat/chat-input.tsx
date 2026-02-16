@@ -80,34 +80,32 @@ function inferIntent(raw: string): SuggestIntent {
   return "general";
 }
 
-function draftDrivenQuestion(
-  draft: string,
+/**
+ * Returns intent-appropriate pre-written questions without embedding raw draft text.
+ * Uses detected intent to surface the most relevant question from a curated pool,
+ * following SOP rule R12: never output the raw unfinished fragment unchanged.
+ */
+function getIntentQuestions(
   intent: SuggestIntent,
   topItem: string,
-  secondItem: string
-): string {
-  const trimmed = draft.trim();
-  if (!trimmed) return "";
-  if (trimmed.includes("?")) return trimmed;
-
+  secondItem: string,
+): string[] {
   switch (intent) {
     case "comparison":
-      return `Can you evaluate "${trimmed}" with rank evidence and integer CI bounds`;
+      return topItem && secondItem
+        ? [`Is ${topItem} really better than ${secondItem}, or is it too close to tell`]
+        : ["How do I compare two items in my ranking"];
     case "uncertainty":
-      return `What uncertainty should I account for regarding "${trimmed}"`;
+      return ["How sure can I be about the ranking order"];
     case "method":
-      return `Can you explain "${trimmed}" and cite the key spectral ranking paper`;
+      return ["How does the spectral ranking method work in simple terms"];
     case "data-prep":
-      return `For "${trimmed}", what data/schema setup should I confirm first`;
+      return ["What data format does OmniRank need"];
     case "error-fix":
-      return `For "${trimmed}", what is the fastest concrete fix`;
+      return ["What went wrong and how can I fix it"];
     case "general":
-      if (topItem && secondItem) {
-        return `Can you connect "${trimmed}" to whether ${topItem} is truly above ${secondItem}`;
-      }
-      return `Can you help me make "${trimmed}" decision-ready`;
     default:
-      return trimmed;
+      return [];
   }
 }
 
@@ -127,85 +125,98 @@ function getHardcodedSuggestQuestions(
   const lastUserMessage = [...recentMessages]
     .reverse()
     .find((message) => message.role === "user" && message.content.trim().length > 0)?.content;
-  const draftQuestion = draftDrivenQuestion(trimmedDraft, intent, topItem, secondItem);
-  const candidates: string[] = [];
+  // Draft-driven: use intent to select from curated pool, not embed raw text
+  const intentCandidates = trimmedDraft ? getIntentQuestions(intent, topItem, secondItem) : [];
 
-  if (draftQuestion) {
-    candidates.push(draftQuestion);
-  }
-
+  // --- Quote context (highest priority) ---
   if (quoteDrafts.length > 0) {
     const quoted = quoteDrafts[0]?.quoted_text?.trim() || "the quoted content";
     const preview = quoted.length > 68 ? quoted.slice(0, 68).trimEnd() : quoted;
-    candidates.push(`What decision implication should I draw from this quote: "${preview}"`);
+    const anchors: string[] = [
+      `What decision implication should I draw from this quote: "${preview}"`,
+    ];
+    if (results?.items?.length) {
+      anchors.push("Does this quote align with the ranking and confidence interval (CI) evidence");
+    }
     if (quoteDrafts.length > 1) {
-      candidates.push("How do my quoted sections align or conflict in their conclusions");
-    } else if (results?.items?.length) {
-      candidates.push("Does this quoted claim match the rank and integer CI evidence");
-    } else {
-      candidates.push("What uncertainty caveat should I attach when citing this quote");
+      anchors.push("Do these quotes agree or contradict each other");
+    } else if (!results?.items?.length) {
+      anchors.push("What's the caveat in this statement");
     }
-    candidates.push("What is the next action I should take based on this quote");
-    candidates.push("Which assumption in this quote is most fragile");
-    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
+    anchors.push("What should I do next based on this");
+    anchors.push("What assumption here could be wrong");
+    return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }
 
+  // --- Error status (SOP R5: Q2 must address what can still be done while blocked) ---
   if (status === "error") {
-    candidates.push("What caused the current error and what exact step should I fix first");
-    candidates.push("Which questions can still be answered reliably despite this error");
-    candidates.push("What minimum data or config change is needed before rerunning");
-    candidates.push("What should I verify first to avoid repeating this failure");
-    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
+    const anchors = [
+      "What went wrong and how can I fix it",
+      "What can I still do while this is being resolved",
+      "Is the problem with my data or the settings",
+    ];
+    return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }
 
+  // --- Analyzing status (SOP R6: address CI overlap and decision threshold) ---
   if (status === "analyzing") {
-    candidates.push("When this run finishes, which two items should I compare first");
-    candidates.push("How will CI overlap affect my decision once results are ready");
-    candidates.push("What result pattern would indicate the ranking is unstable");
-    candidates.push("Which report section should I read first for a fast decision");
-    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
+    const anchors = [
+      "What should I look at first when results are ready",
+      "How will I know if one item is clearly better than another",
+    ];
+    return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }
 
+  // --- Post-analysis (differentiated from bubble: deeper exploration) ---
   if (stage === "post-analysis" && results?.items?.length) {
-    candidates.push(`Is ${topItem || "the top item"} truly above ${secondItem || "the runner-up"} after integer CI overlap`);
-    candidates.push("Which items should I treat as the same practical tier");
-    candidates.push("What additional comparisons would most reduce current uncertainty");
-    candidates.push("What is the main decision risk if I only use rank order and ignore CI width");
-    if (intent === "method") {
-      candidates.push("Can you explain the bootstrap CI method and cite the key paper");
-    }
-    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
+    const anchors = [
+      topItem && secondItem
+        ? `What drives the difference between ${topItem} and ${secondItem}`
+        : "What drives the biggest ranking differences",
+      "Can you explain the uncertainty in simpler terms",
+      "How confident should I be in the overall ordering",
+    ];
+    return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }
 
+  // --- Post-schema (SOP R7: de-risk configuration, indicator usage) ---
   if (stage === "post-schema") {
+    const anchors: string[] = [
+      "Does this detected schema look right for my data",
+    ];
     if (schema?.indicator_col) {
-      candidates.push(`Should I keep indicator "${schema.indicator_col}" for segmented ranking or run overall first`);
+      anchors.push(`Should I rank everything together or separately by "${schema.indicator_col}"`);
     } else {
-      candidates.push("How should I set ranking direction before running analysis");
+      anchors.push("Is 'higher is better' the correct direction for my metric");
     }
-    candidates.push("What should I verify before I click Start Ranking");
-    candidates.push("What output artifacts will I get after the run");
-    candidates.push("What run settings most affect uncertainty and reproducibility");
-    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
+    anchors.push("What should I verify before starting");
+    anchors.push("What will I get when the analysis finishes");
+    return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }
 
+  // --- Pre-upload (SOP R8: at least one product orientation question) ---
   if (stage === "pre-upload") {
-    candidates.push("What is OmniRank and what can it do for my ranking task");
-    candidates.push("What data format should I prepare for reliable ranking inference");
-    candidates.push("Before upload, what assumptions should I verify about my comparisons");
-    candidates.push("How should I choose metrics so CI-based interpretation is meaningful");
-    candidates.push("What is the fastest way to sanity-check my CSV before upload");
-    return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
+    const anchors = [
+      "What is OmniRank and how can it help me",
+      "What CSV format does OmniRank need",
+      "What types of ranking data can I analyze",
+    ];
+    return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }
 
+  // --- Fallback (no meta-prompts per SOP R4) ---
+  const candidates: string[] = [];
   if (lastUserMessage) {
-    candidates.push(`Based on "${lastUserMessage}", what decision-critical evidence is still missing`);
+    const preview = lastUserMessage.length > 50 ? lastUserMessage.slice(0, 50).trimEnd() + "..." : lastUserMessage;
+    candidates.push(`What else should I know about "${preview}"`);
   }
-  candidates.push("What should I ask next for my current analysis stage");
-  candidates.push("What decision risk should I clarify before moving forward");
-  candidates.push("What method caveat should I keep in mind before acting on this result");
-  candidates.push("How can I turn the current output into a concrete next step");
-  return pickUniqueQuestions(candidates, MAX_SUGGEST_QUESTIONS);
+  const anchors = [
+    "Can you summarize what we know so far",
+    "What's the biggest risk I should watch for",
+    "What would make me more confident in this",
+    "What should I do next",
+  ];
+  return pickUniqueQuestions([anchors[0], ...intentCandidates, ...candidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
 }
 
 export function ChatInput({
@@ -364,7 +375,7 @@ export function ChatInput({
         >
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-background">
             <Zap className="h-3.5 w-3.5 text-primary" />
-            <span className="text-xs font-medium text-muted-foreground">Suggest Question</span>
+            <span className="text-xs font-medium text-muted-foreground">Suggested Questions</span>
           </div>
           <div className="p-1.5 bg-background">
             {suggestQuestionsList.slice(0, MAX_SUGGEST_QUESTIONS).map((question, index) => (

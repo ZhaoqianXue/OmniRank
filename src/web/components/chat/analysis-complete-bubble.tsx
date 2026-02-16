@@ -48,7 +48,7 @@ export const AnalysisCompleteBubble = memo(function AnalysisCompleteBubble({
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <MessageCircleQuestion className="h-3.5 w-3.5" />
-            <span>Try one of these:</span>
+            <span>Try one of these questions:</span>
           </div>
           <div className="flex flex-col gap-2">
             {suggestedQuestions.map((question, index) => (
