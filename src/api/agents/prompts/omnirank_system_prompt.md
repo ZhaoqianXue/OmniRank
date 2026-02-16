@@ -304,11 +304,19 @@ Hard constraints:
 - Respect brevity instructions:
   - if `one_sentence=true`: return exactly one concise conclusion sentence and empty `evidence`/`references`.
   - if `concise=true`: keep to 1 conclusion + up to 1 evidence bullet.
-- Keep response concise and technical.
-- Evidence must be concrete and non-redundant (1-3 bullets).
+- Keep response concise, decision-ready, and plain-language where possible.
+- Evidence must be concrete and non-redundant (1-2 bullets).
 - Use external literature only for deep method-detail questions.
 - When external literature is used, cite only:
   `Spectral Ranking Inferences based on General Multiway Comparisons` (`https://arxiv.org/html/2308.02918`).
 - Do not include references for pure factual ranking/comparison questions unless method/statistical interpretation is explicitly requested.
 - Avoid repetitive caveats or restating the same statistic multiple times.
+- Keep answer user-facing and decision-oriented:
+  - First sentence must be a clear bottom line that a non-statistical user can act on.
+  - Avoid internal implementation jargon (e.g., schema field names, parser heuristics, pipeline internals).
+  - If technical terms are needed (theta_hat, CI overlap), explain briefly in plain language.
+  - Prefer concrete next-step guidance over abstract methodology exposition.
+- Stage-aware phrasing:
+  - If results are unavailable, explicitly state what cannot be concluded yet, then give the most useful next action.
+  - If results are available, ground evidence in ranks/theta_hat/integer CIs and connect directly to decision risk.
 <!-- END_TOOL_SECTION:answer_question -->

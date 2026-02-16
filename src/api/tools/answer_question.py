@@ -121,10 +121,20 @@ def _first_sentence(text: str) -> str:
     cleaned = _sanitize_text_field(text)
     if not cleaned:
         return ""
-    match = re.search(r"[.!?]", cleaned)
-    if not match:
-        return cleaned
-    return cleaned[: match.end()].strip()
+    closers = "\"')]}”’"
+    for idx, ch in enumerate(cleaned):
+        if ch not in ".!?":
+            continue
+        if ch == "." and idx > 0 and idx + 1 < len(cleaned):
+            if cleaned[idx - 1].isdigit() and cleaned[idx + 1].isdigit():
+                continue
+        end = idx + 1
+        while end < len(cleaned) and cleaned[end] in closers:
+            end += 1
+        if end < len(cleaned) and not cleaned[end].isspace():
+            continue
+        return cleaned[:end].strip()
+    return cleaned
 
 
 def _dedupe_nonempty(items: list[str], max_items: int) -> list[str]:
@@ -284,7 +294,6 @@ def _format_structured_answer(
     reference_lines = _dedupe_nonempty(references or [], max_items=max(0, max_references))
 
     if max_evidence > 0 and evidence_lines:
-        lines.append("Evidence:")
         lines.extend(f"- {entry}" for entry in evidence_lines[:max_evidence])
     if max_references > 0 and reference_lines:
         lines.append("References:")
@@ -296,11 +305,50 @@ def _format_structured_answer(
     return "\n".join(lines)
 
 
+def _stage_guidance(status: str) -> tuple[str, str]:
+    """Return stage-aware availability statement and concrete next action."""
+    normalized = (status or "").strip().lower()
+    if normalized == "idle":
+        return (
+            "No dataset is loaded yet, so item-level ranking and confidence-interval answers are not available.",
+            "Upload a CSV/TSV first, then I can validate format and guide schema setup before ranking.",
+        )
+    if normalized == "uploaded":
+        return (
+            "Data is uploaded, but schema confirmation is not finished, so ranking outputs are not available yet.",
+            "Review and confirm ranking items/direction, then start analysis.",
+        )
+    if normalized == "awaiting_confirmation":
+        return (
+            "Schema confirmation is pending, so ranking outputs are not available yet.",
+            "Confirm or revise the inferred schema, then run analysis.",
+        )
+    if normalized == "confirmed":
+        return (
+            "Configuration is confirmed, but analysis has not run yet, so ranking outputs are not available.",
+            "Start analysis to generate ranks, theta_hat, and integer confidence intervals.",
+        )
+    if normalized == "running":
+        return (
+            "Analysis is still running, so item-level ranking outputs are not available yet.",
+            "Wait for completion, then ask for top-vs-runner-up robustness with CI overlap.",
+        )
+    if normalized == "error":
+        return (
+            "Session is currently blocked by an error, so ranking-specific conclusions are not available.",
+            "Fix the blocking issue first, then rerun analysis for decision-ready outputs.",
+        )
+    return (
+        "Ranking results are not available yet for item-level inference.",
+        "Complete the run first, then ask for item-level comparison with CI evidence.",
+    )
+
+
 def _top_summary(results: RankingResults) -> str:
     idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
     return (
         f"Top-ranked item is {results.items[idx]} with rank {results.ranks[idx]} "
-        f"and theta_hat={results.theta_hat[idx]:.4f}."
+        f"and theta_hat={results.theta_hat[idx]:.4f}; treat this as the best current estimate."
     )
 
 
@@ -318,9 +366,13 @@ def _comparison_sentence(results: RankingResults, item_a: str, item_b: str) -> s
     overlap = not (a_ci[1] < b_ci[0] or b_ci[1] < a_ci[0])
     lead = item_a if a_rank < b_rank else item_b
     relation = (
-        "confidence intervals overlap, so separation between the two items remains uncertain"
-        if overlap
-        else f"{lead} appears stronger based on rank and non-overlapping intervals"
+        f"{item_a} is currently ranked ahead, but confidence intervals overlap so separation is uncertain"
+        if overlap and a_rank < b_rank
+        else (
+            f"{item_b} is currently ranked ahead, but confidence intervals overlap so separation is uncertain"
+            if overlap
+            else f"{lead} appears stronger with non-overlapping confidence intervals"
+        )
     )
     caveat = f" {CI_CAVEAT}" if overlap else ""
     return (
@@ -345,20 +397,20 @@ def _session_evidence(session_context: dict[str, Any] | None) -> list[str]:
     evidence: list[str] = []
     status = str(session_context.get("status") or "").strip()
     if status:
-        evidence.append(f"Session status: {status}.")
+        evidence.append(f"Current stage: {status}.")
 
     schema = session_context.get("schema")
     if isinstance(schema, dict):
         items = schema.get("ranking_items")
         indicator = schema.get("indicator_col")
         if isinstance(items, list) and items:
-            evidence.append(f"Schema includes {len(items)} ranking items.")
+            evidence.append(f"Current schema includes {len(items)} ranking items.")
         if indicator:
-            evidence.append(f"Indicator column: {indicator}.")
+            evidence.append(f"Configured subgroup column: {indicator}.")
 
     warnings = session_context.get("quality_warnings")
     if isinstance(warnings, list) and warnings:
-        evidence.append(f"Current quality warning: {warnings[0]}")
+        evidence.append(f"Current warning: {warnings[0]}")
 
     return evidence[:3]
 
@@ -373,14 +425,7 @@ def _fallback_without_results(
 ) -> AnswerOutput:
     lower_q = question.lower()
     status = str((session_context or {}).get("status") or "idle")
-    stage_msg = {
-        "idle": "No dataset is loaded yet, so item-level ranking and CI answers are not available.",
-        "uploaded": "Data is uploaded but semantic/schema confirmation is not finished yet.",
-        "awaiting_confirmation": "Schema confirmation is pending; ranking has not run yet.",
-        "confirmed": "Configuration is confirmed; run analysis to generate ranking, theta_hat, and integer CIs.",
-        "running": "Analysis is still running; wait for completion to answer item-level ranking questions.",
-        "error": "Session is currently in error state; fix the blocking issue before requesting ranking-specific results.",
-    }.get(status, "Ranking results are not available yet for item-level inference.")
+    stage_msg, stage_next_action = _stage_guidance(status)
 
     methodology_keywords = [
         "spectral",
@@ -394,21 +439,18 @@ def _fallback_without_results(
 
     if asks_method:
         conclusion = (
-            "OmniRank uses spectral ranking to estimate latent preference scores (theta_hat), "
-            "then uses Gaussian multiplier bootstrap for uncertainty quantification."
+            "OmniRank estimates item strength with spectral ranking and quantifies uncertainty using bootstrap confidence intervals."
         )
-        note = (
-            "This session has not produced ranking outputs yet, so I cannot provide item-specific rank/CI values."
-        )
+        note = f"{stage_msg} {stage_next_action}"
     else:
         conclusion = stage_msg
-        note = "After running analysis, I can answer item-level comparisons with integer CI bounds."
+        note = stage_next_action
 
     evidence = _session_evidence(session_context)
     if not evidence:
         evidence = [
             "Q&A is available at every stage, including before report generation.",
-            "Item-level rank and CI details require completed ranking outputs.",
+            "Item-level rank and confidence-interval details require completed ranking outputs.",
         ]
 
     references: list[str] = []
@@ -474,7 +516,7 @@ def _fallback_with_results(
         else:
             conclusion = (
                 _top_summary(results)
-                + " Mention two item names to get a pairwise CI-aware comparison."
+                + " Mention two item names for a direct pairwise comparison with CI interpretation."
             )
             top_idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
             supporting_evidence.append(
@@ -491,8 +533,9 @@ def _fallback_with_results(
         conclusion=conclusion,
         evidence=supporting_evidence,
         references=references,
-        note=note,
+        note=_first_sentence(note) if note else None,
         quote_context=quote_context,
+        max_evidence=2,
     )
     return AnswerOutput(
         answer=answer_text,
@@ -570,14 +613,20 @@ def answer_question(
     literature_context = _load_literature_context() if needs_reference else _empty_literature_context()
     payload = {
         "question": question,
+        "product_positioning": {
+            "target_users": "domain experts without statistical programming background",
+            "positioning": "bridge to rigorous spectral ranking methods, not a new statistical method",
+            "answer_goal": "decision-ready guidance with uncertainty awareness",
+        },
         "response_style": {
             "format": "short structured answer",
             "language": "en",
+            "tone": "decision-ready, plain language, uncertainty-aware",
             "concise": wants_concise,
             "one_sentence": wants_one_sentence,
-            "max_sections": 2 if wants_one_sentence else (3 if wants_concise else 4),
-            "max_bullets_per_section": 3,
-            "target_length_words": 60 if wants_one_sentence else (90 if wants_concise else 140),
+            "max_sections": 2 if wants_one_sentence else (3 if wants_concise else 3),
+            "max_bullets_per_section": 2,
+            "target_length_words": 50 if wants_one_sentence else (80 if wants_concise else 120),
         },
         "results": (
             {
@@ -607,17 +656,20 @@ def answer_question(
         if not isinstance(evidence_raw, list):
             evidence_raw = llm_output.get("supporting_evidence")
         supporting_evidence = [str(entry).strip() for entry in evidence_raw] if isinstance(evidence_raw, list) else []
-        supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=3)
+        supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=2)
         if not supporting_evidence:
             if results is None:
                 supporting_evidence = _session_evidence(session_context) or [
-                    "No ranking results yet; this answer is based on session stage and methodology context."
+                    "No ranking results yet; this answer is based on current stage and available context."
                 ]
             else:
-                supporting_evidence = ["Derived from ranking scores and confidence intervals."]
+                supporting_evidence = ["Derived from ranking outputs (rank, theta_hat, and confidence intervals)."]
 
         note_value = llm_output.get("note")
         note = _sanitize_text_field(str(note_value)) if isinstance(note_value, str) and note_value.strip() else None
+        if results is None and not note:
+            _, stage_next_action = _stage_guidance(str((session_context or {}).get("status") or "idle"))
+            note = stage_next_action
 
         # Keep citation trace strict: only quote-provided ids are returned.
         used_ids = [quote_id for quote_id in quoted_ids if quote_id in known_ids]
@@ -640,10 +692,8 @@ def answer_question(
             max_references = 0
         else:
             quote_context_local = quote_context
-            max_evidence = 1 if wants_concise else 3
+            max_evidence = 1 if wants_concise else 2
             max_references = 1 if (wants_concise and references) else 2
-            if wants_concise and note is not None:
-                note = _first_sentence(note)
 
         answer_text = _format_structured_answer(
             conclusion=conclusion,
