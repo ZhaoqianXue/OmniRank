@@ -37,8 +37,8 @@ const primaryIconMap: Record<PrimaryExampleId, React.ComponentType<{ className?:
 };
 
 const primaryDisplayTitles: Record<PrimaryExampleId, string> = {
-  pairwise: "Pairwise: LLM Comparison",
-  multiway_scores: "Multiway: Model Performance Matrix",
+  pairwise: "LLM Comparison",
+  multiway_scores: "Model Performance Matrix",
 };
 
 type ExampleCardDetails = {

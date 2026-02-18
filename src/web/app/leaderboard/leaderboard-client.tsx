@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import {
   ArrowUpRight,
   BarChart3,
+  ChevronDown,
+  ChevronRight,
   Code2,
   Database,
   Download,
@@ -66,16 +68,7 @@ interface CustomSummary {
   benchmarkScores: CustomBenchmarkScores;
 }
 
-type DetailPanelKey = "upload" | "compare" | "what" | "how";
-
 const sectionWrapperClass = "mx-auto w-full max-w-[1400px] px-4 md:px-8";
-
-const DETAIL_PANEL_ITEMS: Array<{ key: DetailPanelKey; title: string; id: string; icon: typeof Sparkles }> = [
-  { key: "upload", title: "Compare Your Arena Results", id: "upload-your-arena-results", icon: FileSpreadsheet },
-  { key: "compare", title: "Compare Your Model with Hugging Face Leaderboard", id: "compare-with-your-model", icon: BarChart3 },
-  { key: "what", title: "What is OmniRank LLM Leaderboard", id: "what-is-omnirank", icon: Sparkles },
-  { key: "how", title: "How This Leaderboard is Calculated", id: "how-this-leaderboard-is-calculated", icon: Code2 },
-];
 
 const CUSTOM_BENCHMARK_FIELDS: Array<{ label: HuggingFaceBenchmarkLabel; key: HfBenchmarkKey }> = [
   { label: "IFEval", key: "ifeval" },
@@ -1138,7 +1131,7 @@ function SpectralTableStyles() {
 
 export default function LeaderboardClient({ initialData }: LeaderboardClientProps) {
   const [activeMode, setActiveMode] = useState<LeaderboardMode>("arena");
-  const [activeDetailPanel, setActiveDetailPanel] = useState<DetailPanelKey>("upload");
+  const [expandedAboutSection, setExpandedAboutSection] = useState<"what" | "how" | null>(null);
 
   const [arenaMethods, setArenaMethods] = useState<SpectralMethod[]>(initialData.arena.methods);
   const [huggingFaceMethods, setHuggingFaceMethods] = useState<SpectralMethod[]>(
@@ -1215,14 +1208,12 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
       const hash = window.location.hash;
       if (hash === "#compare-with-your-model") {
         setActiveMode("huggingface");
-        setActiveDetailPanel("compare");
       } else if (hash === "#upload-your-arena-results") {
         setActiveMode("arena");
-        setActiveDetailPanel("upload");
       } else if (hash === "#what-is-omnirank") {
-        setActiveDetailPanel("what");
+        setExpandedAboutSection("what");
       } else if (hash === "#how-this-leaderboard-is-calculated" || hash === "#methodology-background") {
-        setActiveDetailPanel("how");
+        setExpandedAboutSection("how");
       }
 
       if (hash.startsWith("#")) {
@@ -1428,6 +1419,183 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
 	            <p className="mt-3 max-w-4xl text-sm text-muted-foreground md:text-base">
 	              Multi-source LLM rankings from votes & benchmarks, powered by OmniRank.
 	            </p>
+
+	            <div className="mt-10 flex flex-col gap-4">
+	              <div className="flex flex-wrap gap-3">
+	                <button
+	                  id="what-is-omnirank"
+	                  type="button"
+	                  onClick={() => setExpandedAboutSection((prev) => (prev === "what" ? null : "what"))}
+	                  className="flex items-center gap-2 text-left transition-colors hover:text-primary"
+	                >
+	                  {expandedAboutSection === "what" ? (
+	                    <ChevronDown className="h-5 w-5 shrink-0 text-primary" />
+	                  ) : (
+	                    <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
+	                  )}
+	                  <h3 className="text-xl font-semibold">What is OmniRank LLM Leaderboard</h3>
+	                </button>
+	                <button
+	                  id="how-this-leaderboard-is-calculated"
+	                  type="button"
+	                  onClick={() => setExpandedAboutSection((prev) => (prev === "how" ? null : "how"))}
+	                  className="flex items-center gap-2 text-left transition-colors hover:text-primary"
+	                >
+	                  {expandedAboutSection === "how" ? (
+	                    <ChevronDown className="h-5 w-5 shrink-0 text-primary" />
+	                  ) : (
+	                    <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
+	                  )}
+	                  <h3 className="text-xl font-semibold">How This Leaderboard is Calculated</h3>
+	                </button>
+	              </div>
+
+	              {expandedAboutSection === "what" ? (
+	              <div className="space-y-6">
+	              <p className="max-w-4xl text-xs text-muted-foreground md:text-sm">
+	                OmniRank is an end-to-end ranking view built on spectral ranking principles, designed to turn benchmark and preference data into statistically grounded leaderboard decisions.
+	              </p>
+	              <div className="grid gap-6 md:grid-cols-2">
+	                <div className="flex gap-3">
+	                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                    <BarChart3 className="h-5 w-5" />
+	                  </div>
+	                  <div>
+	                    <h4 className="text-lg font-semibold">What This Leaderboard Does</h4>
+	                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+	                      Provides robust LLM rankings from pairwise and benchmark data, with confidence intervals and benchmark-aware ranking views.
+	                    </p>
+	                  </div>
+	                </div>
+	                <div className="flex gap-3">
+	                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                    <Scale className="h-5 w-5" />
+	                  </div>
+	                  <div>
+	                    <h4 className="text-lg font-semibold">OmniRank vs Regular Ranking</h4>
+	                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+	                      OmniRank uses network-based comparisons and uncertainty quantification, while simple averaging ignores interaction structure and ranking confidence.
+	                    </p>
+	                  </div>
+	                </div>
+	                <div className="flex gap-3">
+	                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                    <Sparkles className="h-5 w-5" />
+	                  </div>
+	                  <div>
+	                    <h4 className="text-lg font-semibold">Key Features</h4>
+	                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+	                      Multi-source leaderboards, customizable benchmark subsets, confidence intervals, and side-by-side comparison between OmniRank and average-score ranking.
+	                    </p>
+	                  </div>
+	                </div>
+	                <div className="flex gap-3">
+	                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                    <Rocket className="h-5 w-5" />
+	                  </div>
+	                  <div>
+	                    <h4 className="text-lg font-semibold">Decision-Ready Output</h4>
+	                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+	                      Use the table and model-comparison tools to evaluate ranking stability, inspect benchmark-level behavior, and compare your model against strong baselines.
+	                    </p>
+	                  </div>
+	                </div>
+	              </div>
+	              </div>
+	              ) : expandedAboutSection === "how" ? (
+	              <div className="space-y-8">
+	                <div>
+	                  <h4 className="mb-4 text-xl font-semibold">⚔️ LMSYS Arena Leaderboard</h4>
+	                  <div className="grid gap-6 lg:grid-cols-2">
+	                    <div className="flex gap-3">
+	                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                        <Database className="h-5 w-5" />
+	                      </div>
+	                      <div>
+	                        <h5 className="text-lg font-semibold">Step 1: Data Source</h5>
+	                        <ul className="mt-1 space-y-2 text-xs text-muted-foreground md:text-sm">
+	                          <li><strong className="text-foreground">Dataset:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/lmarena-ai/arena-human-preference-140k" target="_blank" rel="noreferrer">lmarena-ai/arena-human-preference-140k</a></li>
+	                          <li><strong className="text-foreground">Data Scale:</strong> 135,634 battle records, 53 unique models, about 1.61 GB.</li>
+	                          <li><strong className="text-foreground">Collection:</strong> Anonymous crowd preferences on Chatbot Arena.</li>
+	                          <li><strong className="text-foreground">Mechanism:</strong> Blind chat between <code>model_a</code> and <code>model_b</code> with votes (win/tie/both bad).</li>
+	                        </ul>
+	                      </div>
+	                    </div>
+	                    <div className="flex gap-3">
+	                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                        <Search className="h-5 w-5" />
+	                      </div>
+	                      <div>
+	                        <h5 className="text-lg font-semibold">Step 2: Virtual Benchmarks</h5>
+	                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">Each battle is categorized into 7 virtual benchmarks based on content, metadata, and Arena definitions.</p>
+	                        <ul className="mt-2 space-y-2 text-xs text-muted-foreground md:text-sm">
+	                          <li>Creative Writing, Math, Instruction Following, Coding</li>
+	                          <li>Hard Prompt, Longer Query, Multi-Turn</li>
+	                        </ul>
+	                        <p className="mt-2 text-xs text-muted-foreground">
+	                          Source: <a className="text-primary underline" href="https://news.lmarena.ai/arena-category/" target="_blank" rel="noreferrer">Chatbot Arena Categories</a>
+	                        </p>
+	                      </div>
+	                    </div>
+	                    <div className="flex gap-3">
+	                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                        <Code2 className="h-5 w-5" />
+	                      </div>
+	                      <div>
+	                        <h5 className="text-lg font-semibold">Step 3: BT-MLE Modeling</h5>
+	                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+	                          We use the Bradley-Terry model (MLE of Elo) for robust static-model scoring. BT-MLE is more stable for static LLMs than online Elo updates.
+	                        </p>
+	                        <p className="mt-2 text-xs text-muted-foreground">
+	                          Reference: <a className="text-primary underline" href="https://lmsys.org/blog/2023-12-07-leaderboard/" target="_blank" rel="noreferrer">Chatbot Arena Elo system update</a>
+	                        </p>
+	                      </div>
+	                    </div>
+	                    <div className="flex gap-3">
+	                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                        <Rocket className="h-5 w-5" />
+	                      </div>
+	                      <div>
+	                        <h5 className="text-lg font-semibold">Step 4: OmniRank</h5>
+	                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+	                          Selected virtual benchmark scores (1 to 7) are combined into one robust leaderboard through spectral ranking with bootstrap uncertainty quantification.
+	                        </p>
+	                      </div>
+	                    </div>
+	                  </div>
+	                </div>
+	                <div>
+	                  <h4 className="mb-4 text-xl font-semibold">🤗 Hugging Face Leaderboard</h4>
+	                  <div className="grid gap-6 lg:grid-cols-2">
+	                    <div className="flex gap-3">
+	                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                        <Download className="h-5 w-5" />
+	                      </div>
+	                      <div>
+	                        <h5 className="text-lg font-semibold">Step 1: Data Collection & Preparation</h5>
+	                        <ul className="mt-1 space-y-2 text-xs text-muted-foreground md:text-sm">
+	                          <li><strong className="text-foreground">Data Source:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/open-llm-leaderboard/requests" target="_blank" rel="noreferrer">Open LLM Leaderboard Dataset</a>.</li>
+	                          <li><strong className="text-foreground">Data Cleaning:</strong> keep 6 core benchmark scores and key metadata, filter incomplete models, then take Top 100.</li>
+	                          <li><strong className="text-foreground">Data Transformation:</strong> convert model-per-row format into a benchmark-vs-model matrix for OmniRank.</li>
+	                        </ul>
+	                      </div>
+	                    </div>
+	                    <div className="flex gap-3">
+	                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+	                        <Rocket className="h-5 w-5" />
+	                      </div>
+	                      <div>
+	                        <h5 className="text-lg font-semibold">Step 2: OmniRank</h5>
+	                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+	                          Scores from selected benchmarks (2 to 6) are merged by OmniRank. A tournament-network view estimates model power scores and bootstrap confidence intervals.
+	                        </p>
+	                      </div>
+	                    </div>
+	                  </div>
+	                </div>
+	              </div>
+	              ) : null}
+	            </div>
 	          </div>
 	        </section>
 
@@ -1592,42 +1760,8 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
           )}
         </section>
 
-        <section id="leaderboard-detail-tabs" className={cn(sectionWrapperClass, "mb-5")}>
-          <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-[1fr_1.3fr_1fr_1fr]">
-            {DETAIL_PANEL_ITEMS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  title={item.title}
-                  onClick={() => {
-                    setActiveDetailPanel(item.key);
-                    if (item.key === "upload") {
-                      setActiveMode("arena");
-                    } else if (item.key === "compare") {
-                      setActiveMode("huggingface");
-                    }
-                  }}
-                  className={cn(
-                    "h-12 rounded-lg border px-3 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
-                    activeDetailPanel === item.key
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border/70 bg-card/35 text-foreground/85 hover:border-primary/45 hover:bg-card/55",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-3.5 w-3.5 shrink-0 text-primary/85" />
-                    <p className="whitespace-nowrap text-[12px] font-semibold leading-none lg:text-[13px]">{item.title}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
         <section className={cn(sectionWrapperClass, "mb-8")}>
-          {activeDetailPanel === "upload" ? (
+          {activeMode === "arena" ? (
             <div id="upload-your-arena-results" className="space-y-4 px-1 md:px-2">
               <h3 className="text-2xl font-semibold">Compare Your Arena Results</h3>
               <p className="max-w-4xl text-xs text-muted-foreground md:text-sm">
@@ -1694,7 +1828,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
             </div>
           ) : null}
 
-          {activeDetailPanel === "compare" ? (
+          {activeMode === "huggingface" ? (
             <div id="compare-with-your-model" className="space-y-4 px-1 md:px-2">
               <h3 className="text-2xl font-semibold">Compare Your Model with Hugging Face Leaderboard</h3>
               <p className="max-w-4xl text-xs text-muted-foreground md:text-sm">
@@ -1848,162 +1982,6 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
             </div>
           ) : null}
 
-          {activeDetailPanel === "what" ? (
-            <div id="what-is-omnirank" className="space-y-6 px-1 md:px-2">
-              <h3 className="text-2xl font-semibold">What is OmniRank LLM Leaderboard</h3>
-              <p className="max-w-4xl text-xs text-muted-foreground md:text-sm">
-                OmniRank is an end-to-end ranking view built on spectral ranking principles, designed to turn benchmark and preference data into statistically grounded leaderboard decisions.
-              </p>
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="flex gap-3">
-                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                    <BarChart3 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold">What This Leaderboard Does</h4>
-                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
-                      Provides robust LLM rankings from pairwise and benchmark data, with confidence intervals and benchmark-aware ranking views.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                    <Scale className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold">OmniRank vs Regular Ranking</h4>
-                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
-                      OmniRank uses network-based comparisons and uncertainty quantification, while simple averaging ignores interaction structure and ranking confidence.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold">Key Features</h4>
-                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
-                      Multi-source leaderboards, customizable benchmark subsets, confidence intervals, and side-by-side comparison between OmniRank and average-score ranking.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                    <Rocket className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold">Decision-Ready Output</h4>
-                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
-                      Use the table and model-comparison tools to evaluate ranking stability, inspect benchmark-level behavior, and compare your model against strong baselines.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {activeDetailPanel === "how" ? (
-            <div id="how-this-leaderboard-is-calculated" className="space-y-6 px-1 md:px-2">
-              <h3 className="text-2xl font-semibold">How This Leaderboard is Calculated</h3>
-
-              <div className="space-y-8">
-                <div>
-                  <h4 className="mb-4 text-xl font-semibold">⚔️ LMSYS Arena Leaderboard</h4>
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="flex gap-3">
-                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                        <Database className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h5 className="text-lg font-semibold">Step 1: Data Source</h5>
-                        <ul className="mt-1 space-y-2 text-xs text-muted-foreground md:text-sm">
-                          <li><strong className="text-foreground">Dataset:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/lmarena-ai/arena-human-preference-140k" target="_blank" rel="noreferrer">lmarena-ai/arena-human-preference-140k</a></li>
-                          <li><strong className="text-foreground">Data Scale:</strong> 135,634 battle records, 53 unique models, about 1.61 GB.</li>
-                          <li><strong className="text-foreground">Collection:</strong> Anonymous crowd preferences on Chatbot Arena.</li>
-                          <li><strong className="text-foreground">Mechanism:</strong> Blind chat between <code>model_a</code> and <code>model_b</code> with votes (win/tie/both bad).</li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                        <Search className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h5 className="text-lg font-semibold">Step 2: Virtual Benchmarks</h5>
-                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">Each battle is categorized into 7 virtual benchmarks based on content, metadata, and Arena definitions.</p>
-                        <ul className="mt-2 space-y-2 text-xs text-muted-foreground md:text-sm">
-                          <li>Creative Writing, Math, Instruction Following, Coding</li>
-                          <li>Hard Prompt, Longer Query, Multi-Turn</li>
-                        </ul>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Source: <a className="text-primary underline" href="https://news.lmarena.ai/arena-category/" target="_blank" rel="noreferrer">Chatbot Arena Categories</a>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                        <Code2 className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h5 className="text-lg font-semibold">Step 3: BT-MLE Modeling</h5>
-                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">
-                          We use the Bradley-Terry model (MLE of Elo) for robust static-model scoring. BT-MLE is more stable for static LLMs than online Elo updates.
-                        </p>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Reference: <a className="text-primary underline" href="https://lmsys.org/blog/2023-12-07-leaderboard/" target="_blank" rel="noreferrer">Chatbot Arena Elo system update</a>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                        <Rocket className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h5 className="text-lg font-semibold">Step 4: OmniRank</h5>
-                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">
-                          Selected virtual benchmark scores (1 to 7) are combined into one robust leaderboard through spectral ranking with bootstrap uncertainty quantification.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="mb-4 text-xl font-semibold">🤗 Hugging Face Leaderboard</h4>
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="flex gap-3">
-                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                        <Download className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h5 className="text-lg font-semibold">Step 1: Data Collection & Preparation</h5>
-                        <ul className="mt-1 space-y-2 text-xs text-muted-foreground md:text-sm">
-                          <li><strong className="text-foreground">Data Source:</strong> <a className="text-primary underline" href="https://huggingface.co/datasets/open-llm-leaderboard/requests" target="_blank" rel="noreferrer">Open LLM Leaderboard Dataset</a>.</li>
-                          <li><strong className="text-foreground">Data Cleaning:</strong> keep 6 core benchmark scores and key metadata, filter incomplete models, then take Top 100.</li>
-                          <li><strong className="text-foreground">Data Transformation:</strong> convert model-per-row format into a benchmark-vs-model matrix for OmniRank.</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                        <Rocket className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h5 className="text-lg font-semibold">Step 2: OmniRank</h5>
-                        <p className="mt-1 text-xs text-muted-foreground md:text-sm">
-                          Scores from selected benchmarks (2 to 6) are merged by OmniRank. A tournament-network view estimates model power scores and bootstrap confidence intervals.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
         </section>
 
         <footer className="border-t border-border/55 bg-card/70 py-8 backdrop-blur-xl md:py-9">
@@ -2023,7 +2001,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                 className="ml-1 h-8 w-auto shrink-0 sm:ml-2 sm:h-9"
               />
             </div>
-            <p>© 2026 Jin Jin Lab and Mengxin Yu Lab. All rights reserved.</p>
+            <p>© 2026 Jin Lab and Yu Lab. All rights reserved.</p>
           </div>
         </footer>
 

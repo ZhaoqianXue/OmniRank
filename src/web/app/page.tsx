@@ -146,7 +146,7 @@ export default function LandingPage() {
                   rel="noopener noreferrer"
                   className="text-primary underline underline-offset-2 hover:text-primary/80"
                 >
-                  Jin Jin Lab
+                  Jin Lab
                 </a>{" "}
                 and{" "}
                 <a
@@ -155,7 +155,7 @@ export default function LandingPage() {
                   rel="noopener noreferrer"
                   className="text-primary underline underline-offset-2 hover:text-primary/80"
                 >
-                  Mengxin Yu Lab
+                  Yu Lab
                 </a>
               </p>
 
@@ -196,7 +196,7 @@ export default function LandingPage() {
                   className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/26 px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-card/36 hover:text-foreground"
                 >
                   <FileText className="h-4 w-4" />
-                  Method Paper
+                  Paper
                 </a>
                 <a
                   href="https://github.com"
@@ -324,7 +324,7 @@ export default function LandingPage() {
                 className="ml-1 h-8 w-auto shrink-0 sm:ml-2 sm:h-9"
               />
             </div>
-            <p>© 2026 Jin Jin Lab and Mengxin Yu Lab. All rights reserved.</p>
+            <p>© 2026 Jin Lab and Yu Lab. All rights reserved.</p>
           </div>
         </footer>
       </div>

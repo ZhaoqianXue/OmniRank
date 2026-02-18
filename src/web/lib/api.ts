@@ -172,7 +172,7 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   {
     id: "pairwise_human_logs",
     filename: "example_data_pairwise_human_logs.csv",
-    title: "Pairwise: Human Preference Logs",
+    title: "Human Preference Logs",
     description:
       "Raw human preference logs in long format. " +
       "Each comparison has two rows (one per assistant) with value=1 for winner and value=0 for loser. " +
@@ -199,7 +199,7 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   {
     id: "multiway_latency",
     filename: "example_data_multiway_latency.csv",
-    title: "Multiway: System Latency Matrix",
+    title: "System Latency Matrix",
     description:
       "Latency benchmarks across six systems under multiple workload scenarios. " +
       "Each row contains all system latencies for one workload (milliseconds, lower is better). " +
@@ -212,7 +212,7 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   {
     id: "multiway_rank_columns",
     filename: "example_data_multiway_rank_columns.csv",
-    title: "Multiway: Rank-Order Tournaments",
+    title: "Rank-Order Tournaments",
     description:
       "Tournament outcomes stored as rank_1 to rank_6 columns. " +
       "Each row records a full ordering of six candidates for one match. " +
@@ -225,7 +225,7 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   {
     id: "multiway",
     filename: "example_data_multiway.csv",
-    title: "Multiway: Horse Racing Results",
+    title: "Horse Racing Results",
     description:
       "Finish positions from horse races. " +
       "Each row is one race, showing where each horse finished (1st, 2nd, 3rd, etc.). " +
