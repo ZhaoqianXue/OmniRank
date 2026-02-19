@@ -18,6 +18,7 @@ interface ChatInterfaceProps {
   messages: ChatMessage[];
   onStartAnalysis?: (config: AnalysisConfig) => void;
   onSendMessage?: (message: string) => void | Promise<void>;
+  canStartAnalysis?: boolean;
   isAnalyzing?: boolean;
   isCompleted?: boolean;
   isReportVisible?: boolean;
@@ -84,6 +85,7 @@ interface ChatMessageItemProps {
   message: ChatMessage;
   onStartAnalysis?: (config: AnalysisConfig) => void;
   onSendMessage?: (message: string) => void | Promise<void>;
+  canStartAnalysis?: boolean;
   isAnalyzing?: boolean;
   isCompleted?: boolean;
   isReportVisible?: boolean;
@@ -94,6 +96,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
   message, 
   onStartAnalysis,
   onSendMessage,
+  canStartAnalysis = false,
   isAnalyzing = false,
   isCompleted = false,
   isReportVisible = true,
@@ -163,6 +166,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
           qualityResult={message.configData.qualityResult}
           warnings={message.configData.warnings}
           onStartAnalysis={onStartAnalysis}
+          canStartAnalysis={canStartAnalysis}
           isAnalyzing={isAnalyzing}
           isCompleted={isCompleted}
           isReportVisible={isReportVisible}
@@ -257,6 +261,7 @@ export function ChatInterface({
   messages, 
   onStartAnalysis,
   onSendMessage,
+  canStartAnalysis = false,
   isAnalyzing = false,
   isCompleted = false,
   isReportVisible = true,
@@ -284,6 +289,7 @@ export function ChatInterface({
               message={message}
               onStartAnalysis={onStartAnalysis}
               onSendMessage={onSendMessage}
+              canStartAnalysis={canStartAnalysis}
               isAnalyzing={isAnalyzing}
               isCompleted={isCompleted}
               isReportVisible={isReportVisible}

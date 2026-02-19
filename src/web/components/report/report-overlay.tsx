@@ -2,19 +2,14 @@
 
 import { isValidElement, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  BookOpen,
-  Download,
-  Info,
-  MessageSquareQuote,
-  X,
-} from "lucide-react";
+import { Download, MessageSquareQuote, X } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { ForestPlot, RankingChart } from "@/components/visualizations";
 import { cn } from "@/lib/utils";
 import {
@@ -231,26 +226,26 @@ function buildMarkdownComponents(
 
     /* ── Tables ────────────────────────────────────────────────────────── */
     table: ({ children }) => (
-      <div className="overflow-x-auto rounded-md border bg-background my-4">
+      <div className="overflow-x-auto rounded-xl border border-primary/25 bg-[#132841] my-4 shadow-sm">
         <div className="min-w-max">
           <table className="w-full text-xs">{children}</table>
         </div>
       </div>
     ),
     thead: ({ children }) => (
-      <thead className="bg-muted sticky top-0 z-10">{children}</thead>
+      <thead className="bg-primary/15 sticky top-0 z-10">{children}</thead>
     ),
     th: ({ children }) => (
-      <th className="px-3 py-2 text-left font-bold text-muted-foreground border-b whitespace-nowrap bg-muted">
+      <th className="px-3 py-2 text-left font-semibold text-slate-200 border-b border-primary/25 whitespace-nowrap bg-primary/15">
         {children}
       </th>
     ),
     tbody: ({ children }) => <tbody>{children}</tbody>,
     tr: ({ children }) => (
-      <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors">{children}</tr>
+      <tr className="border-b border-primary/20 last:border-0 hover:bg-primary/10 transition-colors">{children}</tr>
     ),
     td: ({ children }) => (
-      <td className="px-3 py-1.5 whitespace-nowrap">{children}</td>
+      <td className="px-3 py-1.5 whitespace-nowrap text-slate-300">{children}</td>
     ),
 
     /* ── Horizontal rule (section divider) ─────────────────────────────── */
@@ -268,9 +263,27 @@ function buildMarkdownComponents(
         {children}
       </blockquote>
     ),
-    p: ({ children }) => (
-      <p className="text-sm leading-relaxed mb-3 text-foreground/90">{children}</p>
-    ),
+    p: ({ children }) => {
+      const hasBlockDescendant = (node: ReactNode): boolean => {
+        if (node == null) return false;
+        if (Array.isArray(node)) return node.some(hasBlockDescendant);
+        if (typeof node === "string" || typeof node === "number") return false;
+        if (!isValidElement<{ children?: ReactNode }>(node)) return false;
+        const el = node as React.ReactElement<{ children?: ReactNode }>;
+        if (typeof el.type === "string") {
+          if (["div", "section", "table", "figure", "ul", "ol", "blockquote"].includes(el.type)) return true;
+        }
+        return hasBlockDescendant(el.props?.children);
+      };
+      const hasBlockChild = hasBlockDescendant(children);
+
+      const className = "text-sm leading-relaxed mb-3 text-foreground/90";
+      return hasBlockChild ? (
+        <div className={className}>{children}</div>
+      ) : (
+        <p className={className}>{children}</p>
+      );
+    },
     ul: ({ children }) => (
       <ul className="space-y-1.5 my-3 list-none pl-0">{children}</ul>
     ),
@@ -355,35 +368,30 @@ function GlossaryPanel({ hints }: { hints: HintSpec[] }) {
   if (!hints || hints.length === 0) return null;
 
   return (
-    <div className="mt-8 border border-border/30 rounded-lg overflow-hidden">
-      <div className="w-full flex items-center gap-2 px-4 py-3 bg-muted/10">
+    <section className="my-6">
+      <h2 className="text-lg font-semibold text-foreground mt-0 mb-3 flex items-center gap-2">
         <span className="inline-block h-5 w-1 rounded-full bg-primary" />
-        <span className="text-lg font-semibold text-foreground">
-          Terms and Definitions
-        </span>
-        <BookOpen className="h-4 w-4 text-primary/70 ml-1" />
-      </div>
-      <div className="px-4 pb-4 flex flex-col gap-3">
+        Terms and Definitions
+      </h2>
+      <div className="space-y-5">
         {hints.map((hint) => (
-          <div
-            key={hint.hint_id}
-            className="rounded-lg border border-white/20 bg-[#070e19] p-3 text-white"
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <Info className="h-3.5 w-3.5 text-white/70" />
-              <span className="text-xs font-semibold text-white">{hint.title}</span>
+          <div key={hint.hint_id}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <h3 className="text-base font-semibold text-foreground/90 mt-0 mb-0">
+                {hint.title}
+              </h3>
               <Badge
                 variant="outline"
-                className="text-[10px] px-1.5 py-0 h-4 ml-auto border-white/35 text-white bg-white/10"
+                className="text-[10px] px-1.5 py-0 h-4 shrink-0 border-border text-muted-foreground"
               >
                 {hint.kind}
               </Badge>
             </div>
-            <p className="text-xs text-white leading-relaxed">{hint.body}</p>
+            <p className="text-sm leading-relaxed text-foreground/90">{hint.body}</p>
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -611,16 +619,18 @@ export function ReportOverlay({
           </div>
 
           {/* ── Scrollable content ────────────────────────────────────── */}
-          <div className="absolute inset-0 top-14 overflow-auto" onMouseUp={handleMouseUp}>
-            <div ref={contentRef} className="max-w-4xl mx-auto p-6 pb-24">
-              {/* ── Markdown report ──────────────────────────────────── */}
-              <div className="report-content">
-                {renderedMarkdown}
-              </div>
+          <div className="absolute inset-0 top-14" onMouseUp={handleMouseUp}>
+            <ScrollArea className="h-full">
+              <div ref={contentRef} className="max-w-4xl mx-auto p-6 pb-24">
+                {/* ── Markdown report ──────────────────────────────────── */}
+                <div className="report-content">
+                  {renderedMarkdown}
+                </div>
 
-              {/* ── Glossary / Hints ─────────────────────────────────── */}
-              <GlossaryPanel hints={hints} />
-            </div>
+                {/* ── Glossary / Hints ─────────────────────────────────── */}
+                <GlossaryPanel hints={hints} />
+              </div>
+            </ScrollArea>
           </div>
 
           {/* ── Quote fab ─────────────────────────────────────────────── */}

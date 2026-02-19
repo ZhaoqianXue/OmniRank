@@ -32,6 +32,7 @@ interface RankingPreviewBubbleProps {
   qualityResult?: QualityValidationResult | null;
   warnings?: ValidationWarning[];
   onStartAnalysis: (config: AnalysisConfig) => void;
+  canStartAnalysis?: boolean;
   isAnalyzing?: boolean;
   isCompleted?: boolean;
   isReportVisible?: boolean;
@@ -104,6 +105,7 @@ export function RankingPreviewBubble({
   detectedFormat,
   warnings = [],
   onStartAnalysis,
+  canStartAnalysis = true,
   isAnalyzing = false,
   isCompleted = false,
   isReportVisible = true,
@@ -324,7 +326,7 @@ export function RankingPreviewBubble({
               <>
                 <Button
                   onClick={handleStartAnalysis}
-                  disabled={isAnalyzing || selectedItems.length < 2}
+                  disabled={isAnalyzing || !canStartAnalysis || selectedItems.length < 2}
                   variant="outline"
                   className="w-full hover:text-foreground"
                   size="lg"
@@ -344,6 +346,11 @@ export function RankingPreviewBubble({
                 {selectedItems.length < 2 && (
                   <p className="text-xs text-destructive mt-1 text-center">
                     Select at least 2 items to rank
+                  </p>
+                )}
+                {!canStartAnalysis && (
+                  <p className="text-xs text-muted-foreground mt-1 text-center">
+                    Upload or select data before starting ranking.
                   </p>
                 )}
               </>

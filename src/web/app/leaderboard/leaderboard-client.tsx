@@ -1676,7 +1676,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
               <CardHeader className="px-4 pb-0">
                 <CardTitle className="text-lg">Customize Arena Benchmarks</CardTitle>
                 <CardDescription>
-                  Customize which virtual benchmarks are included in OmniRank analysis. Select 1 to 7 benchmarks.
+                  Customize which benchmarks are included in OmniRank result. Select 1 to 7 benchmarks.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-4">
@@ -1716,7 +1716,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
               <CardHeader className="px-4 pb-0">
                 <CardTitle className="text-lg">Customize Hugging Face Benchmarks</CardTitle>
                 <CardDescription>
-                  Customize which benchmarks are included in OmniRank analysis. Select 2 to 6 benchmarks.
+                  Customize which benchmarks are included in OmniRank result. Select 2 to 6 benchmarks.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-4">
@@ -1763,15 +1763,15 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
         <section className={cn(sectionWrapperClass, "mb-8")}>
           {activeMode === "arena" ? (
             <div id="upload-your-arena-results" className="space-y-4 px-1 md:px-2">
-              <h3 className="text-2xl font-semibold">Compare Your Arena Results</h3>
-              <p className="max-w-4xl text-xs text-muted-foreground md:text-sm">
-                Run a standalone OmniRank leaderboard on collected Arena-style battles. Results remain separate from the built-in LMSYS leaderboard.
+              <h3 className="text-2xl font-semibold">Run OmniRank on Your Arena Data</h3>
+              <p className="max-w-6xl text-xs text-muted-foreground md:text-sm">
+                Upload your Arena-style battle data and run OmniRank to create a standalone leaderboard. Your rankings are independent of the built-in LMSYS leaderboard.
               </p>
-              <ul className="space-y-2 text-xs text-muted-foreground md:text-sm">
+              <ul className="list-disc list-outside space-y-2 pl-5 text-xs text-muted-foreground md:text-sm">
                 <li><strong className="text-foreground">File format:</strong> Arena-style CSV of pairwise battles. Include a task tag column (e.g., <code>Task</code>) and consistent model columns.</li>
-                <li><strong className="text-foreground">Row data:</strong> One battle per row. Winner = <code>1.0</code>, loser = <code>0.0</code>, all other models = <code>NaN</code>.</li>
+                <li><strong className="text-foreground">Row data:</strong> One battle per row. Winner = <code>1.0</code>, loser = <code>0.0</code>, other model columns = <code>NaN</code>.</li>
                 <li><strong className="text-foreground">Result:</strong> OmniRank scores, ranks, and confidence intervals for models in your file only.</li>
-                <li><strong className="text-foreground">Quick example:</strong> Uploading the sample file runs on two tasks (<code>code</code> and <code>math</code>) and outputs OmniRank ranks for ChatGPT, Claude, Gemini, Llama, Qwen, and Your Model.</li>
+                <li><strong className="text-foreground">Quick example:</strong> The example below covers three tasks (<code>code</code>, <code>writing</code>, and <code>math</code>) and outputs OmniRank ranks for ChatGPT, Claude, Gemini, Llama, Qwen, and New Model.</li>
               </ul>
 
               <div className="rounded-xl border border-border/60 bg-background/35 p-3">
@@ -1830,9 +1830,9 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
 
           {activeMode === "huggingface" ? (
             <div id="compare-with-your-model" className="space-y-4 px-1 md:px-2">
-              <h3 className="text-2xl font-semibold">Compare Your Model with Hugging Face Leaderboard</h3>
-              <p className="max-w-4xl text-xs text-muted-foreground md:text-sm">
-                Select benchmarks, then fill scores (0-100) for selected ones only. We run OmniRank on the selected subset.
+              <h3 className="text-2xl font-semibold">Compare Your Model with the Hugging Face Leaderboard by OmniRank</h3>
+              <p className="max-w-6xl text-xs text-muted-foreground md:text-sm">
+                Test your model on benchmarks and obtain scores (0–100). Select the benchmarks you evaluated and enter your scores. We run OmniRank on the selected benchmarks to rank your model alongside the Hugging Face Leaderboard.
               </p>
 
               <div className="grid gap-4 md:grid-cols-2">

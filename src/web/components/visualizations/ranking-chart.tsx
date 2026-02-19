@@ -20,7 +20,7 @@ interface RankingChartProps {
   className?: string;
 }
 
-const CHART_BG = "#070e19";
+const CHART_BG = "#132841";
 
 // Color scale from light blue (best) to deep blue (worst)
 const getColor = (rank: number, total: number) => {
@@ -108,35 +108,35 @@ export function RankingChart({ items, className }: RankingChartProps) {
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="rgba(255,255,255,0.45)"
-            opacity={0.45}
+            stroke="rgba(226,232,240,0.25)"
+            opacity={0.9}
           />
           <XAxis
             type="number"
             domain={[minScore, maxScore]}
-            tick={{ fill: "#f7fbff", fontSize: 12, fontWeight: 700 }}
-            axisLine={{ stroke: "rgba(255,255,255,0.8)" }}
-            tickLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            tick={{ fill: "#e2e8f0", fontSize: 12, fontWeight: 600 }}
+            axisLine={{ stroke: "rgba(226,232,240,0.5)" }}
+            tickLine={{ stroke: "rgba(226,232,240,0.5)" }}
             label={{
               value: "Score (θ̂)",
               position: "bottom",
-              fill: "#f7fbff",
+              fill: "#e2e8f0",
               fontSize: 12,
-              fontWeight: 700,
+              fontWeight: 600,
             }}
           />
           <YAxis
             type="category"
             dataKey="name"
-            tick={{ fill: "#ffffff", fontSize: 12, fontWeight: 700 }}
-            axisLine={{ stroke: "rgba(255,255,255,0.8)" }}
-            tickLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            tick={{ fill: "#f1f5f9", fontSize: 12, fontWeight: 600 }}
+            axisLine={{ stroke: "rgba(226,232,240,0.5)" }}
+            tickLine={{ stroke: "rgba(226,232,240,0.5)" }}
             width={yAxisWidth}
           />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine
             x={0}
-            stroke="rgba(255,255,255,0.9)"
+            stroke="rgba(226,232,240,0.6)"
             strokeDasharray="3 3"
             opacity={0.9}
           />

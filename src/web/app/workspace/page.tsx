@@ -672,11 +672,11 @@ export default function Home() {
       <div className="relative z-10 flex min-h-screen">
         <aside
           className={cn(
-            "shrink-0 border-r border-border/40 bg-background backdrop-blur-sm flex flex-col justify-between transition-all duration-300 ease-in-out",
+            "h-screen shrink-0 overflow-hidden border-r border-border/40 bg-background backdrop-blur-sm flex flex-col justify-between transition-all duration-300 ease-in-out",
             isSidebarExpanded ? "w-48" : "w-12"
           )}
         >
-          <div className="p-2 min-h-0 flex-1 flex flex-col">
+          <div className="p-2 min-h-0 flex-1 flex flex-col overflow-hidden">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -795,7 +795,7 @@ export default function Home() {
             )}
           </div>
 
-          <div className="p-2 pt-0 border-t border-border/40">
+          <div className="shrink-0 p-2 pt-0 border-t border-border/40">
             {isLoggedIn ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1015,6 +1015,7 @@ export default function Home() {
                     messages={state.messages}
                     onStartAnalysis={handleStartAnalysis}
                     onSendMessage={(message) => handleSendMessage(message)}
+                    canStartAnalysis={Boolean(state.sessionId && state.schema)}
                     isAnalyzing={isAnalyzing}
                     isCompleted={!!showResults}
                     isReportVisible={state.isReportVisible}

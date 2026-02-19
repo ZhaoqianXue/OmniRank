@@ -133,7 +133,7 @@ export function DataPreviewComponent({
         )}
 
         {/* Data table preview - fills remaining space */}
-        <ScrollArea className="flex-1 min-h-0 rounded-md border bg-background">
+        <ScrollArea showHorizontalScrollbar className="flex-1 min-h-0 rounded-md border bg-background">
           <div className="min-w-max">
             <table className="w-full text-xs">
               <thead className="bg-muted sticky top-0 z-10">

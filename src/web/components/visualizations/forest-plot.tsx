@@ -19,16 +19,8 @@ interface ForestPlotProps {
   className?: string;
 }
 
-const CHART_BG = "#070e19";
-
-// Color scale from light blue (best) to deep blue (worst)
-const getColor = (rank: number, total: number) => {
-  const ratio = (rank - 1) / Math.max(1, total - 1);
-  const r = Math.round(225 + ratio * (28 - 225));
-  const g = Math.round(239 + ratio * (68 - 239));
-  const b = Math.round(255 + ratio * (116 - 255));
-  return `rgb(${r}, ${g}, ${b})`;
-};
+const CHART_BG = "#132841";
+const AXIS_COLOR = "#e2e8f0";
 
 // Custom tooltip component for Forest Plot
 const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: unknown[] }) => {
@@ -125,27 +117,27 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
         <ComposedChart
           data={chartData}
           layout="vertical"
-          margin={{ top: 12, right: 28, left: 16, bottom: 26 }}
+          margin={{ top: 24, right: 28, left: 16, bottom: 26 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="rgba(255,255,255,0.45)"
-            opacity={0.45}
+            stroke="rgba(226,232,240,0.25)"
+            opacity={0.9}
             horizontal={true}
             vertical={true}
           />
           <XAxis
             type="number"
             domain={[minRank, maxRank]}
-            tick={{ fill: "#f7fbff", fontSize: 12, fontWeight: 700 }}
-            axisLine={{ stroke: "rgba(255,255,255,0.8)" }}
-            tickLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            tick={{ fill: "#e2e8f0", fontSize: 12, fontWeight: 600 }}
+            axisLine={{ stroke: "rgba(226,232,240,0.5)" }}
+            tickLine={{ stroke: "rgba(226,232,240,0.5)" }}
             label={{
               value: "Rank (95% CI)",
               position: "bottom",
-              fill: "#f7fbff",
+              fill: "#e2e8f0",
               fontSize: 12,
-              fontWeight: 700,
+              fontWeight: 600,
               offset: 16,
             }}
             tickFormatter={(value) => Math.round(value).toString()}
@@ -153,9 +145,9 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
           <YAxis
             type="category"
             dataKey="name"
-            tick={{ fill: "#ffffff", fontSize: 12, fontWeight: 700 }}
-            axisLine={{ stroke: "rgba(255,255,255,0.8)" }}
-            tickLine={{ stroke: "rgba(255,255,255,0.8)" }}
+            tick={{ fill: "#f1f5f9", fontSize: 12, fontWeight: 600 }}
+            axisLine={{ stroke: "rgba(226,232,240,0.5)" }}
+            tickLine={{ stroke: "rgba(226,232,240,0.5)" }}
             width={yAxisWidth}
           />
           <Tooltip content={<CustomTooltip />} />
@@ -163,7 +155,7 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
           {/* Reference line at median rank */}
           <ReferenceLine
             x={(items.length + 1) / 2}
-            stroke="rgba(255,255,255,0.92)"
+            stroke="rgba(226,232,240,0.6)"
             strokeDasharray="3 3"
             opacity={0.9}
           />
@@ -176,16 +168,16 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
                 { x: item.ci_lower, y: item.name },
                 { x: item.ci_upper, y: item.name },
               ]}
-              stroke={getColor(item.rank, items.length)}
+              stroke={AXIS_COLOR}
               strokeWidth={3}
-              opacity={0.7}
+              opacity={0.8}
             />
           ))}
 
-          {/* Point estimates (diamonds) */}
+          {/* Point estimates (diamonds) with rank labels */}
           <Scatter
             dataKey="rank"
-            fill="hsl(var(--foreground))"
+            fill={AXIS_COLOR}
             shape={(props: { cx?: number; cy?: number; payload?: ForestPlotDataItem }) => {
               const cx = props.cx ?? 0;
               const cy = props.cy ?? 0;
@@ -193,16 +185,26 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
               if (!payload) {
                 return null;
               }
-              const color = getColor(payload.rank, items.length);
-              // Diamond shape for point estimate
+              // Diamond shape for point estimate, with rank label above - both white like axes
               return (
                 <g>
                   <polygon
                     points={`${cx},${cy - 8} ${cx + 6},${cy} ${cx},${cy + 8} ${cx - 6},${cy}`}
-                    fill={color}
-                    stroke="hsl(var(--background))"
+                    fill={AXIS_COLOR}
+                    stroke="#132841"
                     strokeWidth={1.5}
                   />
+                  <text
+                    x={cx}
+                    y={cy - 14}
+                    textAnchor="middle"
+                    dominantBaseline="auto"
+                    fill={AXIS_COLOR}
+                    fontSize={11}
+                    fontWeight={600}
+                  >
+                    {payload.rank}
+                  </text>
                 </g>
               );
             }}
@@ -211,20 +213,20 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
       </ResponsiveContainer>
 
       {/* Legend */}
-      <div className="mt-2 flex items-center justify-center gap-6 text-xs font-semibold text-[#f8fbff]">
+      <div className="mt-2 flex items-center justify-center gap-6 text-xs font-semibold text-slate-300">
         <div className="flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 16 16">
             <polygon
               points="8,2 14,8 8,14 2,8"
-              fill="#f8fbff"
-              stroke="rgba(8,34,61,0.75)"
+              fill={AXIS_COLOR}
+              stroke="rgba(226,232,240,0.6)"
               strokeWidth={1}
             />
           </svg>
           <span>Point Estimate</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-1 w-4 rounded bg-[#f8fbff]/90" />
+          <div className="h-1 w-4 rounded bg-slate-400/90" />
           <span>95% Confidence Interval</span>
         </div>
       </div>
