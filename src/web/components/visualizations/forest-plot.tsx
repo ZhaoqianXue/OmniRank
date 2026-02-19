@@ -17,35 +17,57 @@ import type { RankingItem } from "@/lib/api";
 interface ForestPlotProps {
   items: RankingItem[];
   className?: string;
+  theme?: "dark" | "light";
 }
 
 const CHART_BG = "#132841";
+const CHART_BG_LIGHT = "#ffffff";
 const AXIS_COLOR = "#e2e8f0";
+const AXIS_COLOR_LIGHT = "#0f172a";
 
 // Custom tooltip component for Forest Plot
-const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: unknown[] }) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  theme = "dark",
+}: {
+  active?: boolean;
+  payload?: unknown[];
+  theme?: "dark" | "light";
+}) => {
   if (!active || !payload || !payload.length) return null;
 
+  const isLightTheme = theme === "light";
   const data = (payload[0] as { payload: ForestPlotDataItem }).payload;
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg"
+      className={
+        isLightTheme
+          ? "bg-white border border-slate-300 rounded-lg p-3 shadow-lg"
+          : "bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg"
+      }
     >
-      <p className="font-semibold text-foreground">{data.name}</p>
+      <p className={isLightTheme ? "font-semibold text-slate-900" : "font-semibold text-foreground"}>{data.name}</p>
       <div className="mt-2 space-y-1 text-sm">
-        <p className="text-muted-foreground">
-          Point Estimate: <span className="text-primary font-mono">#{data.rank}</span>
+        <p className={isLightTheme ? "text-slate-700" : "text-muted-foreground"}>
+          Point Estimate: <span className={isLightTheme ? "text-slate-900 font-mono" : "text-primary font-mono"}>#{data.rank}</span>
         </p>
-        <p className="text-muted-foreground">
-          Confidence Interval: <span className="text-foreground font-mono">[{data.ci_lower}, {data.ci_upper}]</span>
+        <p className={isLightTheme ? "text-slate-700" : "text-muted-foreground"}>
+          Confidence Interval:{" "}
+          <span className={isLightTheme ? "text-slate-900 font-mono" : "text-foreground font-mono"}>
+            [{data.ci_lower}, {data.ci_upper}]
+          </span>
         </p>
-        <p className="text-muted-foreground">
-          CI Width: <span className="text-foreground font-mono">{data.ci_width}</span>
+        <p className={isLightTheme ? "text-slate-700" : "text-muted-foreground"}>
+          CI Width: <span className={isLightTheme ? "text-slate-900 font-mono" : "text-foreground font-mono"}>{data.ci_width}</span>
         </p>
-        <p className="text-muted-foreground">
-          Score (θ̂): <span className="text-foreground font-mono">{data.theta_hat.toFixed(4)}</span>
+        <p className={isLightTheme ? "text-slate-700" : "text-muted-foreground"}>
+          Score (θ̂):{" "}
+          <span className={isLightTheme ? "text-slate-900 font-mono" : "text-foreground font-mono"}>
+            {data.theta_hat.toFixed(4)}
+          </span>
         </p>
       </div>
     </motion.div>
@@ -67,7 +89,9 @@ interface ForestPlotDataItem {
  * Forest Plot - displays ranking confidence intervals
  * Common visualization in statistical analysis for showing point estimates with CIs
  */
-export function ForestPlot({ items, className }: ForestPlotProps) {
+export function ForestPlot({ items, className, theme = "dark" }: ForestPlotProps) {
+  const isLightTheme = theme === "light";
+
   // Prepare data for the forest plot - sort by rank
   const chartData: ForestPlotDataItem[] = useMemo(() => {
     return [...items]
@@ -102,15 +126,23 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
     return Math.min(220, Math.max(90, maxNameLength * 7 + 18));
   }, [items]);
 
+  const chartBg = isLightTheme ? CHART_BG_LIGHT : CHART_BG;
+  const axisColor = isLightTheme ? AXIS_COLOR_LIGHT : AXIS_COLOR;
+  const gridStroke = isLightTheme ? "rgba(15,23,42,0.12)" : "rgba(226,232,240,0.25)";
+  const axisStroke = isLightTheme ? "rgba(15,23,42,0.30)" : "rgba(226,232,240,0.5)";
+  const referenceLineStroke = isLightTheme ? "rgba(15,23,42,0.45)" : "rgba(226,232,240,0.6)";
+  const markerStroke = isLightTheme ? "#ffffff" : "#132841";
+
   return (
     <div
       className={className}
       style={{
         width: "100%",
         minHeight: chartHeight,
-        backgroundColor: CHART_BG,
+        backgroundColor: chartBg,
         borderRadius: 12,
         padding: 12,
+        border: isLightTheme ? "1px solid rgba(15,23,42,0.16)" : undefined,
       }}
     >
       <ResponsiveContainer width="100%" height={chartHeight - 52}>
@@ -121,7 +153,7 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="rgba(226,232,240,0.25)"
+            stroke={gridStroke}
             opacity={0.9}
             horizontal={true}
             vertical={true}
@@ -129,13 +161,13 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
           <XAxis
             type="number"
             domain={[minRank, maxRank]}
-            tick={{ fill: "#e2e8f0", fontSize: 12, fontWeight: 600 }}
-            axisLine={{ stroke: "rgba(226,232,240,0.5)" }}
-            tickLine={{ stroke: "rgba(226,232,240,0.5)" }}
+            tick={{ fill: axisColor, fontSize: 12, fontWeight: 600 }}
+            axisLine={{ stroke: axisStroke }}
+            tickLine={{ stroke: axisStroke }}
             label={{
               value: "Rank (95% CI)",
               position: "bottom",
-              fill: "#e2e8f0",
+              fill: axisColor,
               fontSize: 12,
               fontWeight: 600,
               offset: 16,
@@ -145,17 +177,17 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
           <YAxis
             type="category"
             dataKey="name"
-            tick={{ fill: "#f1f5f9", fontSize: 12, fontWeight: 600 }}
-            axisLine={{ stroke: "rgba(226,232,240,0.5)" }}
-            tickLine={{ stroke: "rgba(226,232,240,0.5)" }}
+            tick={{ fill: axisColor, fontSize: 12, fontWeight: 600 }}
+            axisLine={{ stroke: axisStroke }}
+            tickLine={{ stroke: axisStroke }}
             width={yAxisWidth}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip theme={theme} />} />
 
           {/* Reference line at median rank */}
           <ReferenceLine
             x={(items.length + 1) / 2}
-            stroke="rgba(226,232,240,0.6)"
+            stroke={referenceLineStroke}
             strokeDasharray="3 3"
             opacity={0.9}
           />
@@ -168,7 +200,7 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
                 { x: item.ci_lower, y: item.name },
                 { x: item.ci_upper, y: item.name },
               ]}
-              stroke={AXIS_COLOR}
+              stroke={axisColor}
               strokeWidth={3}
               opacity={0.8}
             />
@@ -177,7 +209,7 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
           {/* Point estimates (diamonds) with rank labels */}
           <Scatter
             dataKey="rank"
-            fill={AXIS_COLOR}
+            fill={axisColor}
             shape={(props: { cx?: number; cy?: number; payload?: ForestPlotDataItem }) => {
               const cx = props.cx ?? 0;
               const cy = props.cy ?? 0;
@@ -190,8 +222,8 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
                 <g>
                   <polygon
                     points={`${cx},${cy - 8} ${cx + 6},${cy} ${cx},${cy + 8} ${cx - 6},${cy}`}
-                    fill={AXIS_COLOR}
-                    stroke="#132841"
+                    fill={axisColor}
+                    stroke={markerStroke}
                     strokeWidth={1.5}
                   />
                   <text
@@ -199,7 +231,7 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
                     y={cy - 14}
                     textAnchor="middle"
                     dominantBaseline="auto"
-                    fill={AXIS_COLOR}
+                    fill={axisColor}
                     fontSize={11}
                     fontWeight={600}
                   >
@@ -213,20 +245,26 @@ export function ForestPlot({ items, className }: ForestPlotProps) {
       </ResponsiveContainer>
 
       {/* Legend */}
-      <div className="mt-2 flex items-center justify-center gap-6 text-xs font-semibold text-slate-300">
+      <div
+        className={
+          isLightTheme
+            ? "mt-2 flex items-center justify-center gap-6 text-xs font-semibold text-slate-600"
+            : "mt-2 flex items-center justify-center gap-6 text-xs font-semibold text-slate-300"
+        }
+      >
         <div className="flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 16 16">
             <polygon
               points="8,2 14,8 8,14 2,8"
-              fill={AXIS_COLOR}
-              stroke="rgba(226,232,240,0.6)"
+              fill={axisColor}
+              stroke={isLightTheme ? "rgba(15,23,42,0.40)" : "rgba(226,232,240,0.6)"}
               strokeWidth={1}
             />
           </svg>
           <span>Point Estimate</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-1 w-4 rounded bg-slate-400/90" />
+          <div className={isLightTheme ? "h-1 w-4 rounded bg-slate-500/90" : "h-1 w-4 rounded bg-slate-400/90"} />
           <span>95% Confidence Interval</span>
         </div>
       </div>

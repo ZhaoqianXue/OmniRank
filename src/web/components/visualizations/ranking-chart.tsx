@@ -18,9 +18,11 @@ import type { RankingItem } from "@/lib/api";
 interface RankingChartProps {
   items: RankingItem[];
   className?: string;
+  theme?: "dark" | "light";
 }
 
 const CHART_BG = "#132841";
+const CHART_BG_LIGHT = "#ffffff";
 
 // Color scale from light blue (best) to deep blue (worst)
 const getColor = (rank: number, total: number) => {
@@ -32,9 +34,18 @@ const getColor = (rank: number, total: number) => {
 };
 
 // Custom tooltip component
-const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: unknown[] }) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  theme = "dark",
+}: {
+  active?: boolean;
+  payload?: unknown[];
+  theme?: "dark" | "light";
+}) => {
   if (!active || !payload || !payload.length) return null;
 
+  const isLightTheme = theme === "light";
   const data = (payload[0] as { payload: RankingItem }).payload;
   const ciLeft = Math.round(data.ci_two_sided[0]);
   const ciRight = Math.round(data.ci_two_sided[1]);
@@ -42,25 +53,31 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: unknow
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg"
+      className={
+        isLightTheme
+          ? "bg-white border border-slate-300 rounded-lg p-3 shadow-lg"
+          : "bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg"
+      }
     >
-      <p className="font-semibold text-foreground">{data.name}</p>
+      <p className={isLightTheme ? "font-semibold text-slate-900" : "font-semibold text-foreground"}>{data.name}</p>
       <div className="mt-2 space-y-1 text-sm">
-        <p className="text-muted-foreground">
-          Rank: <span className="text-primary font-mono">#{data.rank}</span>
+        <p className={isLightTheme ? "text-slate-700" : "text-muted-foreground"}>
+          Rank: <span className={isLightTheme ? "text-slate-900 font-mono" : "text-primary font-mono"}>#{data.rank}</span>
         </p>
-        <p className="text-muted-foreground">
-          Score: <span className="text-foreground font-mono">{data.theta_hat.toFixed(4)}</span>
+        <p className={isLightTheme ? "text-slate-700" : "text-muted-foreground"}>
+          Score: <span className={isLightTheme ? "text-slate-900 font-mono" : "text-foreground font-mono"}>{data.theta_hat.toFixed(4)}</span>
         </p>
-        <p className="text-muted-foreground">
-          Confidence Interval: <span className="text-foreground font-mono">[{ciLeft}, {ciRight}]</span>
+        <p className={isLightTheme ? "text-slate-700" : "text-muted-foreground"}>
+          Confidence Interval: <span className={isLightTheme ? "text-slate-900 font-mono" : "text-foreground font-mono"}>[{ciLeft}, {ciRight}]</span>
         </p>
       </div>
     </motion.div>
   );
 };
 
-export function RankingChart({ items, className }: RankingChartProps) {
+export function RankingChart({ items, className, theme = "dark" }: RankingChartProps) {
+  const isLightTheme = theme === "light";
+
   // Prepare data for the chart - sort by rank
   const chartData = useMemo(() => {
     return [...items].sort((a, b) => a.rank - b.rank);
@@ -88,15 +105,23 @@ export function RankingChart({ items, className }: RankingChartProps) {
     };
   }, [items]);
 
+  const chartBg = isLightTheme ? CHART_BG_LIGHT : CHART_BG;
+  const axisTickColor = isLightTheme ? "#0f172a" : "#e2e8f0";
+  const yAxisTickColor = isLightTheme ? "#111827" : "#f1f5f9";
+  const gridStroke = isLightTheme ? "rgba(15,23,42,0.12)" : "rgba(226,232,240,0.25)";
+  const axisStroke = isLightTheme ? "rgba(15,23,42,0.30)" : "rgba(226,232,240,0.5)";
+  const referenceLineStroke = isLightTheme ? "rgba(15,23,42,0.45)" : "rgba(226,232,240,0.6)";
+
   return (
     <div
       className={className}
       style={{
         width: "100%",
         minHeight: chartHeight,
-        backgroundColor: CHART_BG,
+        backgroundColor: chartBg,
         borderRadius: 12,
         padding: 12,
+        border: isLightTheme ? "1px solid rgba(15,23,42,0.16)" : undefined,
       }}
     >
       <ResponsiveContainer width="100%" height={chartHeight - 24}>
@@ -108,19 +133,19 @@ export function RankingChart({ items, className }: RankingChartProps) {
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="rgba(226,232,240,0.25)"
+            stroke={gridStroke}
             opacity={0.9}
           />
           <XAxis
             type="number"
             domain={[minScore, maxScore]}
-            tick={{ fill: "#e2e8f0", fontSize: 12, fontWeight: 600 }}
-            axisLine={{ stroke: "rgba(226,232,240,0.5)" }}
-            tickLine={{ stroke: "rgba(226,232,240,0.5)" }}
+            tick={{ fill: axisTickColor, fontSize: 12, fontWeight: 600 }}
+            axisLine={{ stroke: axisStroke }}
+            tickLine={{ stroke: axisStroke }}
             label={{
               value: "Score (θ̂)",
               position: "bottom",
-              fill: "#e2e8f0",
+              fill: axisTickColor,
               fontSize: 12,
               fontWeight: 600,
             }}
@@ -128,15 +153,15 @@ export function RankingChart({ items, className }: RankingChartProps) {
           <YAxis
             type="category"
             dataKey="name"
-            tick={{ fill: "#f1f5f9", fontSize: 12, fontWeight: 600 }}
-            axisLine={{ stroke: "rgba(226,232,240,0.5)" }}
-            tickLine={{ stroke: "rgba(226,232,240,0.5)" }}
+            tick={{ fill: yAxisTickColor, fontSize: 12, fontWeight: 600 }}
+            axisLine={{ stroke: axisStroke }}
+            tickLine={{ stroke: axisStroke }}
             width={yAxisWidth}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip theme={theme} />} />
           <ReferenceLine
             x={0}
-            stroke="rgba(226,232,240,0.6)"
+            stroke={referenceLineStroke}
             strokeDasharray="3 3"
             opacity={0.9}
           />

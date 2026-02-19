@@ -2,7 +2,7 @@
 
 import { isValidElement, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, MessageSquareQuote, X } from "lucide-react";
+import { MessageSquareQuote, Moon, Sun, X } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -51,6 +51,8 @@ interface QuoteDraft {
   y: number;
 }
 
+type ReportTheme = "dark" | "light";
+
 /* -------------------------------------------------------------------------- */
 /* Sanitisation schema                                                         */
 /* -------------------------------------------------------------------------- */
@@ -87,6 +89,18 @@ const SECTION_STYLES: Record<string, string> = {
   limitation:
     "border-l-4 border-[#FFD700]/50 bg-[#FFD700]/[0.03] rounded-r-lg pl-5 pr-4 py-4 my-6",
   repro: "bg-muted/20 border border-border/30 rounded-lg p-5 my-6 font-mono text-xs leading-relaxed",
+};
+
+const LIGHT_SECTION_STYLES: Record<string, string> = {
+  summary: "relative bg-slate-50 border border-slate-200 rounded-xl p-6 my-6 shadow-[0_0_24px_-6px_rgba(15,23,42,0.06)]",
+  result: "my-6",
+  table: "my-6",
+  figure:
+    "rounded-2xl border border-slate-200 bg-white p-5 my-7 shadow-[0_16px_40px_-24px_rgba(15,23,42,0.20)] [&>p:first-of-type]:text-[11px] [&>p:first-of-type]:uppercase [&>p:first-of-type]:tracking-wide [&>p:first-of-type]:text-slate-500 [&>p:first-of-type]:font-semibold [&>p:last-of-type]:text-xs [&>p:last-of-type]:text-slate-600 [&>p:last-of-type]:leading-relaxed",
+  comparison: "bg-slate-50 border border-slate-200 rounded-lg p-5 my-6",
+  method: "my-6",
+  limitation: "border-l-4 border-amber-400 bg-amber-50 rounded-r-lg pl-5 pr-4 py-4 my-6",
+  repro: "bg-slate-50 border border-slate-200 rounded-lg p-5 my-6 font-mono text-xs leading-relaxed",
 };
 
 /* -------------------------------------------------------------------------- */
@@ -153,8 +167,11 @@ function buildMarkdownComponents(
   figureUrls: Map<string, string>,
   plotsBySource: Map<string, PlotSpec>,
   rankingItems: RankingItem[],
+  theme: ReportTheme,
   reportMetaBadges?: ReactNode,
 ): Components {
+  const isLightTheme = theme === "light";
+
   const getHeadingText = (node: ReactNode): string => {
     if (typeof node === "string" || typeof node === "number") {
       return String(node);
@@ -181,7 +198,7 @@ function buildMarkdownComponents(
         <section
           data-omni-block-id={blockId}
           data-omni-kind={kind}
-          className={cn(SECTION_STYLES[kind] || "my-4")}
+          className={cn((isLightTheme ? LIGHT_SECTION_STYLES : SECTION_STYLES)[kind] || "my-4")}
         >
           {children}
         </section>
@@ -195,15 +212,15 @@ function buildMarkdownComponents(
 
       return (
         <header className="pb-4 mb-2 border-b border-primary/30 flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold leading-tight text-white">
+          <h1 className={cn("text-2xl font-bold leading-tight", isLightTheme ? "text-slate-900" : "text-white")}>
             {isOmniRankReportTitle ? (
               <>
-                <span className="text-white">Omni</span>
-                <span className="text-white">Rank</span>
-                <span className="text-white"> Report</span>
+                <span className={cn(isLightTheme ? "text-slate-900" : "text-white")}>Omni</span>
+                <span className={cn(isLightTheme ? "text-slate-900" : "text-white")}>Rank</span>
+                <span className={cn(isLightTheme ? "text-slate-900" : "text-white")}> Report</span>
               </>
             ) : (
-              <span className="text-white">{children}</span>
+              <span className={cn(isLightTheme ? "text-slate-900" : "text-white")}>{children}</span>
             )}
           </h1>
           {reportMetaBadges ? (
@@ -213,39 +230,58 @@ function buildMarkdownComponents(
       );
     },
     h2: ({ children }) => (
-      <h2 className="text-lg font-semibold text-foreground mt-0 mb-3 flex items-center gap-2">
+      <h2 className={cn("text-lg font-semibold mt-0 mb-3 flex items-center gap-2", isLightTheme ? "text-slate-900" : "text-foreground")}>
         <span className="inline-block h-5 w-1 rounded-full bg-primary" />
         {children}
       </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="text-base font-semibold text-foreground/90 mt-0 mb-2">
+      <h3 className={cn("text-base font-semibold mt-0 mb-2", isLightTheme ? "text-slate-900" : "text-foreground/90")}>
         {children}
       </h3>
     ),
 
     /* ── Tables ────────────────────────────────────────────────────────── */
     table: ({ children }) => (
-      <div className="overflow-x-auto rounded-xl border border-primary/25 bg-[#132841] my-4 shadow-sm">
+      <div
+        className={cn(
+          "overflow-x-auto rounded-xl my-4 shadow-sm",
+          isLightTheme ? "border border-slate-200 bg-white" : "border border-primary/25 bg-[#132841]",
+        )}
+      >
         <div className="min-w-max">
           <table className="w-full text-xs">{children}</table>
         </div>
       </div>
     ),
     thead: ({ children }) => (
-      <thead className="bg-primary/15 sticky top-0 z-10">{children}</thead>
+      <thead className={cn("sticky top-0 z-10", isLightTheme ? "bg-slate-100" : "bg-primary/15")}>{children}</thead>
     ),
     th: ({ children }) => (
-      <th className="px-3 py-2 text-left font-semibold text-slate-200 border-b border-primary/25 whitespace-nowrap bg-primary/15">
+      <th
+        className={cn(
+          "px-3 py-2 text-left font-semibold border-b whitespace-nowrap",
+          isLightTheme ? "text-slate-900 border-slate-200 bg-slate-100" : "text-slate-200 border-primary/25 bg-primary/15",
+        )}
+      >
         {children}
       </th>
     ),
     tbody: ({ children }) => <tbody>{children}</tbody>,
     tr: ({ children }) => (
-      <tr className="border-b border-primary/20 last:border-0 hover:bg-primary/10 transition-colors">{children}</tr>
+      <tr
+        className={cn(
+          "border-b last:border-0 transition-colors",
+          isLightTheme ? "border-slate-200 hover:bg-slate-50" : "border-primary/20 hover:bg-primary/10",
+        )}
+      >
+        {children}
+      </tr>
     ),
     td: ({ children }) => (
-      <td className="px-3 py-1.5 whitespace-nowrap text-slate-300">{children}</td>
+      <td className={cn("px-3 py-1.5 whitespace-nowrap", isLightTheme ? "text-slate-800" : "text-slate-300")}>
+        {children}
+      </td>
     ),
 
     /* ── Horizontal rule (section divider) ─────────────────────────────── */
@@ -259,11 +295,26 @@ function buildMarkdownComponents(
 
     /* ── Block elements ────────────────────────────────────────────────── */
     blockquote: ({ children }) => (
-      <blockquote className="border-l-4 border-primary/30 pl-4 py-1 my-4 text-muted-foreground">
+      <blockquote
+        className={cn(
+          "border-l-4 pl-4 py-1 my-4",
+          isLightTheme ? "border-slate-300 text-slate-700" : "border-primary/30 text-muted-foreground",
+        )}
+      >
         {children}
       </blockquote>
     ),
-    p: ({ children }) => {
+    p: ({ children, node }) => {
+      const hasBlockAstChild = (() => {
+        const paragraph = node as { children?: Array<{ tagName?: string }> } | undefined;
+        if (!paragraph?.children) return false;
+        const blockLikeTags = new Set(["div", "section", "table", "figure", "ul", "ol", "blockquote", "img"]);
+        return paragraph.children.some((child) => {
+          const tagName = child?.tagName;
+          return typeof tagName === "string" && blockLikeTags.has(tagName);
+        });
+      })();
+
       const hasBlockDescendant = (node: ReactNode): boolean => {
         if (node == null) return false;
         if (Array.isArray(node)) return node.some(hasBlockDescendant);
@@ -271,13 +322,20 @@ function buildMarkdownComponents(
         if (!isValidElement<{ children?: ReactNode }>(node)) return false;
         const el = node as React.ReactElement<{ children?: ReactNode }>;
         if (typeof el.type === "string") {
-          if (["div", "section", "table", "figure", "ul", "ol", "blockquote"].includes(el.type)) return true;
+          if (["div", "section", "table", "figure", "ul", "ol", "blockquote", "img"].includes(el.type)) return true;
+        }
+        const markdownTag = (el.props as { node?: { tagName?: string } }).node?.tagName;
+        if (
+          typeof markdownTag === "string" &&
+          ["div", "section", "table", "figure", "ul", "ol", "blockquote", "img"].includes(markdownTag)
+        ) {
+          return true;
         }
         return hasBlockDescendant(el.props?.children);
       };
-      const hasBlockChild = hasBlockDescendant(children);
+      const hasBlockChild = hasBlockAstChild || hasBlockDescendant(children);
 
-      const className = "text-sm leading-relaxed mb-3 text-foreground/90";
+      const className = cn("text-sm leading-relaxed mb-3", isLightTheme ? "text-slate-800" : "text-foreground/90");
       return hasBlockChild ? (
         <div className={className}>{children}</div>
       ) : (
@@ -291,21 +349,26 @@ function buildMarkdownComponents(
       <ol className="space-y-1.5 my-3 list-decimal pl-5">{children}</ol>
     ),
     li: ({ children }) => (
-      <li className="flex items-start gap-2 text-sm leading-relaxed">
-        <span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-primary/50 shrink-0" />
+      <li className={cn("flex items-start gap-2 text-sm leading-relaxed", isLightTheme ? "text-slate-800" : "text-foreground/90")}>
+        <span className={cn("mt-[7px] h-1.5 w-1.5 rounded-full shrink-0", isLightTheme ? "bg-slate-400" : "bg-primary/50")} />
         <span className="flex-1">{children}</span>
       </li>
     ),
 
     /* ── Inline elements ───────────────────────────────────────────────── */
     strong: ({ children }) => (
-      <strong className="font-semibold text-foreground">{children}</strong>
+      <strong className={cn("font-semibold", isLightTheme ? "text-slate-900" : "text-foreground")}>{children}</strong>
     ),
     em: ({ children }) => (
-      <em className="italic text-muted-foreground">{children}</em>
+      <em className={cn("italic", isLightTheme ? "text-slate-600" : "text-muted-foreground")}>{children}</em>
     ),
     code: ({ children }) => (
-      <code className="bg-muted/50 px-1.5 py-0.5 rounded text-xs font-mono text-primary/80">
+      <code
+        className={cn(
+          "px-1.5 py-0.5 rounded text-xs font-mono",
+          isLightTheme ? "bg-slate-100 text-slate-900" : "bg-muted/50 text-primary/80",
+        )}
+      >
         {children}
       </code>
     ),
@@ -335,14 +398,14 @@ function buildMarkdownComponents(
           if (matchedPlot.type === "ranking_bar") {
             return (
               <div className="my-2 overflow-hidden rounded-xl p-0">
-                <RankingChart items={interactiveItems} className="w-full" />
+                <RankingChart items={interactiveItems} className="w-full" theme={theme} />
               </div>
             );
           }
           if (matchedPlot.type === "ci_forest") {
             return (
               <div className="my-2 overflow-hidden rounded-xl p-0">
-                <ForestPlot items={interactiveItems} className="w-full" />
+                <ForestPlot items={interactiveItems} className="w-full" theme={theme} />
               </div>
             );
           }
@@ -364,12 +427,13 @@ function buildMarkdownComponents(
 /* Glossary panel                                                              */
 /* -------------------------------------------------------------------------- */
 
-function GlossaryPanel({ hints }: { hints: HintSpec[] }) {
+function GlossaryPanel({ hints, theme }: { hints: HintSpec[]; theme: ReportTheme }) {
   if (!hints || hints.length === 0) return null;
+  const isLightTheme = theme === "light";
 
   return (
     <section className="my-6">
-      <h2 className="text-lg font-semibold text-foreground mt-0 mb-3 flex items-center gap-2">
+      <h2 className={cn("text-lg font-semibold mt-0 mb-3 flex items-center gap-2", isLightTheme ? "text-slate-900" : "text-foreground")}>
         <span className="inline-block h-5 w-1 rounded-full bg-primary" />
         Terms and Definitions
       </h2>
@@ -377,17 +441,20 @@ function GlossaryPanel({ hints }: { hints: HintSpec[] }) {
         {hints.map((hint) => (
           <div key={hint.hint_id}>
             <div className="flex items-center gap-2 mb-1.5">
-              <h3 className="text-base font-semibold text-foreground/90 mt-0 mb-0">
+              <h3 className={cn("text-base font-semibold mt-0 mb-0", isLightTheme ? "text-slate-900" : "text-foreground/90")}>
                 {hint.title}
               </h3>
               <Badge
                 variant="outline"
-                className="text-[10px] px-1.5 py-0 h-4 shrink-0 border-border text-muted-foreground"
+                className={cn(
+                  "text-[10px] px-1.5 py-0 h-4 shrink-0",
+                  isLightTheme ? "border-slate-300 text-slate-700 bg-white" : "border-border text-muted-foreground",
+                )}
               >
                 {hint.kind}
               </Badge>
             </div>
-            <p className="text-sm leading-relaxed text-foreground/90">{hint.body}</p>
+            <p className={cn("text-sm leading-relaxed", isLightTheme ? "text-slate-800" : "text-foreground/90")}>{hint.body}</p>
           </div>
         ))}
       </div>
@@ -414,6 +481,8 @@ export function ReportOverlay({
 }: ReportOverlayProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [quoteDraft, setQuoteDraft] = useState<QuoteDraft | null>(null);
+  const [reportTheme, setReportTheme] = useState<ReportTheme>("dark");
+  const isLightTheme = reportTheme === "light";
 
   const markdown = reportOutput?.markdown || results?.report || "No report available.";
   const hints = reportOutput?.hints || [];
@@ -485,30 +554,47 @@ export function ReportOverlay({
     () => (
       <>
         {schema && (
-          <Badge variant="secondary" className="text-xs gap-1">
+          <Badge
+            variant="secondary"
+            className={cn("text-xs gap-1", isLightTheme ? "bg-slate-100 border border-slate-300 text-slate-800" : "")}
+          >
             {schema.ranking_items.length} items
           </Badge>
         )}
         {config && (
           <>
-            <Badge variant="outline" className="text-xs gap-1 font-mono">
+            <Badge
+              variant="outline"
+              className={cn("text-xs gap-1 font-mono", isLightTheme ? "border-slate-300 text-slate-800 bg-white" : "")}
+            >
               B={config.bootstrap_iterations ?? 2000}
             </Badge>
-            <Badge variant="outline" className="text-xs gap-1 font-mono">
+            <Badge
+              variant="outline"
+              className={cn("text-xs gap-1 font-mono", isLightTheme ? "border-slate-300 text-slate-800 bg-white" : "")}
+            >
               seed={config.random_seed ?? 42}
             </Badge>
           </>
         )}
       </>
     ),
-    [config, schema],
+    [config, isLightTheme, schema],
   );
 
   /* ── Markdown components ─────────────────────────────────────────────── */
 
   const mdComponents = useMemo(
-    () => buildMarkdownComponents(artifactPathToUrl, figureUrls, plotsBySource, results?.items || [], reportMetaBadges),
-    [artifactPathToUrl, figureUrls, plotsBySource, reportMetaBadges, results?.items],
+    () =>
+      buildMarkdownComponents(
+        artifactPathToUrl,
+        figureUrls,
+        plotsBySource,
+        results?.items || [],
+        reportTheme,
+        reportMetaBadges,
+      ),
+    [artifactPathToUrl, figureUrls, plotsBySource, reportMetaBadges, reportTheme, results?.items],
   );
   const renderedMarkdown = useMemo(
     () => (
@@ -525,7 +611,9 @@ export function ReportOverlay({
 
   /* ── Handlers ────────────────────────────────────────────────────────── */
 
-  const handleExportPdf = () => window.print();
+  const handleToggleTheme = () => {
+    setReportTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
 
   const handleMouseUp = () => {
     const sel = window.getSelection();
@@ -592,26 +680,43 @@ export function ReportOverlay({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className={cn(
-            "absolute inset-0 z-50 bg-card/95 backdrop-blur-sm rounded-lg overflow-hidden",
+            "absolute inset-0 z-50 backdrop-blur-sm rounded-lg overflow-hidden",
+            isLightTheme ? "bg-white/95 text-slate-900" : "bg-card/95 text-foreground",
             className,
           )}
         >
           {/* ── Header bar ────────────────────────────────────────────── */}
-          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-card/90 border-b border-border/40 z-10">
+          <div
+            className={cn(
+              "absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 z-10",
+              isLightTheme ? "bg-white/95 border-b border-slate-200" : "bg-card/90 border-b border-border/40",
+            )}
+          >
             <Button
               variant="outline"
-              size="sm"
-              onClick={handleExportPdf}
-              className="h-8 rounded-full border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:border-primary/50 shadow-sm"
+              size="icon-sm"
+              onClick={handleToggleTheme}
+              className={cn(
+                "rounded-full border shadow-sm",
+                isLightTheme
+                  ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:border-slate-400"
+                  : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:border-primary/50",
+              )}
+              aria-label={isLightTheme ? "Switch report to dark mode" : "Switch report to light mode"}
+              title={isLightTheme ? "Switch to dark mode" : "Switch to light mode"}
             >
-                <Download className="h-4 w-4 mr-1.5" />
-                Export PDF
+              {isLightTheme ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={onClose}
-              className="rounded-full border border-border/60 bg-background/80 hover:bg-muted/70 hover:border-border/90"
+              className={cn(
+                "rounded-full border",
+                isLightTheme
+                  ? "border-slate-300 bg-white hover:bg-slate-100 hover:border-slate-400 text-slate-700"
+                  : "border-border/60 bg-background/80 hover:bg-muted/70 hover:border-border/90",
+              )}
               aria-label="Close report"
             >
               <X className="h-4 w-4" />
@@ -621,14 +726,14 @@ export function ReportOverlay({
           {/* ── Scrollable content ────────────────────────────────────── */}
           <div className="absolute inset-0 top-14" onMouseUp={handleMouseUp}>
             <ScrollArea className="h-full">
-              <div ref={contentRef} className="max-w-4xl mx-auto p-6 pb-24">
+              <div ref={contentRef} className={cn("max-w-4xl mx-auto p-6 pb-24", isLightTheme ? "text-slate-900" : "")}>
                 {/* ── Markdown report ──────────────────────────────────── */}
                 <div className="report-content">
                   {renderedMarkdown}
                 </div>
 
                 {/* ── Glossary / Hints ─────────────────────────────────── */}
-                <GlossaryPanel hints={hints} />
+                <GlossaryPanel hints={hints} theme={reportTheme} />
               </div>
             </ScrollArea>
           </div>
