@@ -488,10 +488,6 @@ def generate_report(
     artifacts: list[ArtifactRef] = []
 
     for idx, plot in enumerate(plots, start=1):
-        # Keep only CI-forest figure in the report body.
-        if plot.type == "ranking_bar":
-            continue
-
         fig_bid = plot.block_id or _stable_block_id(
             "figure",
             {"type": plot.type, "index": idx, "data": plot.data, "config": plot.config},

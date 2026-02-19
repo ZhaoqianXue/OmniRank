@@ -10,7 +10,7 @@ import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ForestPlot, RankingChart } from "@/components/visualizations";
+import { ForestPlot } from "@/components/visualizations";
 import { cn } from "@/lib/utils";
 import {
   artifactUrl,
@@ -394,21 +394,12 @@ function buildMarkdownComponents(
         const interactiveItems =
           rankingItems.length > 0 ? rankingItems : rankingItemsFromPlot(matchedPlot) || [];
 
-        if (interactiveItems.length > 0) {
-          if (matchedPlot.type === "ranking_bar") {
-            return (
-              <div className="my-2 overflow-hidden rounded-xl p-0">
-                <RankingChart items={interactiveItems} className="w-full" theme={theme} />
-              </div>
-            );
-          }
-          if (matchedPlot.type === "ci_forest") {
-            return (
-              <div className="my-2 overflow-hidden rounded-xl p-0">
-                <ForestPlot items={interactiveItems} className="w-full" theme={theme} />
-              </div>
-            );
-          }
+        if (interactiveItems.length > 0 && matchedPlot.type === "ci_forest") {
+          return (
+            <div className="my-2 overflow-hidden rounded-xl p-0">
+              <ForestPlot items={interactiveItems} className="w-full" theme={theme} />
+            </div>
+          );
         }
       }
 

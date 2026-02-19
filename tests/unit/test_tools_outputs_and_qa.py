@@ -23,11 +23,11 @@ def test_generate_visualizations_deterministic_svg(tmp_path: Path):
     results = _sample_results()
     artifact_dir = tmp_path / "artifacts"
 
-    first = generate_visualizations(results=results, viz_types=["ranking_bar", "ci_forest"], artifact_dir=str(artifact_dir))
-    second = generate_visualizations(results=results, viz_types=["ranking_bar", "ci_forest"], artifact_dir=str(artifact_dir))
+    first = generate_visualizations(results=results, viz_types=["ci_forest"], artifact_dir=str(artifact_dir))
+    second = generate_visualizations(results=results, viz_types=["ci_forest"], artifact_dir=str(artifact_dir))
 
-    assert len(first.plots) == 2
-    assert len(second.plots) == 2
+    assert len(first.plots) == 1
+    assert len(second.plots) == 1
 
     for plot_a, plot_b in zip(first.plots, second.plots, strict=True):
         bytes_a = Path(plot_a.svg_path).read_bytes()
@@ -39,15 +39,8 @@ def test_generate_visualizations_deterministic_svg(tmp_path: Path):
         assert plot_a.caption_plain
         assert plot_a.caption_academic
 
-    ranking_bar = next(plot for plot in first.plots if plot.type == "ranking_bar")
-    ci_forest = next(plot for plot in first.plots if plot.type == "ci_forest")
-
-    assert ranking_bar.config["x_label"] == "theta_hat"
-    assert ranking_bar.config["ci_axis"] == "rank"
-    assert ranking_bar.data["scores"] == [0.6, 0.3, -0.1]
-    assert ranking_bar.data["rank_ci_lower"] == [1.0, 1.0, 2.0]
-    assert ranking_bar.data["rank_ci_upper"] == [2.0, 3.0, 3.0]
-
+    ci_forest = first.plots[0]
+    assert ci_forest.type == "ci_forest"
     assert ci_forest.config["x_label"] == "rank"
     assert ci_forest.config["point"] == "rank"
     assert ci_forest.data["rank_point"] == [1, 2, 3]
@@ -57,11 +50,12 @@ def test_generate_visualizations_deterministic_svg(tmp_path: Path):
 
 def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path: Path):
     results = _sample_results()
+    (tmp_path / "ci_forest.svg").write_text("<svg/>", encoding="utf-8")
     plot = PlotSpec(
-        type="ranking_bar",
+        type="ci_forest",
         data={},
         config={},
-        svg_path=str(tmp_path / "ranking_bar.svg"),
+        svg_path=str(tmp_path / "ci_forest.svg"),
         block_id="figure-ranking-bar-123",
         caption_plain="Plain caption",
         caption_academic="Academic caption",

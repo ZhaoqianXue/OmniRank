@@ -5,12 +5,15 @@ from __future__ import annotations
 from typing import Optional
 
 from .common import (
+    HIGHER_BETTER_KEYWORDS,
+    LOWER_BETTER_KEYWORDS,
     analyze_long_item_value_pairwise,
     detect_format_from_df,
     find_pairwise_long_columns,
     infer_bigbetter,
     infer_indicator_column,
     infer_ranking_items,
+    is_reasonable_indicator_column,
     is_meta_column,
     read_table,
 )
@@ -161,6 +164,88 @@ def _normalize_llm_schema(
         indicator_values = _normalized_unique_strings(schema_dict.get("indicator_values"))
         if not indicator_values:
             indicator_values = list(fallback_schema.indicator_values)
+
+    return SemanticSchema(
+        bigbetter=bigbetter,
+        ranking_items=ranking_items,
+        indicator_col=indicator_col,
+        indicator_values=indicator_values,
+    )
+
+
+def _count_direction_keyword_hits(ranking_items: list[str], user_hints: str | None) -> tuple[int, int]:
+    """Count higher/lower direction keyword evidence from names and hints."""
+    joined = " ".join(str(item).lower() for item in ranking_items)
+    if user_hints:
+        joined = f"{joined} {user_hints.lower()}".strip()
+
+    high_hits = sum(1 for keyword in HIGHER_BETTER_KEYWORDS if keyword in joined)
+    low_hits = sum(1 for keyword in LOWER_BETTER_KEYWORDS if keyword in joined)
+    return high_hits, low_hits
+
+
+def _extract_indicator_values(df, indicator_col: str) -> list[str]:
+    """Extract normalized indicator values from dataframe column."""
+    if indicator_col not in df.columns:
+        return []
+    series = df[indicator_col].dropna().astype(str).str.strip()
+    return [value for value in sorted(series.unique().tolist()) if value]
+
+
+def _stabilize_schema_with_data(
+    schema: SemanticSchema,
+    fallback_schema: SemanticSchema,
+    file_path: str,
+    structural_signals: dict[str, object],
+    user_hints: str | None,
+) -> SemanticSchema:
+    """Apply deterministic reconciliation using full-data checks."""
+    try:
+        df = read_table(file_path)
+    except Exception:  # noqa: BLE001
+        return schema
+
+    ranking_items = list(schema.ranking_items)
+
+    indicator_col = schema.indicator_col
+    indicator_values = list(schema.indicator_values)
+    if indicator_col and not is_reasonable_indicator_column(df, indicator_col, ranking_items):
+        indicator_col = None
+        indicator_values = []
+
+    fallback_indicator = fallback_schema.indicator_col
+    if indicator_col is None and fallback_indicator and is_reasonable_indicator_column(df, fallback_indicator, ranking_items):
+        indicator_col = fallback_indicator
+        indicator_values = list(fallback_schema.indicator_values)
+
+    if indicator_col is not None:
+        observed_values = _extract_indicator_values(df, indicator_col)
+        proposed_values = _normalized_unique_strings(indicator_values)
+        if observed_values and proposed_values:
+            observed_set = set(observed_values)
+            filtered = [value for value in proposed_values if value in observed_set]
+            indicator_values = filtered if filtered else observed_values
+        elif observed_values:
+            indicator_values = observed_values
+        else:
+            indicator_col = None
+            indicator_values = []
+
+    rank_like_ratio = float(structural_signals.get("rank_like_row_ratio") or 0.0)
+    rank_columns = structural_signals.get("rank_columns")
+    has_rank_columns = isinstance(rank_columns, list) and len(rank_columns) > 0
+
+    if has_rank_columns or rank_like_ratio >= 0.6:
+        bigbetter = 0
+    else:
+        high_hits, low_hits = _count_direction_keyword_hits(ranking_items, user_hints)
+        if low_hits > high_hits:
+            bigbetter = 0
+        elif high_hits > low_hits:
+            bigbetter = 1
+        else:
+            # Ambiguous semantics: keep deterministic fallback to avoid LLM randomness.
+            bigbetter = fallback_schema.bigbetter
 
     return SemanticSchema(
         bigbetter=bigbetter,
@@ -353,6 +438,13 @@ def infer_semantic_schema(
             schema=normalized_schema,
             fallback_schema=fallback.schema,
         )
+        normalized_schema = _stabilize_schema_with_data(
+            schema=normalized_schema,
+            fallback_schema=fallback.schema,
+            file_path=file_path,
+            structural_signals=structural_signals,
+            user_hints=user_hints,
+        )
 
         conflict_reason = _detect_strong_conflict(
             structural_signals=structural_signals,
@@ -379,6 +471,13 @@ def infer_semantic_schema(
                 structural_signals=structural_signals,
                 schema=normalized_schema,
                 fallback_schema=fallback.schema,
+            )
+            normalized_schema = _stabilize_schema_with_data(
+                schema=normalized_schema,
+                fallback_schema=fallback.schema,
+                file_path=file_path,
+                structural_signals=structural_signals,
+                user_hints=user_hints,
             )
 
         format_evidence = str(llm_output.get("format_evidence") or fallback.format_evidence).strip()

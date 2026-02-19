@@ -98,136 +98,6 @@ def _empty_plot_svg(message: str, width: int = 840, height: int = 220) -> str:
     return _render_svg(width=width, height=height, elements=elements)
 
 
-def _ranking_bar(results: RankingResults, artifact_dir: Path) -> PlotSpec:
-    order = _ordered_indices(results)
-    names = [results.items[i] for i in order]
-    scores = [results.theta_hat[i] for i in order]
-    ranks = [results.ranks[i] for i in order]
-    lower = [results.ci_lower[i] for i in order]
-    upper = [results.ci_upper[i] for i in order]
-
-    payload = (
-        "|".join(names)
-        + ":"
-        + "|".join(f"{value:.6f}" for value in scores)
-        + ":"
-        + "|".join(f"{value:.6f}" for value in lower)
-        + ":"
-        + "|".join(f"{value:.6f}" for value in upper)
-    )
-    block_id = _stable_block_id("figure-ranking-bar", payload)
-    svg_path = artifact_dir / f"{block_id}.svg"
-
-    if not names:
-        _write_svg(
-            svg_path,
-            _empty_plot_svg(
-                message="No ranking data available",
-            ),
-        )
-        return PlotSpec(
-            type="ranking_bar",
-            data={"names": [], "scores": [], "ranks": [], "rank_ci_lower": [], "rank_ci_upper": []},
-            config={"x_label": "theta_hat", "order": "ascending_rank", "ci_axis": "rank"},
-            svg_path=str(svg_path),
-            block_id=block_id,
-            caption_plain="Bars show estimated preference scores.",
-            caption_academic="Bar plot of theta_hat scores ordered by inferred rank.",
-            hint_ids=["hint-theta-hat"],
-        )
-
-    max_name_len = max(len(name) for name in names)
-    left_margin = min(360, max(190, 48 + max_name_len * 7))
-    right_margin = 220
-    plot_width = 620
-    width = left_margin + right_margin + plot_width
-    row_height = 38
-    top_margin = 30
-    bottom_margin = 64
-    height = top_margin + bottom_margin + row_height * len(names)
-
-    plot_left = float(left_margin)
-    plot_right = float(width - right_margin)
-    plot_top = float(top_margin)
-    plot_bottom = float(height - bottom_margin)
-
-    raw_min = min(min(scores), 0.0)
-    raw_max = max(max(scores), 0.0)
-    span = max(raw_max - raw_min, 0.6)
-    padding = span * 0.12
-    domain_min = raw_min - padding
-    domain_max = raw_max + padding
-    x_to_px = _linear_scale(domain_min, domain_max, plot_left, plot_right)
-    zero_x = x_to_px(0.0)
-
-    tick_count = 5
-    ticks = [domain_min + (domain_max - domain_min) * i / (tick_count - 1) for i in range(tick_count)]
-
-    elements: list[str] = [
-        f'<line x1="{plot_left:.2f}" y1="{plot_bottom:.2f}" x2="{plot_right:.2f}" y2="{plot_bottom:.2f}" stroke="#4a5568" stroke-width="1.2" />',
-        f'<line x1="{zero_x:.2f}" y1="{plot_top:.2f}" x2="{zero_x:.2f}" y2="{plot_bottom:.2f}" stroke="#2d3748" stroke-width="1.0" stroke-dasharray="4 4" />',
-    ]
-
-    for tick in ticks:
-        x_pos = x_to_px(tick)
-        elements.append(
-            f'<line x1="{x_pos:.2f}" y1="{plot_top:.2f}" x2="{x_pos:.2f}" y2="{plot_bottom:.2f}" stroke="#e2e8f0" stroke-width="1" />'
-        )
-        elements.append(
-            f'<text x="{x_pos:.2f}" y="{plot_bottom + 22:.2f}" text-anchor="middle" font-size="12" font-family="Arial, sans-serif" fill="#4a5568">{_xml_escape(_fmt_number(tick, digits=3))}</text>'
-        )
-
-    total = len(names)
-    for row_index, (name, score, rank, lo, hi) in enumerate(zip(names, scores, ranks, lower, upper, strict=True)):
-        y_center = plot_top + row_height * row_index + row_height / 2
-        y_top = y_center - 11
-        x_value = x_to_px(score)
-        bar_left = min(zero_x, x_value)
-        bar_width = max(abs(x_value - zero_x), 1.0)
-        color = _rank_color(rank, total)
-
-        value_anchor = "start" if score >= 0 else "end"
-        value_x = x_value + 7 if score >= 0 else x_value - 7
-        safe_name = _xml_escape(name)
-        ci_label = f"rank #{rank} [{_fmt_rank_bound(lo)}, {_fmt_rank_bound(hi)}]"
-
-        elements.append(
-            f'<rect x="{bar_left:.2f}" y="{y_top:.2f}" width="{bar_width:.2f}" height="22" rx="3" fill="{color}" fill-opacity="0.88" />'
-        )
-        elements.append(
-            f'<text x="{plot_left - 12:.2f}" y="{y_center + 4:.2f}" text-anchor="end" font-size="13" font-family="Arial, sans-serif" fill="#1a202c">{safe_name}</text>'
-        )
-        elements.append(
-            f'<text x="{value_x:.2f}" y="{y_center + 4:.2f}" text-anchor="{value_anchor}" font-size="12" font-family="Arial, sans-serif" fill="#1a202c">{_xml_escape(_fmt_number(score, digits=4))}</text>'
-        )
-        elements.append(
-            f'<text x="{plot_right + 12:.2f}" y="{y_center + 4:.2f}" text-anchor="start" font-size="12" font-family="Arial, sans-serif" fill="#2d3748">{_xml_escape(ci_label)}</text>'
-        )
-
-    elements.append(
-        f'<text x="{(plot_left + plot_right) / 2:.2f}" y="{height - 20:.2f}" text-anchor="middle" font-size="13" font-family="Arial, sans-serif" fill="#2d3748">theta_hat (higher is better when bigbetter=1)</text>'
-    )
-
-    _write_svg(svg_path, _render_svg(width=width, height=height, elements=elements))
-
-    return PlotSpec(
-        type="ranking_bar",
-        data={
-            "names": names,
-            "scores": scores,
-            "ranks": ranks,
-            "rank_ci_lower": lower,
-            "rank_ci_upper": upper,
-        },
-        config={"x_label": "theta_hat", "order": "ascending_rank", "ci_axis": "rank"},
-        svg_path=str(svg_path),
-        block_id=block_id,
-        caption_plain="Bars show theta_hat scores, with rank confidence intervals listed per item.",
-        caption_academic="Bar chart of theta_hat point estimates ordered by rank, with 95% rank confidence intervals provided as labels.",
-        hint_ids=["hint-theta-hat", "hint-ci"],
-    )
-
-
 def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     order = _ordered_indices(results)
     names = [results.items[i] for i in order]
@@ -372,9 +242,7 @@ def generate_visualizations(
 
     for viz_type in viz_types:
         try:
-            if viz_type == "ranking_bar":
-                plots.append(_ranking_bar(results, output_dir))
-            elif viz_type == "ci_forest":
+            if viz_type == "ci_forest":
                 plots.append(_ci_forest(results, output_dir))
             else:
                 errors.append(f"Unsupported viz_type: {viz_type}")

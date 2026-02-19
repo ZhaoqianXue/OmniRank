@@ -196,7 +196,7 @@ def test_infer_semantic_schema_uses_llm_format_when_valid(tmp_path: Path, monkey
     assert "llm chose multiway" in result.format_evidence.lower()
 
 
-def test_infer_semantic_schema_uses_llm_bigbetter_when_valid(
+def test_infer_semantic_schema_stabilizes_ambiguous_llm_bigbetter_to_fallback(
     tmp_path: Path,
     monkeypatch,
 ):
@@ -216,6 +216,41 @@ def test_infer_semantic_schema_uses_llm_bigbetter_when_valid(
                 "schema": {
                     "bigbetter": 0,
                     "ranking_items": ["model_a", "model_b", "model_c"],
+                    "indicator_col": None,
+                    "indicator_values": [],
+                },
+            }
+        ),
+    )
+
+    result = infer_semantic_schema(summary, file_path)
+
+    assert result.success is True
+    assert result.format.value == "multiway"
+    assert result.schema is not None
+    assert result.schema.bigbetter == 1
+
+
+def test_infer_semantic_schema_preserves_lower_better_with_keyword_evidence(
+    tmp_path: Path,
+    monkeypatch,
+):
+    file_path = _write(
+        tmp_path / "multiway_latency_direction.csv",
+        "sample,latency_a,latency_b,latency_c\ns1,120,130,140\ns2,110,125,138\n",
+    )
+    summary = read_data_file(file_path).data
+    assert summary is not None
+
+    monkeypatch.setattr(
+        "tools.infer_semantic_schema.get_llm_client",
+        lambda: _FakeLLMClient(
+            {
+                "format": "multiway",
+                "format_evidence": "LLM chose multiway",
+                "schema": {
+                    "bigbetter": 0,
+                    "ranking_items": ["latency_a", "latency_b", "latency_c"],
                     "indicator_col": None,
                     "indicator_values": [],
                 },
@@ -338,7 +373,7 @@ def test_infer_semantic_schema_conflict_triggers_llm_self_correction(tmp_path: P
     assert client.calls == 2
 
 
-def test_infer_semantic_schema_rank_columns_trigger_bigbetter_self_correction(tmp_path: Path, monkeypatch):
+def test_infer_semantic_schema_rank_columns_stabilize_bigbetter_without_retry(tmp_path: Path, monkeypatch):
     file_path = _write(
         tmp_path / "rank_columns_conflict.csv",
         "match_id,domain,rank_1,rank_2,rank_3\nm1,code,A,B,C\nm2,math,B,C,A\nm3,qa,C,A,B\n",
@@ -378,7 +413,7 @@ def test_infer_semantic_schema_rank_columns_trigger_bigbetter_self_correction(tm
     assert result.format.value == "multiway"
     assert result.schema is not None
     assert result.schema.bigbetter == 0
-    assert client.calls == 2
+    assert client.calls == 1
 
 
 def test_infer_semantic_schema_long_item_value_ignores_id_column(tmp_path: Path):
@@ -395,6 +430,46 @@ def test_infer_semantic_schema_long_item_value_ignores_id_column(tmp_path: Path)
     assert result.schema is not None
     assert result.schema.ranking_items == ["A", "B"]
     assert "case_id" not in result.schema.ranking_items
+
+
+def test_infer_semantic_schema_rejects_meta_like_indicator_from_llm(tmp_path: Path, monkeypatch):
+    file_path = _write(
+        tmp_path / "meta_indicator.csv",
+        (
+            "sample_id,model_a,model_b,description\n"
+            "s1,0.90,0.80,description row one\n"
+            "s2,0.88,0.79,description row two\n"
+            "s3,0.87,0.78,description row three\n"
+            "s4,0.86,0.77,description row four\n"
+            "s5,0.85,0.76,description row five\n"
+            "s6,0.84,0.75,description row six\n"
+        ),
+    )
+    summary = read_data_file(file_path).data
+    assert summary is not None
+
+    monkeypatch.setattr(
+        "tools.infer_semantic_schema.get_llm_client",
+        lambda: _FakeLLMClient(
+            {
+                "format": "multiway",
+                "format_evidence": "LLM chose multiway",
+                "schema": {
+                    "bigbetter": 0,
+                    "ranking_items": ["model_a", "model_b"],
+                    "indicator_col": "description",
+                    "indicator_values": ["description row one", "description row two"],
+                },
+            }
+        ),
+    )
+
+    result = infer_semantic_schema(summary, file_path)
+
+    assert result.success is True
+    assert result.schema is not None
+    assert result.schema.indicator_col is None
+    assert result.schema.indicator_values == []
 
 
 def test_infer_semantic_schema_selects_single_indicator_column(tmp_path: Path):

@@ -745,8 +745,7 @@ def generate_visualizations(
     - Same inputs -> same SVG outputs (subject to matplotlib version).
 
     Supported viz_types:
-    - "ranking_bar": Reader-friendly overview (sorted bars) with uncertainty whiskers
-    - "ci_forest": Methods-forward forest plot emphasizing confidence intervals
+    - "ci_forest": Forest plot emphasizing rank confidence intervals
 
     Parameters:
         results: RankingResults from execute_spectral_ranking

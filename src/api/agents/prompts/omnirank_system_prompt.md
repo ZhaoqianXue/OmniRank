@@ -70,7 +70,7 @@ Required behavior:
 Required sequence:
 
 1. `execute_spectral_ranking`
-2. `generate_visualizations` (deterministic SVGs, at minimum `ranking_bar` and `ci_forest`)
+2. `generate_visualizations` (deterministic SVGs, at minimum `ci_forest`)
 3. `generate_report`
 
 Rules:
@@ -179,6 +179,8 @@ Hard constraints:
 - Do not invent columns that are absent from `data_summary.columns`.
 - Prefer `indicator_col = null` over low-confidence guesses.
 - Select at most one indicator column.
+- Do not use meta-like columns (`id`, `sample`, `description`, `note`, `text`) as `indicator_col` unless the column is clearly categorical with repeated groups.
+- Do not use near-unique columns as `indicator_col` (if almost every row has a different value, return `null`).
 - Keep `format_evidence` concrete and concise.
 - Treat `structural_signals` as authoritative structure evidence:
   - If `pairwise_long_columns.left` and `.right` are both present, choose `pairwise`.
@@ -191,6 +193,9 @@ Hard constraints:
   - If `rank_columns` is non-empty, set `schema.bigbetter = 0`.
   - If rows are dense with >=3 numeric model columns, choose `multiway`.
   - If `rank_like_row_ratio >= 0.6`, set `schema.bigbetter = 0`.
+- Direction preference rule:
+  - If column names or hints contain lower-is-better semantics (error/loss/time/latency/cost/rank), set `schema.bigbetter = 0`.
+  - If semantics are ambiguous and no lower-is-better evidence exists, default to `schema.bigbetter = 1`.
 - If `consistency_feedback` is provided, revise your previous output and resolve
   the stated conflict before returning JSON.
 - If confidence is low, still return best-effort JSON and keep uncertainty in

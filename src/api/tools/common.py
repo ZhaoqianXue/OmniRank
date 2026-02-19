@@ -309,43 +309,57 @@ def infer_ranking_items(df: pd.DataFrame, format_name: str) -> list[str]:
     return ranking_items
 
 
+def is_reasonable_indicator_column(
+    df: pd.DataFrame,
+    column: str,
+    ranking_items: list[str] | None = None,
+) -> bool:
+    """Return True when a column is a plausible categorical indicator."""
+    if column not in df.columns:
+        return False
+
+    ranking_item_set = set(ranking_items or [])
+    if column in ranking_item_set:
+        return False
+
+    lower = column.lower()
+    if lower in PAIRWISE_STRUCTURAL_COLUMNS or lower.startswith("rank_"):
+        return False
+
+    series = df[column]
+    if pd.api.types.is_numeric_dtype(series):
+        return False
+
+    non_null = series.dropna()
+    non_null_count = int(len(non_null))
+    if non_null_count == 0:
+        return False
+
+    unique_count = int(non_null.nunique())
+    if unique_count < 2 or unique_count > 50:
+        return False
+
+    unique_ratio = unique_count / non_null_count
+    if unique_ratio > 0.8:
+        return False
+
+    has_indicator_keyword = any(keyword in lower for keyword in INDICATOR_KEYWORDS)
+    if is_meta_column(column) and not has_indicator_keyword:
+        return False
+
+    return True
+
+
 def infer_indicator_column(df: pd.DataFrame, ranking_items: list[str]) -> tuple[str | None, list[str]]:
     """Infer at most one indicator column."""
-    pairwise_left, pairwise_right, pairwise_winner = find_pairwise_long_columns(df)
-    long_item_col, long_value_col = find_long_item_value_columns(df)
-    structural_exclusions = {
-        pairwise_left,
-        pairwise_right,
-        pairwise_winner,
-        long_item_col,
-        long_value_col,
-    }
-    candidates = [
-        col
-        for col in df.columns
-        if col not in ranking_items
-        and col.lower() not in PAIRWISE_STRUCTURAL_COLUMNS
-        and col not in structural_exclusions
-        and not col.lower().startswith("rank_")
-        and not pd.api.types.is_numeric_dtype(df[col])
-    ]
-
-    def cardinality_ok(col: str) -> bool:
-        unique_count = int(df[col].dropna().nunique())
-        return 2 <= unique_count <= 50
-
-    prioritized = [
-        col
-        for col in candidates
-        if cardinality_ok(col) and any(keyword in col.lower() for keyword in INDICATOR_KEYWORDS)
-    ]
+    candidates = [col for col in df.columns if is_reasonable_indicator_column(df, col, ranking_items)]
+    prioritized = [col for col in candidates if any(keyword in col.lower() for keyword in INDICATOR_KEYWORDS)]
 
     selected: str | None = None
     if prioritized:
         selected = prioritized[0]
     else:
-        fallback = [col for col in candidates if cardinality_ok(col)]
-        selected = fallback[0] if fallback else None
+        selected = candidates[0] if candidates else None
 
     if selected is None:
         return None, []

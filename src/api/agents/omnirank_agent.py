@@ -294,7 +294,7 @@ class OmniRankAgent:
             session,
             "generate_visualizations",
             results=execution.results,
-            viz_types=["ranking_bar", "ci_forest"],
+            viz_types=["ci_forest"],
             artifact_dir=artifact_dir,
         )
         session.visualization_output = viz_output
