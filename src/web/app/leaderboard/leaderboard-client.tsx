@@ -1763,7 +1763,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
         <section className={cn(sectionWrapperClass, "mb-8")}>
           {activeMode === "arena" ? (
             <div id="upload-your-arena-results" className="space-y-4 px-1 md:px-2">
-              <h3 className="text-2xl font-semibold">Run OmniRank on Your Arena Data</h3>
+              <h3 className="text-2xl font-semibold">Run Your Arena Data on OmniRank</h3>
               <p className="max-w-6xl text-xs text-muted-foreground md:text-sm">
                 Upload your Arena-style battle data and run OmniRank to create a standalone leaderboard. Your rankings are independent of the built-in LMSYS leaderboard.
               </p>
