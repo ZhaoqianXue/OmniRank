@@ -423,6 +423,7 @@ export function useOmniRank() {
       const selectedIndicators = effectiveIndicatorCol
         ? config.selected_indicator_values || state.schema.indicator_values
         : [];
+      const rankingMode = effectiveIndicatorCol ? (config.ranking_mode ?? "flash") : "flash";
       const confirmedSchema: SemanticSchema = {
         bigbetter: config.bigbetter,
         ranking_items: selectedItems,
@@ -444,6 +445,7 @@ export function useOmniRank() {
         const runStart = await startRunSession(state.sessionId, {
           selected_items: selectedItems,
           selected_indicator_values: effectiveIndicatorCol ? selectedIndicators : undefined,
+          ranking_mode: rankingMode,
         });
         setState((prev) => ({
           ...prev,

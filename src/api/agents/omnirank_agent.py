@@ -14,6 +14,7 @@ from core.schemas import (
     EngineConfig,
     InferResponse,
     QuotePayload,
+    RankingMode,
     RunResponse,
     SessionStatus,
 )
@@ -248,6 +249,7 @@ class OmniRankAgent:
         session: SessionMemory,
         selected_items: list[str] | None,
         selected_indicator_values: list[str] | None,
+        ranking_mode: RankingMode | None = None,
         progress_callback: Callable[[float, str], None] | None = None,
     ) -> RunResponse:
         """Execute engine + visualization + report generation."""
@@ -268,6 +270,8 @@ class OmniRankAgent:
         session.config.selected_indicator_values = (
             selected_indicator_values if selected_indicator_values else session.config.selected_indicator_values
         )
+        if ranking_mode is not None:
+            session.config.ranking_mode = ranking_mode
 
         work_dir = os.path.dirname(session.current_file_path or session.original_file_path or "")
         emit_progress(0.2, "Executing spectral ranking engine...")
@@ -288,14 +292,28 @@ class OmniRankAgent:
         session.current_results = execution.results
 
         artifact_dir = os.path.join(work_dir, "artifacts")
+        viz_types = ["ci_forest"]
+        indicator_col = session.confirmed_schema.indicator_col if session.confirmed_schema else None
+        if session.config.ranking_mode == RankingMode.DEEP and indicator_col:
+            viz_types.extend(["normalized_ranking_over_indicator", "indicator_rankings_heatmap"])
+
         emit_progress(0.7, "Generating visualizations...")
         viz_output = self._call_tool(
             "run",
             session,
             "generate_visualizations",
             results=execution.results,
-            viz_types=["ci_forest"],
+            viz_types=viz_types,
             artifact_dir=artifact_dir,
+            csv_path=session.current_file_path or session.original_file_path,
+            indicator_col=indicator_col,
+            selected_indicator_values=session.config.selected_indicator_values,
+            selected_items=session.config.selected_items,
+            bigbetter=session.config.bigbetter,
+            ranking_mode=session.config.ranking_mode,
+            bootstrap_iterations=session.config.B,
+            seed=session.config.seed,
+            r_script_path=session.config.r_script_path,
         )
         session.visualization_output = viz_output
 

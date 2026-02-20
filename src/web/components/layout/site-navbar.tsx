@@ -82,7 +82,7 @@ export function SiteNavbar({ id }: SiteNavbarProps) {
                 className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold transition-all duration-300 border-primary/48 bg-card/26 text-primary hover:bg-card/36 hover:border-primary/66"
               >
                 <BookOpen className="h-4 w-4 text-primary" />
-                Usage Guide
+                User Guide
               </button>
 
               <Link

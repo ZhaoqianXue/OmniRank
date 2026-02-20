@@ -627,6 +627,7 @@ def execute_spectral_ranking(config: EngineConfig, session_work_dir: str) -> Exe
     - bigbetter: 1 (higher is better) or 0 (lower is better)
     - selected_items: Optional filter for specific items
     - selected_indicator_values: Optional filter for indicator segments
+    - ranking_mode: "flash" | "deep" (controls downstream visualization/report mode)
     - B: Bootstrap iterations (default 2000)
     - seed: Random seed (default 42)
     - session_work_dir: Session-scoped workspace directory for filtered input/output artifacts
@@ -728,7 +729,16 @@ def generate_report(
 def generate_visualizations(
     results: RankingResults, 
     viz_types: List[str],
-    artifact_dir: str
+    artifact_dir: str,
+    csv_path: Optional[str] = None,
+    indicator_col: Optional[str] = None,
+    selected_indicator_values: Optional[List[str]] = None,
+    selected_items: Optional[List[str]] = None,
+    bigbetter: int = 1,
+    ranking_mode: str = "flash",
+    bootstrap_iterations: int = 2000,
+    seed: int = 42,
+    r_script_path: str = "src/spectral_ranking/spectral_ranking.R",
 ) -> VisualizationOutput:
     """
     Create publication-ready, deterministic SVG figures from RankingResults.
@@ -746,11 +756,17 @@ def generate_visualizations(
 
     Supported viz_types:
     - "ci_forest": Forest plot emphasizing rank confidence intervals
+    - "normalized_ranking_over_indicator": Deep ranking distribution plot
+      (display name: "Normalized Ranking Over Individual Phenotypes")
+    - "indicator_rankings_heatmap": Deep ranking heatmap
+      (display name: "Phenotype Rankings")
 
     Parameters:
         results: RankingResults from execute_spectral_ranking
         viz_types: List of visualization types to generate
         artifact_dir: Session-scoped output directory for SVG artifacts
+        csv_path/indicator_col/...: Required for deep visualizations that run
+          per-indicator spectral ranking internally
 
     Output conventions (for accessibility and academic style):
     - Use a colorblind-safe palette; never rely on color alone for meaning

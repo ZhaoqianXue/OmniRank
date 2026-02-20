@@ -494,7 +494,14 @@ def generate_report(
         )
         cap_plain = plot.caption_plain or plot.type
         cap_acad = plot.caption_academic or plot.type
-        figure_title = "Ranking Confidence Interval Plot" if plot.type == "ci_forest" else cap_plain
+        if plot.type == "ci_forest":
+            figure_title = "Ranking Confidence Interval Plot"
+        elif plot.type == "normalized_ranking_over_indicator":
+            figure_title = "Normalized Ranking Over Individual Phenotypes"
+        elif plot.type == "indicator_rankings_heatmap":
+            figure_title = "Phenotype Rankings"
+        else:
+            figure_title = cap_plain
 
         fig_body = (
             f"## {figure_title}\n\n"

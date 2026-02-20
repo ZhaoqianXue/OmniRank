@@ -331,6 +331,49 @@ def test_infer_semantic_schema_falls_back_format_when_llm_format_is_invalid(tmp_
     assert result.format.value == "pairwise"
 
 
+def test_infer_semantic_schema_expands_partial_llm_indicator_values_to_observed(
+    tmp_path: Path,
+    monkeypatch,
+):
+    file_path = _write(
+        tmp_path / "multiway_partial_indicator_values.csv",
+        (
+            "sample,model_a,model_b,task\n"
+            "s1,0.8,0.7,code\n"
+            "s2,0.9,0.6,math\n"
+            "s3,0.85,0.65,qa\n"
+            "s4,0.82,0.68,code\n"
+            "s5,0.88,0.66,math\n"
+            "s6,0.84,0.67,qa\n"
+        ),
+    )
+    summary = read_data_file(file_path).data
+    assert summary is not None
+
+    monkeypatch.setattr(
+        "tools.infer_semantic_schema.get_llm_client",
+        lambda: _FakeLLMClient(
+            {
+                "format": "multiway",
+                "format_evidence": "LLM proposed partial indicator values",
+                "schema": {
+                    "bigbetter": 1,
+                    "ranking_items": ["model_a", "model_b"],
+                    "indicator_col": "task",
+                    "indicator_values": ["code"],
+                },
+            }
+        ),
+    )
+
+    result = infer_semantic_schema(summary, file_path)
+
+    assert result.success is True
+    assert result.schema is not None
+    assert result.schema.indicator_col == "task"
+    assert sorted(result.schema.indicator_values) == ["code", "math", "qa"]
+
+
 def test_infer_semantic_schema_conflict_triggers_llm_self_correction(tmp_path: Path, monkeypatch):
     file_path = _write(
         tmp_path / "pairwise_conflict_retry.csv",

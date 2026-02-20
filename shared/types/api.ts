@@ -4,6 +4,7 @@
  */
 
 export type ComparisonFormat = "pairwise" | "multiway";
+export type RankingMode = "flash" | "deep";
 
 export interface DataSummary {
   columns: string[];
@@ -58,6 +59,7 @@ export interface EngineConfig {
   bigbetter: 0 | 1;
   selected_items?: string[];
   selected_indicator_values?: string[];
+  ranking_mode: RankingMode;
   B: number;
   seed: number;
   r_script_path: string;
@@ -264,6 +266,7 @@ export interface ConfirmResponse {
 export interface RunRequest {
   selected_items?: string[];
   selected_indicator_values?: string[];
+  ranking_mode?: RankingMode;
 }
 
 export interface RunResponse {

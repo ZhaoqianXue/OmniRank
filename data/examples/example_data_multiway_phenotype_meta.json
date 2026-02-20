@@ -15,6 +15,38 @@
     "LDpred",
     "C+T"
   ],
+  "general_prs_rank_target": {
+    "LDpred2": 1,
+    "AnnoPred": 2,
+    "lassosum2": 3,
+    "SCT": 4,
+    "LDpred-funct": 5,
+    "lassosum": 6,
+    "LDpred2-auto": 7,
+    "SBayesR": 8,
+    "PRS-CS": 9,
+    "DBSLMM": 10,
+    "PRS-CS-auto": 11,
+    "LDpred2-inf": 12,
+    "LDpred": 13,
+    "C+T": 14
+  },
+  "general_prs_method_order_plot": [
+    "C+T",
+    "LDpred",
+    "lassosum",
+    "AnnoPred",
+    "PRS-CS-auto",
+    "PRS-CS",
+    "SBayesR",
+    "SCT",
+    "DBSLMM",
+    "LDpred2-inf",
+    "LDpred2-auto",
+    "LDpred2",
+    "LDpred-funct",
+    "lassosum2"
+  ],
   "violin_method_order": [
     "C+T",
     "LDpred",

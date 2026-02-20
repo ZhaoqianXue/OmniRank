@@ -6,6 +6,7 @@ This dataset demonstrates a multiway matrix with phenotype annotations (wide-tab
 
 | Element | Reference | Implementation |
 |---------|-----------|----------------|
+| **General PRS Ranking (Figure 1A)** | LDpred2 #1 ... C+T #14 | `general_prs_rank_target` (meta) + `scripts/validate_prs_figure_alignment.py` |
 | **Forest Plot** | LDpred2 #1 ... C+T #14 | Overall spectral ranking matches exactly |
 | **Violin (A)** | 13 methods (no AnnoPred) | `violin_method_order`, `violin_spec` in meta |
 | **Violin K values** | C+T=27, LDpred=13, ... | `method_coverage` + `violin_spec` |
@@ -32,6 +33,12 @@ This dataset demonstrates a multiway matrix with phenotype annotations (wide-tab
 
 ```bash
 python scripts/generate_phenotype_multiway_data.py
+```
+
+## Validate Alignment
+
+```bash
+python scripts/validate_prs_figure_alignment.py
 ```
 
 Outputs:

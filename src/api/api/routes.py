@@ -47,6 +47,7 @@ router = APIRouter(tags=["omnirank"])
 EXAMPLE_DATASETS: dict[str, str] = {
     "pairwise": "example_data_pairwise.csv",
     "pairwise_human_logs": "example_data_pairwise_human_logs.csv",
+    "multiway_phenotype": "example_data_multiway_phenotype.csv",
     "multiway_scores": "example_data_multiway_scores.csv",
     "multiway_latency": "example_data_multiway_latency.csv",
     "multiway_rank_columns": "example_data_multiway_rank_columns.csv",
@@ -179,6 +180,7 @@ def _run_session_job(session_id: str, job_id: str, request: RunRequest) -> None:
                 session=session,
                 selected_items=request.selected_items,
                 selected_indicator_values=request.selected_indicator_values,
+                ranking_mode=request.ranking_mode,
                 progress_callback=update_progress,
             )
         store.update_session(session)
@@ -367,6 +369,7 @@ async def run_session(session_id: str, payload: RunRequest, http_request: Reques
             session=session,
             selected_items=payload.selected_items,
             selected_indicator_values=payload.selected_indicator_values,
+            ranking_mode=payload.ranking_mode,
         )
     store.update_session(session)
 

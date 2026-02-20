@@ -139,7 +139,7 @@ export default function LandingPage() {
                 >
                   Ranking Analysis
                 </a>{" "}
-                Developed by{" "}
+                developed by{" "}
                 <a
                   href="https://jin93.github.io/"
                   target="_blank"
@@ -166,7 +166,7 @@ export default function LandingPage() {
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-primary/48 bg-card/26 px-5 py-3 text-base font-semibold text-primary transition-all duration-300 hover:bg-card/36 hover:border-primary/66"
                 >
                   <BookOpen className="h-4 w-4 text-primary" />
-                  Usage Guide
+                  User Guide
                 </button>
                 <Link
                   href="/workspace"

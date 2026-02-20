@@ -15,6 +15,13 @@ class ComparisonFormat(str, Enum):
     MULTIWAY = "multiway"
 
 
+class RankingMode(str, Enum):
+    """Supported ranking workflows."""
+
+    FLASH = "flash"
+    DEEP = "deep"
+
+
 class SessionStatus(str, Enum):
     """Session lifecycle states."""
 
@@ -104,6 +111,7 @@ class EngineConfig(BaseModel):
     bigbetter: int = Field(ge=0, le=1)
     selected_items: Optional[list[str]] = None
     selected_indicator_values: Optional[list[str]] = None
+    ranking_mode: RankingMode = RankingMode.FLASH
     B: int = Field(default=2000, ge=100, le=100000)
     seed: int = 42
     r_script_path: str = "src/spectral_ranking/spectral_ranking.R"
@@ -351,6 +359,7 @@ class RunRequest(BaseModel):
 
     selected_items: Optional[list[str]] = None
     selected_indicator_values: Optional[list[str]] = None
+    ranking_mode: Optional[RankingMode] = None
 
 
 class RunResponse(BaseModel):

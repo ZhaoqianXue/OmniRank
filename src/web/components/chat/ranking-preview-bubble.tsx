@@ -25,6 +25,8 @@ import type {
   ValidationWarning,
 } from "@/lib/api";
 
+type RankingMode = "flash" | "deep";
+
 interface RankingPreviewBubbleProps {
   schema: SemanticSchema;
   detectedFormat?: "pairwise" | "multiway";
@@ -121,6 +123,7 @@ export function RankingPreviewBubble({
   const [selectedIndicatorValues, setSelectedIndicatorValues] = useState<string[]>([
     ...schema.indicator_values,
   ]);
+  const [rankingMode, setRankingMode] = useState<RankingMode>("flash");
   const [bootstrapIterations, setBootstrapIterations] = useState(2000);
   const [randomSeed, setRandomSeed] = useState(42);
   
@@ -133,6 +136,7 @@ export function RankingPreviewBubble({
   const [tempSelectedItems, setTempSelectedItems] = useState<string[]>([]);
   const [tempIndicatorEnabled, setTempIndicatorEnabled] = useState<boolean>(Boolean(schema.indicator_col));
   const [tempSelectedIndicatorValues, setTempSelectedIndicatorValues] = useState<string[]>([]);
+  const [tempRankingMode, setTempRankingMode] = useState<RankingMode>("flash");
   const [tempBootstrapIterations, setTempBootstrapIterations] = useState(2000);
   const [tempRandomSeed, setTempRandomSeed] = useState(42);
 
@@ -142,6 +146,7 @@ export function RankingPreviewBubble({
     setTempSelectedItems([...selectedItems]);
     setTempIndicatorEnabled(indicatorCol !== null);
     setTempSelectedIndicatorValues([...selectedIndicatorValues]);
+    setTempRankingMode(indicatorCol ? rankingMode : "flash");
     setTempBootstrapIterations(bootstrapIterations);
     setTempRandomSeed(randomSeed);
     setShowAdvanced(false);
@@ -151,10 +156,12 @@ export function RankingPreviewBubble({
   // Save changes from dialog
   const handleSaveConfig = () => {
     const nextIndicatorCol = tempIndicatorEnabled ? schema.indicator_col : null;
+    const nextRankingMode: RankingMode = nextIndicatorCol ? tempRankingMode : "flash";
     setBigbetter(tempBigbetter);
     setSelectedItems(tempSelectedItems);
     setIndicatorCol(nextIndicatorCol);
     setSelectedIndicatorValues(tempIndicatorEnabled ? tempSelectedIndicatorValues : []);
+    setRankingMode(nextRankingMode);
     setBootstrapIterations(tempBootstrapIterations);
     setRandomSeed(tempRandomSeed);
     setIsDialogOpen(false);
@@ -188,6 +195,7 @@ export function RankingPreviewBubble({
 
   const handleStartAnalysis = () => {
     const useIndicator = indicatorCol !== null;
+    const nextRankingMode: RankingMode = useIndicator ? rankingMode : "flash";
     const config: AnalysisConfig = {
       bigbetter,
       indicator_col: useIndicator ? indicatorCol : null,
@@ -195,6 +203,7 @@ export function RankingPreviewBubble({
       selected_indicator_values: useIndicator
         ? (selectedIndicatorValues.length === schema.indicator_values.length ? undefined : selectedIndicatorValues)
         : undefined,
+      ranking_mode: nextRankingMode,
       bootstrap_iterations: bootstrapIterations,
       random_seed: randomSeed,
     };
@@ -207,6 +216,7 @@ export function RankingPreviewBubble({
     indicatorCol !== schema.indicator_col ||
     selectedItems.length !== schema.ranking_items.length ||
     selectedIndicatorValues.length !== schema.indicator_values.length ||
+    (hasIndicator && rankingMode !== "flash") ||
     bootstrapIterations !== 2000 ||
     randomSeed !== 42;
 
@@ -252,6 +262,14 @@ export function RankingPreviewBubble({
               >
                 {bigbetter === 1 ? "Higher is better" : "Lower is better"}
               </DisplayRow>
+              {hasIndicator && (
+                <DisplayRow
+                  label="Ranking Mode"
+                  valueHelpText="Flash ranking keeps the current overall workflow; Deep ranking adds phenotype-level normalized distribution and heatmap analyses."
+                >
+                  {rankingMode === "deep" ? "Deep Ranking" : "Flash Ranking"}
+                </DisplayRow>
+              )}
               {warnings.length > 0 && (
                 <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
                   {warnings.map((w, i) => (
@@ -423,11 +441,48 @@ export function RankingPreviewBubble({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium">Indicator: {schema.indicator_col}</h4>
-                    <Switch checked={tempIndicatorEnabled} onCheckedChange={setTempIndicatorEnabled} />
+                    <Switch
+                      checked={tempIndicatorEnabled}
+                      onCheckedChange={(checked) => {
+                        setTempIndicatorEnabled(checked);
+                        if (!checked) {
+                          setTempRankingMode("flash");
+                        }
+                      }}
+                    />
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {tempIndicatorEnabled ? "Enabled for segmented ranking." : "Disabled (global ranking only)."}
                   </p>
+                  <div className="space-y-2 rounded-lg border border-border/50 bg-muted/30 p-3">
+                    <h5 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ranking Mode</h5>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={tempRankingMode === "flash" ? "default" : "outline"}
+                        size="sm"
+                        className="justify-center"
+                        onClick={() => setTempRankingMode("flash")}
+                      >
+                        Flash Ranking
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={tempRankingMode === "deep" ? "default" : "outline"}
+                        size="sm"
+                        className="justify-center"
+                        onClick={() => setTempRankingMode("deep")}
+                        disabled={!tempIndicatorEnabled}
+                      >
+                        Deep Ranking
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {tempRankingMode === "deep"
+                        ? "Adds two extra report plots: normalized ranking over indicator groups and indicator-level ranking heatmap."
+                        : "Uses the existing workflow and report plots only."}
+                    </p>
+                  </div>
                   <div className="flex items-center justify-between">
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={selectAllIndicators}>

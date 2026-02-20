@@ -22,6 +22,42 @@ FOREST_ORDER = [
     "LDpred2-inf", "LDpred", "C+T",
 ]
 
+# Figure 1(A) General PRS Method Ranking (point ranks only).
+GENERAL_PRS_RANK_TARGET = {
+    "LDpred2": 1,
+    "AnnoPred": 2,
+    "lassosum2": 3,
+    "SCT": 4,
+    "LDpred-funct": 5,
+    "lassosum": 6,
+    "LDpred2-auto": 7,
+    "SBayesR": 8,
+    "PRS-CS": 9,
+    "DBSLMM": 10,
+    "PRS-CS-auto": 11,
+    "LDpred2-inf": 12,
+    "LDpred": 13,
+    "C+T": 14,
+}
+
+# Figure 1(A) display order (top -> bottom) in the reference panel.
+GENERAL_PRS_METHOD_ORDER_PLOT = [
+    "C+T",
+    "LDpred",
+    "lassosum",
+    "AnnoPred",
+    "PRS-CS-auto",
+    "PRS-CS",
+    "SBayesR",
+    "SCT",
+    "DBSLMM",
+    "LDpred2-inf",
+    "LDpred2-auto",
+    "LDpred2",
+    "LDpred-funct",
+    "lassosum2",
+]
+
 # Violin (A): 13 methods only - AnnoPred excluded. Exact K and lambda_mean from image.
 VIOLIN_SPEC = {
     "C+T": {"K": 27, "lambda_mean": 11.39},
@@ -154,6 +190,12 @@ def _verify_outputs(
         raise RuntimeError(
             f"Forest order mismatch. Expected {FOREST_ORDER}, got {ordered_methods}."
         )
+    if {
+        method: rank for rank, method in enumerate(ordered_methods, start=1)
+    } != GENERAL_PRS_RANK_TARGET:
+        raise RuntimeError(
+            "General PRS rank target mismatch against Figure 1(A) point ranks."
+        )
 
     allowed = set(HEATMAP_DISCRETE_RANKS)
     invalid_cells: list[tuple[str, str, int]] = []
@@ -197,7 +239,8 @@ def main() -> None:
 
     rows: list[dict] = []
     samples_per_phenotype = 55
-    forest_weight = 0.84
+    # Calibrated so spectral-ranking output aligns with General PRS Method Ranking (panel A).
+    forest_weight = 0.86
     pheno_weight = 1.0 - forest_weight
 
     for pheno_idx, pheno in enumerate(ALL_PHENOTYPES):
@@ -242,6 +285,8 @@ def main() -> None:
 
     meta = {
         "forest_plot_order": FOREST_ORDER,
+        "general_prs_rank_target": GENERAL_PRS_RANK_TARGET,
+        "general_prs_method_order_plot": GENERAL_PRS_METHOD_ORDER_PLOT,
         "violin_method_order": violin_method_order,
         "violin_spec": VIOLIN_SPEC,
         "heatmap_method_order": heatmap_method_order,

@@ -103,6 +103,7 @@ export interface AnalysisConfig {
   indicator_col?: string | null;
   selected_items?: string[];
   selected_indicator_values?: string[];
+  ranking_mode?: "flash" | "deep";
   bootstrap_iterations: number;
   random_seed: number;
 }
@@ -182,6 +183,19 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
       "• OmniRank auto-preprocesses long logs to ranking-ready pairwise matrix " +
       "• Goal: Rank assistants from preference outcomes",
     format: "pairwise",
+  },
+  {
+    id: "multiway_phenotype",
+    filename: "example_data_multiway_phenotype.csv",
+    title: "PRS Phenotype Matrix",
+    description:
+      "Phenotype-stratified multiway benchmark for PRS methods. " +
+      "Each row is one sample with method scores and a phenotype indicator. " +
+      "• Items to rank: LDpred2, AnnoPred, lassosum2, SCT, LDpred-funct, lassosum, LDpred2-auto, SBayesR, PRS-CS, DBSLMM, PRS-CS-auto, LDpred2-inf, LDpred, C+T " +
+      "• Indicator: phenotype (32 groups) " +
+      "• 1,760 rows " +
+      "• Supports Flash ranking (overall) and Deep ranking (phenotype-wise)",
+    format: "multiway",
   },
   {
     id: "multiway_scores",
@@ -303,7 +317,7 @@ export async function confirmSession(
 
 export async function runSession(
   sessionId: string,
-  payload: { selected_items?: string[]; selected_indicator_values?: string[] }
+  payload: { selected_items?: string[]; selected_indicator_values?: string[]; ranking_mode?: "flash" | "deep" }
 ): Promise<RunResponse> {
   const response = await fetchApi(`/api/sessions/${sessionId}/run`, {
     method: "POST",
@@ -315,7 +329,7 @@ export async function runSession(
 
 export async function startRunSession(
   sessionId: string,
-  payload: { selected_items?: string[]; selected_indicator_values?: string[] }
+  payload: { selected_items?: string[]; selected_indicator_values?: string[]; ranking_mode?: "flash" | "deep" }
 ): Promise<RunStartResponse> {
   const response = await fetchApi(`/api/sessions/${sessionId}/run/start`, {
     method: "POST",

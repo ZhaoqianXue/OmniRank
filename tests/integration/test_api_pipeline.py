@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import time
 
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
@@ -86,7 +87,9 @@ def test_full_pipeline_upload_infer_confirm_run_question(monkeypatch):
     assert run.status_code == 200
     run_body = run.json()
     assert run_body["success"] is True
-    assert len(run_body["visualizations"]["plots"]) == 2
+    plot_types = [plot["type"] for plot in run_body["visualizations"]["plots"]]
+    assert "ci_forest" in plot_types
+    assert len(plot_types) >= 1
     assert run_body["report"]["markdown"]
 
     snapshot = client.get(f"/api/sessions/{session_id}")
@@ -121,11 +124,77 @@ def test_full_pipeline_upload_infer_confirm_run_question(monkeypatch):
     assert quote_block_id in answer["used_citation_block_ids"]
 
 
+def test_full_pipeline_deep_ranking_adds_indicator_plots(monkeypatch):
+    def fake_run(self, config, session_work_dir):  # noqa: ANN001
+        local_df = pd.read_csv(config.csv_path)
+        numeric_df = local_df.select_dtypes(include=["number"])
+        methods = list(numeric_df.columns)
+        means = numeric_df.mean(axis=0).sort_values(ascending=False)
+        ordered_methods = list(means.index)
+        rank_lookup = {method: idx + 1 for idx, method in enumerate(ordered_methods)}
+        return ExecutionResult(
+            success=True,
+            results=RankingResults(
+                items=methods,
+                theta_hat=[float(means.get(method, 0.0)) for method in methods],
+                ranks=[rank_lookup[method] for method in methods],
+                ci_lower=[float(rank_lookup[method]) for method in methods],
+                ci_upper=[float(rank_lookup[method]) for method in methods],
+                indicator_value=None,
+            ),
+            error=None,
+            trace=ExecutionTrace(
+                command="Rscript mock deep",
+                stdout="ok",
+                stderr="",
+                exit_code=0,
+                duration_seconds=0.12,
+                timestamp="2026-02-19T00:00:00Z",
+            ),
+        )
+
+    monkeypatch.setattr("core.r_executor.RScriptExecutor.run", fake_run)
+    client = TestClient(app)
+
+    upload = client.post("/api/upload/example/multiway_phenotype")
+    assert upload.status_code == 200
+    session_id = upload.json()["session_id"]
+
+    infer = client.post(f"/api/sessions/{session_id}/infer", json={"user_hints": None})
+    assert infer.status_code == 200
+    schema = infer.json()["schema_result"]["schema"]
+    assert schema["indicator_col"] == "phenotype"
+
+    confirm = client.post(
+        f"/api/sessions/{session_id}/confirm",
+        json={
+            "confirmed": True,
+            "confirmed_schema": schema,
+            "user_modifications": [],
+            "B": 2000,
+            "seed": 42,
+        },
+    )
+    assert confirm.status_code == 200
+
+    run = client.post(
+        f"/api/sessions/{session_id}/run",
+        json={"selected_items": None, "selected_indicator_values": None, "ranking_mode": "deep"},
+    )
+    assert run.status_code == 200
+    run_body = run.json()
+    plot_types = [plot["type"] for plot in run_body["visualizations"]["plots"]]
+    assert "ci_forest" in plot_types
+    assert "normalized_ranking_over_indicator" in plot_types
+    assert "indicator_rankings_heatmap" in plot_types
+
+
 @pytest.mark.parametrize(
     ("example_id", "expected_format", "expected_bigbetter"),
     [
         ("pairwise", "pairwise", 1),
         ("pairwise_human_logs", "pairwise", 1),
+        ("multiway_phenotype", "multiway", 1),
         ("multiway_scores", "multiway", 1),
         ("multiway_latency", "multiway", 0),
         ("multiway_rank_columns", "multiway", 0),
@@ -254,7 +323,13 @@ def test_pairwise_long_upload_infer_requires_confirmation():
 
 
 def test_async_run_start_and_status(monkeypatch):
-    def fake_async_run(session, selected_items, selected_indicator_values, progress_callback=None):  # noqa: ANN001
+    def fake_async_run(  # noqa: ANN001
+        session,
+        selected_items,
+        selected_indicator_values,
+        ranking_mode=None,
+        progress_callback=None,
+    ):
         session.status = SessionStatus.RUNNING
         if progress_callback:
             progress_callback(0.2, "Executing spectral ranking engine...")

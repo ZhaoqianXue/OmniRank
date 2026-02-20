@@ -10,7 +10,7 @@ import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ForestPlot } from "@/components/visualizations";
+import { ForestPlot, NormalizedRankingPlot, PhenotypeRankingsPlot } from "@/components/visualizations";
 import { cn } from "@/lib/utils";
 import {
   artifactUrl,
@@ -398,6 +398,22 @@ function buildMarkdownComponents(
           return (
             <div className="my-2 overflow-hidden rounded-xl p-0">
               <ForestPlot items={interactiveItems} className="w-full" theme={theme} />
+            </div>
+          );
+        }
+
+        if (matchedPlot.type === "normalized_ranking_over_indicator") {
+          return (
+            <div className="my-2 overflow-hidden rounded-xl p-0">
+              <NormalizedRankingPlot plot={matchedPlot} className="w-full" theme={theme} />
+            </div>
+          );
+        }
+
+        if (matchedPlot.type === "indicator_rankings_heatmap") {
+          return (
+            <div className="my-2 overflow-hidden rounded-xl p-0">
+              <PhenotypeRankingsPlot plot={matchedPlot} className="w-full" theme={theme} />
             </div>
           );
         }

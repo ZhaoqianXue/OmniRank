@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
-from core.schemas import PlotSpec, QuotePayload, RankingResults
+import pandas as pd
+
+from core.schemas import ExecutionResult, ExecutionTrace, PlotSpec, QuotePayload, RankingResults
 from tools.answer_question import answer_question
 from tools.generate_report import generate_report
 from tools.generate_visualizations import generate_visualizations
@@ -46,6 +48,73 @@ def test_generate_visualizations_deterministic_svg(tmp_path: Path):
     assert ci_forest.data["rank_point"] == [1, 2, 3]
     assert ci_forest.data["ci_lower"] == [1.0, 1.0, 2.0]
     assert ci_forest.data["ci_upper"] == [2.0, 3.0, 3.0]
+
+
+def test_generate_visualizations_deep_mode_generates_indicator_plots(tmp_path: Path, monkeypatch):
+    results = _sample_results()
+    artifact_dir = tmp_path / "artifacts"
+    csv_path = tmp_path / "phenotype.csv"
+    csv_path.write_text(
+        (
+            "phenotype,A,B,C\n"
+            "p1,0.9,0.6,0.2\n"
+            "p1,0.8,0.5,0.3\n"
+            "p2,0.7,0.4,0.6\n"
+            "p2,0.6,0.3,0.8\n"
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_executor_run(self, config, session_work_dir):  # noqa: ANN001
+        local_df = pd.read_csv(config.csv_path)
+        methods = list(local_df.columns)
+        means = local_df.mean(axis=0).sort_values(ascending=False)
+        ordered_methods = list(means.index)
+        rank_lookup = {method: idx + 1 for idx, method in enumerate(ordered_methods)}
+        return ExecutionResult(
+            success=True,
+            results=RankingResults(
+                items=methods,
+                theta_hat=[float(means.get(method, 0.0)) for method in methods],
+                ranks=[rank_lookup[method] for method in methods],
+                ci_lower=[float(rank_lookup[method]) for method in methods],
+                ci_upper=[float(rank_lookup[method]) for method in methods],
+            ),
+            trace=ExecutionTrace(
+                command="fake",
+                stdout="",
+                stderr="",
+                exit_code=0,
+                duration_seconds=0.01,
+                timestamp="2026-02-19T00:00:00Z",
+            ),
+        )
+
+    monkeypatch.setattr("tools.generate_visualizations.RScriptExecutor.run", fake_executor_run)
+
+    output = generate_visualizations(
+        results=results,
+        viz_types=["ci_forest", "normalized_ranking_over_indicator", "indicator_rankings_heatmap"],
+        artifact_dir=str(artifact_dir),
+        csv_path=str(csv_path),
+        indicator_col="phenotype",
+        selected_indicator_values=["p1", "p2"],
+        selected_items=["A", "B", "C"],
+        bigbetter=1,
+        ranking_mode="deep",
+        bootstrap_iterations=400,
+        seed=42,
+    )
+
+    assert output.errors == []
+    assert [plot.type for plot in output.plots] == [
+        "ci_forest",
+        "normalized_ranking_over_indicator",
+        "indicator_rankings_heatmap",
+    ]
+    for plot in output.plots:
+        assert Path(plot.svg_path).exists()
+        assert "<svg" in Path(plot.svg_path).read_text(encoding="utf-8")
 
 
 def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path: Path):

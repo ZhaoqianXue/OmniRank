@@ -70,7 +70,8 @@ Required behavior:
 Required sequence:
 
 1. `execute_spectral_ranking`
-2. `generate_visualizations` (deterministic SVGs, at minimum `ci_forest`)
+2. `generate_visualizations` (deterministic SVGs; `ci_forest` always, and include
+   `normalized_ranking_over_indicator` + `indicator_rankings_heatmap` when ranking_mode is `deep`)
 3. `generate_report`
 
 Rules:

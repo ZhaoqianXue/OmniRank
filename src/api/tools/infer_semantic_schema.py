@@ -220,12 +220,9 @@ def _stabilize_schema_with_data(
 
     if indicator_col is not None:
         observed_values = _extract_indicator_values(df, indicator_col)
-        proposed_values = _normalized_unique_strings(indicator_values)
-        if observed_values and proposed_values:
-            observed_set = set(observed_values)
-            filtered = [value for value in proposed_values if value in observed_set]
-            indicator_values = filtered if filtered else observed_values
-        elif observed_values:
+        if observed_values:
+            # Keep full observed indicator space by default.
+            # LLM-proposed subsets are often incomplete and can degenerate downstream ranking.
             indicator_values = observed_values
         else:
             indicator_col = None
