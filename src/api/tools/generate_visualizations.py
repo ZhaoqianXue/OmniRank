@@ -421,8 +421,8 @@ def _compute_deep_ranking_data(
         method_order=method_order,
         indicator_order=[value for value in indicator_order if value in matrix],
         matrix=matrix,
-        rank_min=1.0,
-        rank_max=float(global_method_count),
+        rank_min=0.0,
+        rank_max=float(global_method_count) + 1.0,
     )
 
 
@@ -447,10 +447,10 @@ def _normalized_ranking_over_indicator(
     block_id = _stable_block_id("figure-normalized-ranking-over-indicator", payload)
     svg_path = artifact_dir / f"{block_id}.svg"
 
-    width = max(920, 220 + len(method_order) * 80)
+    width = max(960, 300 + len(method_order) * 80)
     height = 520
     left_margin = 72
-    right_margin = 28
+    right_margin = 120
     top_margin = 50
     bottom_margin = 140
     plot_left = float(left_margin)
@@ -460,7 +460,18 @@ def _normalized_ranking_over_indicator(
     y_to_px = _linear_scale(deep.rank_min, deep.rank_max, plot_top, plot_bottom)
 
     elements: list[str] = []
+
+    # Theme outline
+    elements.append(
+        (
+            f'<rect x="{plot_left:.2f}" y="{plot_top:.2f}" width="{plot_right - plot_left:.2f}" '
+            f'height="{plot_bottom - plot_top:.2f}" fill="none" stroke="#64748b" stroke-width="1.2" />'
+        )
+    )
+
     for rank_tick in range(int(deep.rank_min), int(math.ceil(deep.rank_max)) + 1):
+        if rank_tick <= deep.rank_min or rank_tick >= deep.rank_max:
+            continue
         y_pos = y_to_px(float(rank_tick))
         elements.append(
             (
@@ -480,6 +491,16 @@ def _normalized_ranking_over_indicator(
     else:
         step = 1.0
 
+    # Vertical grid lines
+    for method_index in range(len(method_order)):
+        x_center = plot_left + step * (method_index + 0.5)
+        elements.append(
+            (
+                f'<line x1="{x_center:.2f}" y1="{plot_top:.2f}" x2="{x_center:.2f}" y2="{plot_bottom:.2f}" '
+                f'stroke="#dbe5f2" stroke-width="1" />'
+            )
+        )
+
     summary_rows: list[dict[str, Any]] = []
     for method_index, method in enumerate(method_order):
         x_center = plot_left + step * (method_index + 0.5)
@@ -496,6 +517,49 @@ def _normalized_ranking_over_indicator(
         max_value = clean_values[-1]
 
         method_color = _rank_color(method_index + 1, max(1, len(method_order)))
+        
+        # --- VIOLIN PLOT (KDE) HALF-SIDED ---
+        n_val = len(clean_values)
+        if n_val > 1:
+            std_val = math.sqrt(sum((v - mean_value)**2 for v in clean_values) / (n_val - 1))
+            bw = max(0.15, 1.06 * std_val / (n_val ** 0.2))
+        else:
+            bw = 0.2
+            
+        y_pts = []
+        densities = []
+        kde_steps = 50
+        kde_min = max(deep.rank_min, min_value - bw * 2.5)
+        kde_max = min(deep.rank_max, max_value + bw * 2.5)
+        kde_step = (kde_max - kde_min) / max(1, kde_steps - 1)
+        
+        for k_idx in range(kde_steps):
+            y_val = kde_min + k_idx * kde_step
+            if y_val < deep.rank_min: y_val = deep.rank_min
+            if y_val > deep.rank_max: y_val = deep.rank_max
+            
+            d_val = sum(math.exp(-0.5 * ((y_val - v) / bw)**2) for v in clean_values) / (n_val * bw * math.sqrt(2 * math.pi))
+            y_pts.append(y_to_px(y_val))
+            densities.append(d_val)
+            
+        max_density = max(densities) if densities else 1.0
+        if max_density < 1e-9:
+            max_density = 1.0
+            
+        violin_width = max(24.0, min(50.0, step * 0.45))
+        poly_points = []
+        for y_px, d in zip(y_pts, densities):
+            poly_points.append(f"{x_center:.2f},{y_px:.2f}")
+        for y_px, d in reversed(list(zip(y_pts, densities))):
+            dx = (d / max_density) * violin_width
+            poly_points.append(f"{x_center + dx:.2f},{y_px:.2f}")
+            
+        poly_str = " ".join(poly_points)
+        elements.append(
+            f'<polygon points="{poly_str}" fill="{method_color}" fill-opacity="0.3" stroke="#334155" stroke-width="1.2" />'
+        )
+        # --- END VIOLIN PLOT ---
+
         box_width = max(18.0, min(28.0, step * 0.38))
         y_q1 = y_to_px(q1)
         y_q3 = y_to_px(q3)
@@ -523,7 +587,7 @@ def _normalized_ranking_over_indicator(
         elements.append(
             (
                 f'<rect x="{x_center - box_width / 2:.2f}" y="{y_q1:.2f}" width="{box_width:.2f}" '
-                f'height="{max(1.0, y_q3 - y_q1):.2f}" fill="{method_color}" fill-opacity="0.2" '
+                f'height="{max(1.0, y_q3 - y_q1):.2f}" fill="#ffffff" fill-opacity="0.9" '
                 f'stroke="#334155" stroke-width="1.4" />'
             )
         )
@@ -539,29 +603,53 @@ def _normalized_ranking_over_indicator(
             value = deep.matrix.get(indicator, {}).get(method)
             if value is None:
                 continue
-            jitter_x = x_center + _stable_jitter(f"{method}|{indicator}", max(6.0, step * 0.12))
+            jitter_center_x = x_center - step * 0.22
+            jitter_x = jitter_center_x + _stable_jitter(f"{method}|{indicator}", max(4.0, step * 0.1))
+            jitter_y_amp = max(0.015, (deep.rank_max - deep.rank_min) * 0.015)
+            jitter_y = _stable_jitter(f"Y|{method}|{indicator}", jitter_y_amp)
+            cy_val = y_to_px(value + jitter_y)
             elements.append(
                 (
-                    f'<circle cx="{jitter_x:.2f}" cy="{y_to_px(value):.2f}" r="2.8" '
-                    f'fill="{method_color}" fill-opacity="0.7" />'
+                    f'<circle cx="{jitter_x:.2f}" cy="{cy_val:.2f}" r="4.0" '
+                    f'fill="{method_color}" fill-opacity="0.95" stroke="#f8fafc" stroke-width="0.8" />'
                 )
             )
 
+        mean_cy = y_to_px(mean_value)
         elements.append(
             (
-                f'<circle cx="{x_center:.2f}" cy="{y_to_px(mean_value):.2f}" r="5.4" '
-                f'fill="#b91c1c" stroke="#7f1d1d" stroke-width="1.2" />'
+                f'<circle cx="{x_center:.2f}" cy="{mean_cy:.2f}" r="7.5" '
+                f'fill="#b91c1c" stroke="#000000" stroke-width="1.5" />'
+            )
+        )
+        
+        mean_str = f"{mean_value:.2f}"
+        elements.append(
+            (
+                f'<rect x="{x_center + 10:.2f}" y="{mean_cy - 10:.2f}" width="86" height="20" '
+                f'fill="#ffffff" fill-opacity="0.125" stroke="#94a3b8" stroke-width="0.8" rx="2" />'
             )
         )
         elements.append(
             (
-                f'<text x="{x_center:.2f}" y="{plot_bottom + 22:.2f}" text-anchor="middle" font-size="10" '
+                f'<text text-anchor="start" fill="#0f172a" font-weight="600" font-family="system-ui, sans-serif">'
+                f'<tspan x="{x_center + 16:.2f}" y="{mean_cy + 4:.2f}" font-size="11">μ</tspan>'
+                f'<tspan x="{x_center + 18.5:.2f}" y="{mean_cy - 1:.2f}" font-size="10">^</tspan>'
+                f'<tspan x="{x_center + 24:.2f}" y="{mean_cy + 8:.2f}" font-size="8.5">mean</tspan>'
+                f'<tspan x="{x_center + 47:.2f}" y="{mean_cy + 4:.2f}" font-size="11">= {mean_str}</tspan>'
+                f'</text>'
+            )
+        )
+
+        elements.append(
+            (
+                f'<text x="{x_center:.2f}" y="{plot_bottom + 22:.2f}" text-anchor="middle" font-size="11" '
                 f'transform="rotate(35 {x_center:.2f} {plot_bottom + 22:.2f})" fill="#0f172a">{_xml_escape(method)}</text>'
             )
         )
         elements.append(
             (
-                f'<text x="{x_center:.2f}" y="{plot_bottom + 62:.2f}" text-anchor="middle" font-size="10" '
+                f'<text x="{x_center:.2f}" y="{plot_bottom + 62:.2f}" text-anchor="middle" font-size="11" '
                 f'fill="#334155">(K={len(clean_values)})</text>'
             )
         )
@@ -580,12 +668,12 @@ def _normalized_ranking_over_indicator(
     elements.append(
         (
             f'<text x="{(plot_left + plot_right) / 2:.2f}" y="{height - 22:.2f}" text-anchor="middle" '
-            f'font-size="12" fill="#334155">Methods</text>'
+            f'font-size="13" fill="#334155">Methods</text>'
         )
     )
     elements.append(
         (
-            f'<text x="18" y="{(plot_top + plot_bottom) / 2:.2f}" text-anchor="middle" font-size="12" '
+            f'<text x="18" y="{(plot_top + plot_bottom) / 2:.2f}" text-anchor="middle" font-size="13" '
             f'fill="#334155" transform="rotate(-90 18 {(plot_top + plot_bottom) / 2:.2f})">Normalized Rank (lower is better)</text>'
         )
     )

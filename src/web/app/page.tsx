@@ -32,24 +32,16 @@ interface KeyFeature {
 
 const workflowSteps: WorkflowStep[] = [
   {
-    title: "Upload Your Data",
-    description:
-      "Upload your comparison data directly into OmniRank. The platform supports CSV files with pairwise outcomes and multiway rankings.",
+    title: "Upload Data",
+    description: "Upload your data file to get started.",
   },
   {
-    title: "AI-Powered Schema Inference",
-    description:
-      "Let our intelligent agent automatically infer your data semantics. OmniRank detects whether higher values are better, identifies ranking items, and extracts stratification dimensions for segmented analysis.",
+    title: "Confirm Parameters",
+    description: "Check the detected settings and adjust if needed.",
   },
   {
-    title: "Spectral Ranking Analysis",
-    description:
-      "Execute statistically rigorous spectral ranking with automatic bootstrap confidence intervals. The platform validates data quality, checks graph connectivity, and applies minimax-optimal estimation methods.",
-  },
-  {
-    title: "Review & Export",
-    description:
-      "Review the AI-generated ranking report with interactive visualizations, confidence intervals, and uncertainty quantification. Export publication-ready figures and share your analysis with collaborators.",
+    title: "View Report",
+    description: "Review rankings, charts, and key results.",
   },
 ];
 
@@ -212,46 +204,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="how-to-use" className="scroll-mt-24 px-4 py-20 md:px-6 md:py-22">
-          <div className="mx-auto w-full max-w-6xl">
-            <h2 className="mb-10 text-center text-3xl font-bold md:mb-12 md:text-4xl">How to Use OmniRank</h2>
-
-            <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
-              <div className="space-y-8">
-                {workflowSteps.map((step, index) => (
-                  <div key={step.title} className="flex gap-5">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                      {index + 1}
-                    </div>
-                    <div className="pt-0.5">
-                      <h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
-                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">{step.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="lg:sticky lg:top-24">
-                <div className="overflow-hidden rounded-xl border border-border/60 bg-background/80 shadow-xl shadow-black/10">
-                  <div className="relative aspect-video min-h-[320px] w-full bg-card/90 md:min-h-[380px]">
-                    <div className="absolute inset-0 grid place-items-center">
-                      <div className="text-center">
-                        <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-full bg-primary/90 text-primary-foreground shadow-lg transition-transform hover:scale-105">
-                          <CirclePlay className="h-8 w-8" />
-                        </div>
-                        <p className="text-sm text-muted-foreground">Video coming soon</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <p className="mt-4 text-center text-sm text-muted-foreground">
-                  Watch this tutorial to learn how to use OmniRank effectively for your data analysis needs.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
         <section id="what-is-omnirank" className="scroll-mt-32 px-4 pb-16 pt-28 md:px-6 md:pb-16 md:pt-28">
           <div className="mx-auto w-full max-w-6xl">
             <motion.div
@@ -293,19 +245,71 @@ export default function LandingPage() {
               })}
             </div>
 
-            <div className="mt-8 text-center">
-              <Link
-                href="/workspace"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <ArrowRight className="h-4 w-4" />
-                Get Started with OmniRank
-              </Link>
+          </div>
+        </section>
+
+        <section id="how-to-use" className="scroll-mt-24 px-4 pb-8 pt-20 md:px-6 md:pb-10 md:pt-22">
+          <div className="mx-auto w-full max-w-6xl">
+            <h2 className="mb-10 text-center text-3xl font-bold md:mb-12 md:text-4xl">How to Use OmniRank</h2>
+
+            <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-8">
+              <div className="max-w-md space-y-5 lg:justify-self-end">
+                {workflowSteps.map((step, index) => (
+                  <div key={step.title} className="flex gap-5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                      {index + 1}
+                    </div>
+                    <div className="pt-0.5">
+                      <h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{step.description}</p>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex gap-5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <MessageSquareText className="h-4 w-4" />
+                  </div>
+                  <div className="pt-0.5">
+                    <h3 className="text-lg font-semibold text-foreground">Ask OmniAgent Questions</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      Ask for help anytime while you work.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg:sticky lg:top-24">
+                <div className="overflow-hidden rounded-xl border border-border/60 bg-background/80 shadow-xl shadow-black/10">
+                  <div className="relative aspect-video min-h-[320px] w-full bg-card/90 md:min-h-[380px]">
+                    <div className="absolute inset-0 grid place-items-center">
+                      <div className="text-center">
+                        <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-full bg-primary/90 text-primary-foreground shadow-lg transition-transform hover:scale-105">
+                          <CirclePlay className="h-8 w-8" />
+                        </div>
+                        <p className="text-sm text-muted-foreground">Video coming soon</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
+
+        <div className="px-4 pb-10 pt-0 md:px-6 md:pb-12">
+          <div className="mx-auto w-full max-w-6xl text-center">
+            <Link
+              href="/workspace"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <ArrowRight className="h-4 w-4" />
+              Get Started with OmniRank
+            </Link>
+          </div>
+        </div>
 
         <footer className="border-t border-border/55 bg-card/70 py-8 backdrop-blur-xl md:py-9">
           <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 text-center text-sm text-muted-foreground md:px-6">

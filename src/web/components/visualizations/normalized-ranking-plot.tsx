@@ -110,14 +110,15 @@ function stableJitter(key: string, amplitude: number): number {
   return (normalized * 2 - 1) * amplitude;
 }
 
-/** Build a symmetrical full violin path centered at xCenter, extending equally left and right. */
-function buildFullViolinPath(
+/** Build a half violin path. side: 'left' = extends left from center, 'right' = extends right from center. */
+function buildHalfViolinPath(
   values: number[],
   xCenter: number,
   yToPx: (rank: number) => number,
   maxHalfWidth: number,
   rankMin: number,
   rankMax: number,
+  side: "left" | "right",
 ): string {
   if (values.length === 0) return "";
 
@@ -156,26 +157,18 @@ function buildFullViolinPath(
   }
 
   const peak = Math.max(...densities, 1e-9);
-  // Right half: center -> (center + halfWidth) from top to bottom
+  const sign = side === "left" ? -1 : 1;
   let path = `M ${xCenter.toFixed(2)} ${yToPx(sampleRanks[0]).toFixed(2)}`;
+
   for (let i = 1; i < sampleRanks.length; i += 1) {
     const widthRatio = densities[i] / peak;
     const halfWidth = maxHalfWidth * (0.08 + 0.92 * widthRatio);
-    const x = xCenter + halfWidth;
+    const x = xCenter + sign * halfWidth;
     const y = yToPx(sampleRanks[i]);
     path += ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
   }
-  // Bottom edge
-  path += ` L ${xCenter.toFixed(2)} ${yToPx(sampleRanks[sampleRanks.length - 1]).toFixed(2)}`;
-  // Left half: center -> (center - halfWidth) from bottom to top
-  for (let i = sampleRanks.length - 2; i >= 0; i -= 1) {
-    const widthRatio = densities[i] / peak;
-    const halfWidth = maxHalfWidth * (0.08 + 0.92 * widthRatio);
-    const x = xCenter - halfWidth;
-    const y = yToPx(sampleRanks[i]);
-    path += ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
-  }
-  path += " Z";
+
+  path += ` L ${xCenter.toFixed(2)} ${yToPx(sampleRanks[sampleRanks.length - 1]).toFixed(2)} Z`;
 
   return path;
 }
@@ -228,13 +221,16 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
 
   const hasData = parsed.methods.length > 0 && parsed.summaries.length > 0;
   const methodCount = Math.max(1, parsed.methods.length);
+  const rankTickStart = Math.ceil(parsed.rankMin);
+  const rankTickEnd = Math.floor(parsed.rankMax);
+  const rankTickCount = Math.max(1, rankTickEnd - rankTickStart + 1);
 
   const leftMargin = 72;
   const rightMargin = 20;
   const topMargin = 18;
   const bottomMargin = 102;
-  const width = Math.max(980, leftMargin + rightMargin + methodCount * 92);
-  const height = 430;
+  const width = 980;
+  const height = Math.max(430, 280 + rankTickCount * 22);
   const plotLeft = leftMargin;
   const plotRight = width - rightMargin;
   const plotTop = topMargin;
@@ -254,9 +250,6 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
   const labelStroke = isLightTheme ? "#6b7280" : "rgba(255,255,255,0.45)";
   const meanFill = "#b91c1c";
   const meanStroke = "#7f1d1d";
-
-  const rankTickStart = Math.ceil(parsed.rankMin);
-  const rankTickEnd = Math.floor(parsed.rankMax);
 
   const showTooltip = (event: MouseEvent<SVGElement>, title: string, lines: string[]) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -283,6 +276,9 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
       className={cn(className)}
       style={{
         width: "100%",
+        maxHeight: "80vh",
+        overflowX: "hidden",
+        overflowY: "auto",
         backgroundColor: panelBg,
         borderRadius: 10,
         padding: 8,
@@ -294,18 +290,19 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
           No deep normalized ranking data available.
         </div>
       ) : (
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" role="img" aria-label="Normalized ranking over individual phenotypes">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Normalized ranking over individual phenotypes">
           <rect x={0} y={0} width={width} height={height} fill={panelBg} />
 
           <line x1={plotLeft} y1={plotBottom} x2={plotRight} y2={plotBottom} stroke={panelBorder} strokeWidth={1.2} />
 
           {Array.from({ length: Math.max(0, rankTickEnd - rankTickStart + 1) }).map((_, idx) => {
             const tick = rankTickStart + idx;
+            if (tick <= parsed.rankMin || tick >= parsed.rankMax) return null;
             const y = yToPx(tick);
             return (
               <g key={`y-tick-${tick}`}>
                 <line x1={plotLeft} y1={y} x2={plotRight} y2={y} stroke={gridStroke} strokeWidth={1} />
-                <text x={plotLeft - 10} y={y + 4} textAnchor="end" fontSize={11} fill={axisColor} fontWeight={600}>
+                <text x={plotLeft - 10} y={y + 4} textAnchor="end" fontSize={17} fill={axisColor} fontWeight={600}>
                   {tick}
                 </text>
               </g>
@@ -316,24 +313,27 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
             const methodColor = METHOD_COLORS[index % METHOD_COLORS.length];
             const xCenter = plotLeft + step * (index + 0.5);
             const boxWidth = Math.max(18, Math.min(30, step * 0.34));
-            const violinHalfW = Math.max(12, Math.min(25, step * 0.28));
+            const violinHalfW = Math.max(6, Math.min(14, step * 0.14));
             const yLow = yToPx(summary.low);
             const yHigh = yToPx(summary.high);
             const yQ1 = yToPx(summary.q1);
             const yQ3 = yToPx(summary.q3);
             const yMedian = yToPx(summary.median);
             const yMean = yToPx(summary.mean);
-            const violinPath = buildFullViolinPath(
+            const violinOffset = violinHalfW + 8;
+            const violinSpineX = xCenter + violinOffset;
+            const violinPath = buildHalfViolinPath(
               summary.values,
-              xCenter,
+              violinSpineX,
               yToPx,
               violinHalfW,
               parsed.rankMin,
               parsed.rankMax,
+              "right",
             );
 
-            const labelWidth = 94;
-            const labelX = Math.max(plotLeft, Math.min(plotRight - labelWidth, xCenter - labelWidth / 2));
+            const labelWidth = 100;
+            const labelX = Math.max(plotLeft, Math.min(plotRight - labelWidth, xCenter + 12));
             const labelY = yMean - 10;
 
             return (
@@ -344,10 +344,10 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
                   <path
                     d={violinPath}
                     fill={methodColor}
-                    fillOpacity={isLightTheme ? 0.22 : 0.30}
+                    fillOpacity={isLightTheme ? 0.35 : 0.45}
                     stroke={axisColor}
-                    strokeOpacity={0.65}
-                    strokeWidth={1.1}
+                    strokeOpacity={0.8}
+                    strokeWidth={1.2}
                     onMouseMove={(event) =>
                       showTooltip(event, summary.method, [
                         `Distribution width reflects density over phenotype-specific ranks`,
@@ -367,9 +367,9 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
                   y={Math.min(yQ1, yQ3)}
                   width={boxWidth}
                   height={Math.max(1, Math.abs(yQ3 - yQ1))}
-                  fill={boxFill}
+                  fill={isLightTheme ? "#ffffff" : "#cbd5e1"}
                   stroke={axisColor}
-                  strokeWidth={1.3}
+                  strokeWidth={1.5}
                   onMouseMove={(event) =>
                     showTooltip(event, summary.method, [
                       `Q1: ${formatRank(summary.q1)}`,
@@ -379,23 +379,27 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
                   }
                   onMouseLeave={hideTooltip}
                 />
-                <line x1={xCenter - boxWidth / 2} y1={yMedian} x2={xCenter + boxWidth / 2} y2={yMedian} stroke={axisColor} strokeWidth={1.5} />
+                <line x1={xCenter - boxWidth / 2} y1={yMedian} x2={xCenter + boxWidth / 2} y2={yMedian} stroke={axisColor} strokeWidth={1.6} />
 
                 {parsed.points
                   .filter((point) => point.method === summary.method)
                   .map((point) => {
-                    const jitterAmplitude = Math.min(step * 0.11, violinHalfW * 0.85);
-                    const jitter = stableJitter(`${point.method}|${point.indicator}`, Math.max(4, jitterAmplitude));
-                    const pointX = xCenter + jitter;
-                    const pointY = yToPx(point.rank);
+                    const jitterXAmplitude = Math.max(2, step * 0.04);
+                    const jitterYAmplitude = Math.max(0.08, (parsed.rankMax - parsed.rankMin) * 0.06);
+                    const jitterX = stableJitter(`${point.method}|${point.indicator}`, jitterXAmplitude);
+                    const jitterY = stableJitter(`Y|${point.method}|${point.indicator}`, jitterYAmplitude);
+                    const pointX = xCenter + jitterX;
+                    const pointY = yToPx(point.rank + jitterY);
                     return (
                       <circle
                         key={`point-${point.method}-${point.indicator}`}
                         cx={pointX}
                         cy={pointY}
-                        r={3}
+                        r={4.0}
                         fill={methodColor}
-                        fillOpacity={0.92}
+                        fillOpacity={0.95}
+                        stroke={panelBg}
+                        strokeWidth={0.8}
                         onMouseMove={(event) =>
                           showTooltip(event, point.method, [
                             `Phenotype: ${point.indicator}`,
@@ -410,10 +414,10 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
                 <circle
                   cx={xCenter}
                   cy={yMean}
-                  r={5.8}
+                  r={7.5}
                   fill={meanFill}
-                  stroke={meanStroke}
-                  strokeWidth={1.3}
+                  stroke={isLightTheme ? "#000000" : "#000000"}
+                  strokeWidth={1.8}
                   onMouseMove={(event) =>
                     showTooltip(event, summary.method, [
                       `Mean rank: ${summary.mean.toFixed(2)}`,
@@ -432,31 +436,35 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
                   rx={2.5}
                   ry={2.5}
                   fill={labelFill}
+                  fillOpacity={0.03125}
                   stroke={labelStroke}
                   strokeWidth={1}
                 />
-                <text x={labelX + 6} y={labelY + 14} textAnchor="start" fontSize={11} fill={axisColor} fontWeight={600}>
-                  {`mu_mean = ${summary.mean.toFixed(2)}`}
+                <text textAnchor="start" fill={axisColor} fontWeight={600}>
+                  <tspan x={labelX + 6} y={labelY + 14} fontSize={17}>μ </tspan>
+                  <tspan x={labelX + 8.5} y={labelY + 9} fontSize={16}>^</tspan>
+                  <tspan x={labelX + 16} y={labelY + 18} fontSize={12.5}> mean</tspan>
+                  <tspan x={labelX + 40} y={labelY + 14} fontSize={17}>{` = ${summary.mean.toFixed(2)}`}</tspan>
                 </text>
 
-                <text x={xCenter} y={plotBottom + 24} textAnchor="middle" fontSize={10.5} fill={axisColor} fontWeight={600}>
+                <text x={xCenter} y={plotBottom + 24} textAnchor="middle" fontSize={16.5} fill={axisColor} fontWeight={600}>
                   {summary.method}
                 </text>
-                <text x={xCenter} y={plotBottom + 46} textAnchor="middle" fontSize={10} fill={axisColor} fontWeight={600}>
+                <text x={xCenter} y={plotBottom + 46} textAnchor="middle" fontSize={16} fill={axisColor} fontWeight={600}>
                   {`(K = ${summary.k})`}
                 </text>
               </g>
             );
           })}
 
-          <text x={(plotLeft + plotRight) / 2} y={height - 20} textAnchor="middle" fontSize={12} fill={axisColor} fontWeight={600}>
+          <text x={(plotLeft + plotRight) / 2} y={height - 20} textAnchor="middle" fontSize={18} fill={axisColor} fontWeight={600}>
             Methods
           </text>
           <text
             x={20}
             y={(plotTop + plotBottom) / 2}
             textAnchor="middle"
-            fontSize={12}
+            fontSize={18}
             fill={axisColor}
             fontWeight={600}
             transform={`rotate(-90 20 ${(plotTop + plotBottom) / 2})`}

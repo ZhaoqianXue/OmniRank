@@ -486,8 +486,12 @@ export function useOmniRank() {
         const normalized = normalizeRunResponse(run);
         const snapshot = await getSessionSnapshot(state.sessionId);
         const rankingItems = normalized.rankingResults?.items ?? [];
-        const topItem = rankingItems[0]?.name ?? "the top item";
-        const runnerUpItem = rankingItems[1]?.name ?? "the runner-up";
+        const rankingItemsByRank = [...rankingItems].sort((a, b) => {
+          if (a.rank !== b.rank) return a.rank - b.rank;
+          return b.theta_hat - a.theta_hat;
+        });
+        const topItem = rankingItemsByRank[0]?.name ?? "the top item";
+        const runnerUpItem = rankingItemsByRank[1]?.name ?? "the runner-up";
 
         setState((prev) => ({
           ...prev,
