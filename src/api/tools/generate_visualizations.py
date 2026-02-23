@@ -230,6 +230,18 @@ def _normalized_ranking_over_indicator_r(
     )
 
 
+def _write_deep_matrix_csv(deep: _DeepRankingData, out_path: Path) -> None:
+    """Write phenotype x method rank matrix to CSV for plot_phenotype_rankings.R."""
+    rows = []
+    for indicator in deep.indicator_order:
+        row = {deep.indicator_col: indicator}
+        for method in deep.method_order:
+            row[method] = deep.matrix.get(indicator, {}).get(method)
+        rows.append(row)
+    df = pd.DataFrame(rows)
+    df.to_csv(out_path, index=False)
+
+
 def _indicator_rankings_heatmap_r(
     csv_path: str,
     artifact_dir: Path,
@@ -501,6 +513,27 @@ def _deep_rank_color(rank_value: float, rank_min: float, rank_max: float) -> str
     ratio = (rank_value - rank_min) / (rank_max - rank_min)
     # Better ranks (smaller) are warm; worse ranks (larger) are blue.
     return _interpolate_color((245, 158, 11), (37, 99, 235), ratio)
+
+
+def _is_multiway_phenotype_format(csv_path: str, indicator_col: str) -> bool:
+    """Return True if data is phenotype x method with multiple values per row (multiway).
+    Multiway: each row has many method values; R script expects raw scores and ranks internally.
+    Pairwise: each row has ~2 method values; we must run spectral ranking per indicator."""
+    source = Path(csv_path)
+    if not source.exists():
+        return False
+    df = pd.read_csv(source)
+    if indicator_col not in df.columns:
+        return False
+    method_cols = [
+        c for c in df.columns
+        if c != indicator_col and pd.api.types.is_numeric_dtype(df[c])
+    ]
+    if len(method_cols) < 2:
+        return False
+    non_na_per_row = df[method_cols].notna().sum(axis=1)
+    median_non_na = non_na_per_row.median()
+    return median_non_na > 2
 
 
 def _compute_deep_ranking_data(
@@ -946,6 +979,7 @@ def generate_visualizations(
     plots: list[PlotSpec] = []
     errors: list[str] = []
     mode = _as_ranking_mode(ranking_mode)
+    deep_cache: _DeepRankingData | None = None
 
     for viz_type in viz_types:
         try:
@@ -967,10 +1001,32 @@ def generate_visualizations(
                 errors.append(f"Skipped {viz_type}: csv_path is missing.")
                 continue
 
+            # Multiway phenotype: CSV is phenotype x method with raw scores; R script ranks
+            # within each row. Pairwise: each row has ~2 values; we must run spectral
+            # ranking per indicator and pass the rank matrix.
+            is_multiway = _is_multiway_phenotype_format(csv_path, indicator_col)
+            if is_multiway:
+                plot_csv = csv_path
+            else:
+                if deep_cache is None:
+                    deep_cache = _compute_deep_ranking_data(
+                        csv_path=csv_path,
+                        indicator_col=indicator_col,
+                        selected_indicator_values=selected_indicator_values,
+                        selected_items=selected_items,
+                        bigbetter=bigbetter,
+                        bootstrap_iterations=bootstrap_iterations,
+                        seed=seed,
+                        r_script_path=r_script_path,
+                    )
+                matrix_csv = output_dir / "_plot_matrix.csv"
+                _write_deep_matrix_csv(deep_cache, matrix_csv)
+                plot_csv = str(matrix_csv)
+
             if viz_type == "normalized_ranking_over_indicator":
-                plots.append(_normalized_ranking_over_indicator_r(csv_path, output_dir, indicator_col))
+                plots.append(_normalized_ranking_over_indicator_r(plot_csv, output_dir, indicator_col))
             elif viz_type == "indicator_rankings_heatmap":
-                plots.append(_indicator_rankings_heatmap_r(csv_path, output_dir, indicator_col))
+                plots.append(_indicator_rankings_heatmap_r(plot_csv, output_dir, indicator_col))
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{viz_type} failed: {exc}")
 

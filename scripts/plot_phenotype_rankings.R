@@ -120,6 +120,8 @@ table <- table %>%
 # Method order: use CSV column order (match Report), not sorted by mean rank
 method_cols <- setdiff(colnames(df_wide), "Traits")
 sorted_names <- method_cols
+n_rank_levels <- max(length(method_cols), 2L)  # adaptive: 1 to n_methods
+rank_breaks <- seq(1, n_rank_levels, 1)
 table$Method <- factor(table$Method, levels = sorted_names)
 
 # Violin plot - only right half violin (hide centered violin from ggbetweenstats)
@@ -148,7 +150,7 @@ p_violin <- ggbetweenstats(
     adjust = 2
   ) +
   scale_fill_paletteer_d("colorBlindness::paletteMartin") +
-  scale_y_reverse(breaks = 1:14, limits = c(1, 14)) +
+  scale_y_reverse(breaks = rank_breaks, limits = c(1, n_rank_levels)) +
   labs(title = NULL, y = "Rank") +
   theme(
     plot.margin = margin(12, 16, 12, 12),
@@ -206,26 +208,25 @@ rownames(numeric_matrix) <- rownames(data_for_heatmap)
 numeric_matrix <- numeric_matrix[, sorted_names]
 
 # Single Phenotype Rankings heatmap (ggplot2 for legend height control)
-# No title; legend: 1 (orange) at top, 14 (blue) at bottom; legend height = 1/2 heatmap
+# No title; legend: 1 (orange) at top, n_rank_levels (blue) at bottom; adaptive to data
 mat_long <- as.data.frame(numeric_matrix) %>%
   tibble::rownames_to_column("Phenotype") %>%
   tidyr::pivot_longer(-Phenotype, names_to = "Method", values_to = "rank")
 n_pheno <- nrow(numeric_matrix)
-# Legend bar height = 1/2 of heatmap; plot height 14in, heatmap ~12in -> half = 6in = 15cm
 legend_bar_height_cm <- 15
 p_heatmap <- ggplot2::ggplot(mat_long, ggplot2::aes(x = Method, y = Phenotype, fill = rank)) +
   ggplot2::geom_tile(color = "grey60", linewidth = 0.2) +
   ggplot2::scale_fill_gradientn(
-    colors = colorRampPalette(c("orange", "blue"))(14),
-    values = scales::rescale(1:14),
-    limits = c(1, 14),
-    breaks = 1:14,
+    colors = colorRampPalette(c("orange", "blue"))(n_rank_levels),
+    values = scales::rescale(seq(1, n_rank_levels)),
+    limits = c(1, n_rank_levels),
+    breaks = rank_breaks,
     na.value = "darkgrey",
     guide = ggplot2::guide_colorbar(
       title = NULL,
       barheight = grid::unit(legend_bar_height_cm, "cm"),
-      nbin = 14,
-      reverse = TRUE  # 1 (orange) at top, 14 (blue) at bottom
+      nbin = n_rank_levels,
+      reverse = TRUE  # 1 (orange) at top, n_rank_levels (blue) at bottom
     )
   ) +
   ggplot2::scale_x_discrete(limits = sorted_names) +
