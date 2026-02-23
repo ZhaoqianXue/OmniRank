@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # Plot violin and heatmaps for phenotype ranking data
-# Usage: Rscript scripts/plot_phenotype_rankings.R [OPTIONS]
+# Usage: Rscript src/spectral_ranking/plot_phenotype_rankings.R [OPTIONS]
 # Phenotype plots (require --csv):
 #   --csv PATH: phenotype CSV path
 #   --out PATH: violin PNG output

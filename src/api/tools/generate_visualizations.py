@@ -131,7 +131,7 @@ def _ci_forest_r(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     png_path = artifact_dir / f"{block_id}.png"
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
-    r_script = project_root / "scripts" / "plot_phenotype_rankings.R"
+    r_script = project_root / "src" / "spectral_ranking" / "plot_phenotype_rankings.R"
     if not r_script.exists():
         raise FileNotFoundError(f"R plot script not found: {r_script}")
 
@@ -192,7 +192,7 @@ def _normalized_ranking_over_indicator_r(
         raise FileNotFoundError(f"Data file not found: {source}")
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
-    r_script = project_root / "scripts" / "plot_phenotype_rankings.R"
+    r_script = project_root / "src" / "spectral_ranking" / "plot_phenotype_rankings.R"
     if not r_script.exists():
         raise FileNotFoundError(f"R plot script not found: {r_script}")
 
@@ -253,7 +253,7 @@ def _indicator_rankings_heatmap_r(
         raise FileNotFoundError(f"Data file not found: {source}")
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
-    r_script = project_root / "scripts" / "plot_phenotype_rankings.R"
+    r_script = project_root / "src" / "spectral_ranking" / "plot_phenotype_rankings.R"
     if not r_script.exists():
         raise FileNotFoundError(f"R plot script not found: {r_script}")
 
