@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -105,6 +107,69 @@ def _empty_plot_svg(message: str, width: int = 840, height: int = 220) -> str:
         ),
     ]
     return _render_svg(width=width, height=height, elements=elements)
+
+
+def _ci_forest_r(results: RankingResults, artifact_dir: Path) -> PlotSpec:
+    """Generate Ranking Confidence Interval Plot using R script."""
+    payload = (
+        "|".join(results.items)
+        + ":"
+        + "|".join(f"{r:.6f}" for r in results.ranks)
+        + ":"
+        + "|".join(f"{lo:.6f}-{hi:.6f}" for lo, hi in zip(results.ci_lower, results.ci_upper, strict=True))
+    )
+    block_id = _stable_block_id("figure-ci-forest", payload)
+    png_path = artifact_dir / f"{block_id}.png"
+
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    r_script = project_root / "scripts" / "plot_phenotype_rankings.R"
+    if not r_script.exists():
+        raise FileNotFoundError(f"R plot script not found: {r_script}")
+
+    ci_data = {
+        "items": results.items,
+        "theta_hat": results.theta_hat,
+        "ranks": results.ranks,
+        "ci_lower": results.ci_lower,
+        "ci_upper": results.ci_upper,
+    }
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        json.dump(ci_data, f, indent=None)
+        json_path = Path(f.name)
+
+    try:
+        result = subprocess.run(  # noqa: S603
+            ["Rscript", str(r_script), "--ci-plot", str(json_path), "--ci-out", str(png_path)],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"R CI plot script failed: {result.stderr or result.stdout or 'unknown error'}"
+            )
+        if not png_path.exists():
+            raise RuntimeError(f"R CI plot script did not produce output: {png_path}")
+    finally:
+        json_path.unlink(missing_ok=True)
+
+    return PlotSpec(
+        type="ci_forest",
+        data={
+            "names": results.items,
+            "rank_point": results.ranks,
+            "theta_hat": results.theta_hat,
+            "ci_lower": results.ci_lower,
+            "ci_upper": results.ci_upper,
+        },
+        config={"x_label": "rank", "point": "rank", "interval": "rank_ci", "source": "r"},
+        svg_path=str(png_path),
+        block_id=block_id,
+        caption_plain="Ranking Confidence Interval Plot",
+        caption_academic="Forest plot of 95% rank confidence intervals with rank point estimates.",
+        hint_ids=["hint-ci"],
+    )
 
 
 def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
@@ -426,6 +491,64 @@ def _compute_deep_ranking_data(
     )
 
 
+def _indicator_label(indicator_col: str) -> tuple[str, str]:
+    """Return (title_case, plural) for indicator column name."""
+    if not indicator_col:
+        return "Indicator", "Indicators"
+    tc = indicator_col[0].upper() + indicator_col[1:].lower()
+    plural = tc + ("es" if tc.endswith("s") else "s")
+    return tc, plural
+
+
+def _normalized_ranking_over_indicator_r(
+    csv_path: str,
+    artifact_dir: Path,
+    indicator_col: str = "phenotype",
+) -> PlotSpec:
+    """Generate Normalized Ranking Over Individual [Indicators] using R script."""
+    source = Path(csv_path).resolve()
+    if not source.exists():
+        raise FileNotFoundError(f"Data file not found: {source}")
+
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    r_script = project_root / "scripts" / "plot_phenotype_rankings.R"
+    if not r_script.exists():
+        raise FileNotFoundError(f"R plot script not found: {r_script}")
+
+    block_id = _stable_block_id("figure-normalized-ranking-over-indicator", str(source))
+    png_path = artifact_dir / f"{block_id}.png"
+
+    result = subprocess.run(  # noqa: S603
+        ["Rscript", str(r_script), "--csv", str(source), "--out", str(png_path)],
+        cwd=str(project_root),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"R plot script failed: {result.stderr or result.stdout or 'unknown error'}"
+        )
+    if not png_path.exists():
+        raise RuntimeError(f"R plot script did not produce output: {png_path}")
+
+    _, plural = _indicator_label(indicator_col)
+    caption = f"Normalized Ranking Over Individual {plural}"
+    return PlotSpec(
+        type="normalized_ranking_over_indicator",
+        data={"indicator_col": indicator_col},
+        config={"x_label": "method", "y_label": "normalized_rank", "source": "r"},
+        svg_path=str(png_path),
+        block_id=block_id,
+        caption_plain=caption,
+        caption_academic=(
+            f"Per-indicator normalized rank distributions across methods; "
+            "box-and-whisker summaries and mean markers quantify stability and coverage."
+        ),
+        hint_ids=["hint-ci"],
+    )
+
+
 def _normalized_ranking_over_indicator(
     deep: _DeepRankingData,
     artifact_dir: Path,
@@ -702,6 +825,55 @@ def _normalized_ranking_over_indicator(
     )
 
 
+def _indicator_rankings_heatmap_r(
+    csv_path: str,
+    artifact_dir: Path,
+    indicator_col: str = "phenotype",
+) -> PlotSpec:
+    """Generate [Indicator] Rankings heatmap using R script."""
+    source = Path(csv_path).resolve()
+    if not source.exists():
+        raise FileNotFoundError(f"Data file not found: {source}")
+
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    r_script = project_root / "scripts" / "plot_phenotype_rankings.R"
+    if not r_script.exists():
+        raise FileNotFoundError(f"R plot script not found: {r_script}")
+
+    block_id = _stable_block_id("figure-indicator-rankings-heatmap", str(source))
+    png_path = artifact_dir / f"{block_id}.png"
+
+    result = subprocess.run(  # noqa: S603
+        ["Rscript", str(r_script), "--csv", str(source), "--heatmap-out", str(png_path)],
+        cwd=str(project_root),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"R heatmap script failed: {result.stderr or result.stdout or 'unknown error'}"
+        )
+    if not png_path.exists():
+        raise RuntimeError(f"R heatmap script did not produce output: {png_path}")
+
+    tc, _ = _indicator_label(indicator_col)
+    caption = f"{tc} Rankings"
+    return PlotSpec(
+        type="indicator_rankings_heatmap",
+        data={"indicator_col": indicator_col},
+        config={"source": "r"},
+        svg_path=str(png_path),
+        block_id=block_id,
+        caption_plain=caption,
+        caption_academic=(
+            f"Per-{indicator_col.lower()} ranking heatmap across methods; "
+            "orange indicates better (lower) rank, blue indicates worse (higher) rank."
+        ),
+        hint_ids=["hint-ci"],
+    )
+
+
 def _indicator_rankings_heatmap(
     deep: _DeepRankingData,
     artifact_dir: Path,
@@ -862,12 +1034,11 @@ def generate_visualizations(
     plots: list[PlotSpec] = []
     errors: list[str] = []
     mode = _as_ranking_mode(ranking_mode)
-    deep_cache: _DeepRankingData | None = None
 
     for viz_type in viz_types:
         try:
             if viz_type == "ci_forest":
-                plots.append(_ci_forest(results, output_dir))
+                plots.append(_ci_forest_r(results, output_dir))
                 continue
 
             if viz_type not in {"normalized_ranking_over_indicator", "indicator_rankings_heatmap"}:
@@ -884,22 +1055,10 @@ def generate_visualizations(
                 errors.append(f"Skipped {viz_type}: csv_path is missing.")
                 continue
 
-            if deep_cache is None:
-                deep_cache = _compute_deep_ranking_data(
-                    csv_path=csv_path,
-                    indicator_col=indicator_col,
-                    selected_indicator_values=selected_indicator_values,
-                    selected_items=selected_items,
-                    bigbetter=bigbetter,
-                    bootstrap_iterations=bootstrap_iterations,
-                    seed=seed,
-                    r_script_path=r_script_path,
-                )
-
             if viz_type == "normalized_ranking_over_indicator":
-                plots.append(_normalized_ranking_over_indicator(deep_cache, output_dir))
+                plots.append(_normalized_ranking_over_indicator_r(csv_path, output_dir, indicator_col))
             elif viz_type == "indicator_rankings_heatmap":
-                plots.append(_indicator_rankings_heatmap(deep_cache, output_dir))
+                plots.append(_indicator_rankings_heatmap_r(csv_path, output_dir, indicator_col))
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{viz_type} failed: {exc}")
 

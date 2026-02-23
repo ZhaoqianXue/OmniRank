@@ -35,8 +35,9 @@ def test_generate_visualizations_deterministic_svg(tmp_path: Path):
         bytes_a = Path(plot_a.svg_path).read_bytes()
         bytes_b = Path(plot_b.svg_path).read_bytes()
         assert bytes_a == bytes_b
-        assert b"<svg" in bytes_a
-        assert b"matplotlib" not in bytes_a.lower()
+        # CI forest is R-generated PNG (not SVG)
+        assert plot_a.svg_path.lower().endswith(".png")
+        assert bytes_a.startswith(b"\x89PNG")
         assert plot_a.block_id
         assert plot_a.caption_plain
         assert plot_a.caption_academic
@@ -113,8 +114,12 @@ def test_generate_visualizations_deep_mode_generates_indicator_plots(tmp_path: P
         "indicator_rankings_heatmap",
     ]
     for plot in output.plots:
-        assert Path(plot.svg_path).exists()
-        assert "<svg" in Path(plot.svg_path).read_text(encoding="utf-8")
+        path = Path(plot.svg_path)
+        assert path.exists()
+        if path.suffix.lower() == ".png":
+            assert path.stat().st_size > 0
+        else:
+            assert "<svg" in path.read_text(encoding="utf-8")
 
 
 def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path: Path):

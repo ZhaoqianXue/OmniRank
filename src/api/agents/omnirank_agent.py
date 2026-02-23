@@ -335,7 +335,8 @@ class OmniRankAgent:
         session.citation_blocks.extend(report.citation_blocks)
 
         for plot in viz_output.plots:
-            session.register_artifact(kind="figure", path=plot.svg_path, title=plot.type, mime_type="image/svg+xml")
+            mime = "image/png" if plot.svg_path.lower().endswith(".png") else "image/svg+xml"
+            session.register_artifact(kind="figure", path=plot.svg_path, title=plot.type, mime_type=mime)
 
         for artifact in report.artifacts:
             session.register_artifact(

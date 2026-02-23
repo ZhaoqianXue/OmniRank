@@ -45,7 +45,7 @@ LOWER_BETTER_KEYWORDS = {
     "penalty",
 }
 
-INDICATOR_KEYWORDS = {"task", "category", "type", "group", "class", "domain", "segment", "benchmark"}
+INDICATOR_KEYWORDS = {"task", "category", "type", "group", "class", "domain", "segment", "benchmark", "phenotype", "trait"}
 PAIRWISE_STRUCTURAL_COLUMNS = {
     "item_a",
     "item_b",
@@ -340,10 +340,10 @@ def is_reasonable_indicator_column(
         return False
 
     unique_ratio = unique_count / non_null_count
-    if unique_ratio > 0.8:
-        return False
-
     has_indicator_keyword = any(keyword in lower for keyword in INDICATOR_KEYWORDS)
+    # Allow high unique_ratio when column is clearly a row indicator (e.g. phenotype in traits x methods matrix)
+    if unique_ratio > 0.8 and not has_indicator_keyword:
+        return False
     if is_meta_column(column) and not has_indicator_keyword:
         return False
 

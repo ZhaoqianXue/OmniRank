@@ -497,9 +497,14 @@ def generate_report(
         if plot.type == "ci_forest":
             figure_title = "Ranking Confidence Interval Plot"
         elif plot.type == "normalized_ranking_over_indicator":
-            figure_title = "Normalized Ranking Over Individual Phenotypes"
+            ind = (plot.data or {}).get("indicator_col") or "phenotype"
+            tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
+            plural = tc + ("es" if tc.endswith("s") else "s")
+            figure_title = f"Normalized Ranking Over Individual {plural}"
         elif plot.type == "indicator_rankings_heatmap":
-            figure_title = "Phenotype Rankings"
+            ind = (plot.data or {}).get("indicator_col") or "phenotype"
+            tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
+            figure_title = f"{tc} Rankings"
         else:
             figure_title = cap_plain
 
@@ -521,12 +526,13 @@ def generate_report(
                 artifact_paths=[plot.svg_path],
             )
         )
+        mime = "image/png" if plot.svg_path.lower().endswith(".png") else "image/svg+xml"
         artifacts.append(
             ArtifactRef(
                 kind="figure",
                 path=plot.svg_path,
                 title=plot.type,
-                mime_type="image/svg+xml",
+                mime_type=mime,
             )
         )
 

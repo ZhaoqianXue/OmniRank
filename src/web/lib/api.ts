@@ -189,11 +189,11 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     filename: "example_data_multiway_phenotype.csv",
     title: "PRS Phenotype Matrix",
     description:
-      "Phenotype-stratified multiway benchmark for PRS methods. " +
-      "Each row is one sample with method scores and a phenotype indicator. " +
-      "• Items to rank: LDpred2, AnnoPred, lassosum2, SCT, LDpred-funct, lassosum, LDpred2-auto, SBayesR, PRS-CS, DBSLMM, PRS-CS-auto, LDpred2-inf, LDpred, C+T " +
-      "• Indicator: phenotype (32 groups) " +
-      "• 1,760 rows " +
+      "Trait-stratified count matrix for PRS methods. " +
+      "Each row is one phenotype with method counts (number of GWAS per method). " +
+      "• Items to rank: C+T, SCT, LDpred, LDpred2, LDpred2-auto, LDpred2-inf, LDpred-funct, AnnoPred, lassosum, lassosum2, PRS-CS, PRS-CS-auto, SBayesR, DBSLMM " +
+      "• Indicator: phenotype (33 traits) " +
+      "• 33 rows " +
       "• Supports Flash ranking (overall) and Deep ranking (phenotype-wise)",
     format: "multiway",
   },

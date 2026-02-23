@@ -1,6 +1,6 @@
 "use client";
 
-import { isValidElement, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { isValidElement, useCallback, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageSquareQuote, Moon, Sun, X } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -9,6 +9,12 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ForestPlot, NormalizedRankingPlot, PhenotypeRankingsPlot } from "@/components/visualizations";
 import { cn } from "@/lib/utils";
@@ -169,6 +175,7 @@ function buildMarkdownComponents(
   rankingItems: RankingItem[],
   theme: ReportTheme,
   reportMetaBadges?: ReactNode,
+  onEnlargeableFigureClick?: (imageSrc?: string, plot?: PlotSpec) => void,
 ): Components {
   const isLightTheme = theme === "light";
 
@@ -394,23 +401,92 @@ function buildMarkdownComponents(
         const interactiveItems =
           rankingItems.length > 0 ? rankingItems : rankingItemsFromPlot(matchedPlot) || [];
 
-        if (interactiveItems.length > 0 && matchedPlot.type === "ci_forest") {
-          return (
-            <div className="my-2 overflow-hidden rounded-xl p-0">
-              <ForestPlot items={interactiveItems} className="w-full" theme={theme} />
-            </div>
-          );
+        if (matchedPlot.type === "ci_forest") {
+          const isRGenerated =
+            matchedPlot.config?.source === "r" || matchedPlot.svg_path?.toLowerCase().endsWith(".png");
+          if (isRGenerated) {
+            return (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                className="my-2 w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
+                title="Click to enlarge"
+              >
+                <img
+                  src={normalizedSrc}
+                  alt={matchedPlot.caption_plain || "Ranking Confidence Interval Plot"}
+                  className="w-full"
+                />
+              </div>
+            );
+          }
+          if (interactiveItems.length > 0) {
+            return (
+              <div className="my-2 overflow-hidden rounded-xl p-0">
+                <ForestPlot items={interactiveItems} className="w-full" theme={theme} />
+              </div>
+            );
+          }
         }
 
         if (matchedPlot.type === "normalized_ranking_over_indicator") {
+          const isRGenerated =
+            matchedPlot.config?.source === "r" || matchedPlot.svg_path?.toLowerCase().endsWith(".png");
+          if (isRGenerated) {
+            return (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                className="my-2 w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
+                title="Click to enlarge"
+              >
+                <img
+                  src={normalizedSrc}
+                  alt={matchedPlot.caption_plain || "Normalized Ranking Over Individual Phenotypes"}
+                  className="w-full"
+                />
+              </div>
+            );
+          }
           return (
-            <div className="my-2 overflow-hidden rounded-xl p-0">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => onEnlargeableFigureClick?.(undefined, matchedPlot)}
+              onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(undefined, matchedPlot)}
+              className="my-2 overflow-hidden rounded-xl p-0 cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary/50"
+              title="Click to enlarge"
+            >
               <NormalizedRankingPlot plot={matchedPlot} className="w-full" theme={theme} />
             </div>
           );
         }
 
         if (matchedPlot.type === "indicator_rankings_heatmap") {
+          const isRGenerated =
+            matchedPlot.config?.source === "r" || matchedPlot.svg_path?.toLowerCase().endsWith(".png");
+          if (isRGenerated) {
+            return (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                className="my-2 w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
+                title="Click to enlarge"
+              >
+                <img
+                  src={normalizedSrc}
+                  alt={matchedPlot.caption_plain || "Phenotype Rankings"}
+                  className="w-full"
+                />
+              </div>
+            );
+          }
           return (
             <div className="my-2 overflow-hidden rounded-xl p-0">
               <PhenotypeRankingsPlot plot={matchedPlot} className="w-full" theme={theme} />
@@ -489,7 +565,16 @@ export function ReportOverlay({
   const contentRef = useRef<HTMLDivElement>(null);
   const [quoteDraft, setQuoteDraft] = useState<QuoteDraft | null>(null);
   const [reportTheme, setReportTheme] = useState<ReportTheme>("dark");
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxPlot, setLightboxPlot] = useState<PlotSpec | null>(null);
+  const [lightboxTitle, setLightboxTitle] = useState<string>("Enlarged view");
   const isLightTheme = reportTheme === "light";
+
+  const handleEnlargeableFigureClick = useCallback((imageSrc?: string, plot?: PlotSpec) => {
+    setLightboxImage(imageSrc ?? null);
+    setLightboxPlot(plot ?? null);
+    setLightboxTitle(plot?.caption_plain ? `${plot.caption_plain} (enlarged view)` : "Enlarged view");
+  }, []);
 
   const markdown = reportOutput?.markdown || results?.report || "No report available.";
   const hints = reportOutput?.hints || [];
@@ -600,8 +685,9 @@ export function ReportOverlay({
         results?.items || [],
         reportTheme,
         reportMetaBadges,
+        handleEnlargeableFigureClick,
       ),
-    [artifactPathToUrl, figureUrls, plotsBySource, reportMetaBadges, reportTheme, results?.items],
+    [artifactPathToUrl, figureUrls, handleEnlargeableFigureClick, plotsBySource, reportMetaBadges, reportTheme, results?.items],
   );
   const renderedMarkdown = useMemo(
     () => (
@@ -761,6 +847,42 @@ export function ReportOverlay({
               </Button>
             </div>
           )}
+
+          {/* ── Normalized Ranking lightbox ───────────────────────────── */}
+          <Dialog
+            open={!!(lightboxImage || lightboxPlot)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setLightboxImage(null);
+                setLightboxPlot(null);
+              }
+            }}
+          >
+            <DialogContent
+              className="!max-w-[95vw] max-h-[95vh] w-[95vw] overflow-auto rounded-none border-0 bg-transparent p-0 shadow-none"
+              showCloseButton={true}
+            >
+              <VisuallyHidden>
+                <DialogTitle>{lightboxTitle}</DialogTitle>
+              </VisuallyHidden>
+              {lightboxImage && (
+                <div className="flex min-w-0 justify-center">
+                  <img
+                    src={lightboxImage}
+                    alt={lightboxTitle}
+                    className="max-h-[85vh] max-w-[min(90vw,1400px)] w-auto object-contain"
+                  />
+                </div>
+              )}
+              {lightboxPlot && !lightboxImage && (
+                <div className="flex min-w-0 justify-center">
+                  <div className="min-w-[min(90vw,1200px)]">
+                    <NormalizedRankingPlot plot={lightboxPlot} className="w-full" theme={reportTheme} />
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </motion.div>
       )}
     </AnimatePresence>
