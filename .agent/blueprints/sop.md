@@ -186,7 +186,7 @@ Q&A Availability (cross-phase):
 
 Suggest Question Product Logic (PM requirements):
 - Objective: maximize next-step clarity and reduce user cognitive load in chat.
-- Constraint: always return exactly **4** candidate questions.
+- Constraint: always return exactly **2** candidate questions.
 - UX principle: candidate questions must be actionable, concise, and decision-oriented (avoid meta prompts like "do you want me to...").
 
 Scenario routing (priority order):
@@ -217,7 +217,7 @@ Draft-aware refinement:
 
 Quality guardrails:
 - Use only user-perspective phrasing.
-- Avoid duplicate semantics across the four suggestions.
+- Avoid duplicate semantics across the two suggestions.
 - Prefer concrete nouns from current context (top item names, indicator name, quote excerpt) over generic wording.
 ```
 

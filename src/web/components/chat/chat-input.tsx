@@ -11,7 +11,7 @@ import type { AnalysisStatus } from "@/hooks/use-omnirank";
 // Analysis stage for suggest-question generation fallback
 type AnalysisStage = "pre-upload" | "post-schema" | "post-analysis";
 type SuggestIntent = "comparison" | "uncertainty" | "method" | "data-prep" | "error-fix" | "general";
-const MAX_SUGGEST_QUESTIONS = 4;
+const MAX_SUGGEST_QUESTIONS = 2;
 
 interface SuggestMessage {
   role: "user" | "assistant" | "system";
@@ -83,7 +83,7 @@ function inferIntent(raw: string): SuggestIntent {
 /**
  * Returns intent-appropriate pre-written questions without embedding raw draft text.
  * Uses detected intent to surface the most relevant question from a curated pool,
- * following SOP rule R12: never output the raw unfinished fragment unchanged.
+ * following SOP draft-aware refinement: never output the raw unfinished fragment unchanged.
  */
 function getIntentQuestions(
   intent: SuggestIntent,
@@ -132,20 +132,22 @@ function getHardcodedSuggestQuestions(
   if (quoteDrafts.length > 0) {
     const quoted = quoteDrafts[0]?.quoted_text?.trim() || "the quoted content";
     const preview = quoted.length > 68 ? quoted.slice(0, 68).trimEnd() : quoted;
+    const secondary =
+      quoteDrafts.length > 1
+        ? "Do these quotes agree or contradict each other"
+        : results?.items?.length
+          ? "Does this quote align with the ranking and confidence interval (CI) evidence"
+          : "What's the caveat in this statement";
     const anchors: string[] = [
       `What decision implication should I draw from this quote: "${preview}"`,
+      secondary,
+      "What should I do next based on this",
+      "What assumption here could be wrong",
     ];
-    if (results?.items?.length) {
-      anchors.push("Does this quote align with the ranking and confidence interval (CI) evidence");
-    }
-    if (quoteDrafts.length > 1) {
-      anchors.push("Do these quotes agree or contradict each other");
-    } else if (!results?.items?.length) {
-      anchors.push("What's the caveat in this statement");
-    }
-    anchors.push("What should I do next based on this");
-    anchors.push("What assumption here could be wrong");
-    return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
+    return pickUniqueQuestions(
+      [anchors[0], anchors[1], ...intentCandidates, ...anchors.slice(2)],
+      MAX_SUGGEST_QUESTIONS
+    );
   }
 
   // --- Error status (SOP R5: Q2 must address what can still be done while blocked) ---
@@ -153,9 +155,8 @@ function getHardcodedSuggestQuestions(
     const anchors = [
       "What went wrong and how can I fix it",
       "What can I still do while this is being resolved",
-      "Is the problem with my data or the settings",
     ];
-    return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
+    return pickUniqueQuestions([anchors[0], anchors[1], ...intentCandidates], MAX_SUGGEST_QUESTIONS);
   }
 
   // --- Analyzing status (SOP R6: address CI overlap and decision threshold) ---
@@ -173,8 +174,7 @@ function getHardcodedSuggestQuestions(
       topItem && secondItem
         ? `What drives the difference between ${topItem} and ${secondItem}`
         : "What drives the biggest ranking differences",
-      "Can you explain the uncertainty in simpler terms",
-      "How confident should I be in the overall ordering",
+      "Which items are clearly better vs tied based on the confidence intervals (CI)",
     ];
     return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }
@@ -189,8 +189,6 @@ function getHardcodedSuggestQuestions(
     } else {
       anchors.push("Is 'higher is better' the correct direction for my metric");
     }
-    anchors.push("What should I verify before starting");
-    anchors.push("What will I get when the analysis finishes");
     return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }
 
@@ -198,8 +196,7 @@ function getHardcodedSuggestQuestions(
   if (stage === "pre-upload") {
     const anchors = [
       "What is OmniRank and how can it help me",
-      "What CSV format does OmniRank need",
-      "What types of ranking data can I analyze",
+      "What ranking data and CSV format does OmniRank support",
     ];
     return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }
@@ -211,10 +208,10 @@ function getHardcodedSuggestQuestions(
     candidates.push(`What else should I know about "${preview}"`);
   }
   const anchors = [
-    "Can you summarize what we know so far",
-    "What's the biggest risk I should watch for",
-    "What would make me more confident in this",
     "What should I do next",
+    "What's the biggest risk I should watch for",
+    "Can you summarize what we know so far",
+    "What would make me more confident in this",
   ];
   return pickUniqueQuestions([anchors[0], ...intentCandidates, ...candidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
 }

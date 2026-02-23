@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import math
-import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -107,69 +105,6 @@ def _empty_plot_svg(message: str, width: int = 840, height: int = 220) -> str:
         ),
     ]
     return _render_svg(width=width, height=height, elements=elements)
-
-
-def _ci_forest_r(results: RankingResults, artifact_dir: Path) -> PlotSpec:
-    """Generate Ranking Confidence Interval Plot using R script."""
-    payload = (
-        "|".join(results.items)
-        + ":"
-        + "|".join(f"{r:.6f}" for r in results.ranks)
-        + ":"
-        + "|".join(f"{lo:.6f}-{hi:.6f}" for lo, hi in zip(results.ci_lower, results.ci_upper, strict=True))
-    )
-    block_id = _stable_block_id("figure-ci-forest", payload)
-    png_path = artifact_dir / f"{block_id}.png"
-
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
-    r_script = project_root / "scripts" / "plot_phenotype_rankings.R"
-    if not r_script.exists():
-        raise FileNotFoundError(f"R plot script not found: {r_script}")
-
-    ci_data = {
-        "items": results.items,
-        "theta_hat": results.theta_hat,
-        "ranks": results.ranks,
-        "ci_lower": results.ci_lower,
-        "ci_upper": results.ci_upper,
-    }
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-        json.dump(ci_data, f, indent=None)
-        json_path = Path(f.name)
-
-    try:
-        result = subprocess.run(  # noqa: S603
-            ["Rscript", str(r_script), "--ci-plot", str(json_path), "--ci-out", str(png_path)],
-            cwd=str(project_root),
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"R CI plot script failed: {result.stderr or result.stdout or 'unknown error'}"
-            )
-        if not png_path.exists():
-            raise RuntimeError(f"R CI plot script did not produce output: {png_path}")
-    finally:
-        json_path.unlink(missing_ok=True)
-
-    return PlotSpec(
-        type="ci_forest",
-        data={
-            "names": results.items,
-            "rank_point": results.ranks,
-            "theta_hat": results.theta_hat,
-            "ci_lower": results.ci_lower,
-            "ci_upper": results.ci_upper,
-        },
-        config={"x_label": "rank", "point": "rank", "interval": "rank_ci", "source": "r"},
-        svg_path=str(png_path),
-        block_id=block_id,
-        caption_plain="Ranking Confidence Interval Plot",
-        caption_academic="Forest plot of 95% rank confidence intervals with rank point estimates.",
-        hint_ids=["hint-ci"],
-    )
 
 
 def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
@@ -486,66 +421,8 @@ def _compute_deep_ranking_data(
         method_order=method_order,
         indicator_order=[value for value in indicator_order if value in matrix],
         matrix=matrix,
-        rank_min=0.0,
-        rank_max=float(global_method_count) + 1.0,
-    )
-
-
-def _indicator_label(indicator_col: str) -> tuple[str, str]:
-    """Return (title_case, plural) for indicator column name."""
-    if not indicator_col:
-        return "Indicator", "Indicators"
-    tc = indicator_col[0].upper() + indicator_col[1:].lower()
-    plural = tc + ("es" if tc.endswith("s") else "s")
-    return tc, plural
-
-
-def _normalized_ranking_over_indicator_r(
-    csv_path: str,
-    artifact_dir: Path,
-    indicator_col: str = "phenotype",
-) -> PlotSpec:
-    """Generate Normalized Ranking Over Individual [Indicators] using R script."""
-    source = Path(csv_path).resolve()
-    if not source.exists():
-        raise FileNotFoundError(f"Data file not found: {source}")
-
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
-    r_script = project_root / "scripts" / "plot_phenotype_rankings.R"
-    if not r_script.exists():
-        raise FileNotFoundError(f"R plot script not found: {r_script}")
-
-    block_id = _stable_block_id("figure-normalized-ranking-over-indicator", str(source))
-    png_path = artifact_dir / f"{block_id}.png"
-
-    result = subprocess.run(  # noqa: S603
-        ["Rscript", str(r_script), "--csv", str(source), "--out", str(png_path)],
-        cwd=str(project_root),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"R plot script failed: {result.stderr or result.stdout or 'unknown error'}"
-        )
-    if not png_path.exists():
-        raise RuntimeError(f"R plot script did not produce output: {png_path}")
-
-    _, plural = _indicator_label(indicator_col)
-    caption = f"Normalized Ranking Over Individual {plural}"
-    return PlotSpec(
-        type="normalized_ranking_over_indicator",
-        data={"indicator_col": indicator_col},
-        config={"x_label": "method", "y_label": "normalized_rank", "source": "r"},
-        svg_path=str(png_path),
-        block_id=block_id,
-        caption_plain=caption,
-        caption_academic=(
-            f"Per-indicator normalized rank distributions across methods; "
-            "box-and-whisker summaries and mean markers quantify stability and coverage."
-        ),
-        hint_ids=["hint-ci"],
+        rank_min=1.0,
+        rank_max=float(global_method_count),
     )
 
 
@@ -570,10 +447,10 @@ def _normalized_ranking_over_indicator(
     block_id = _stable_block_id("figure-normalized-ranking-over-indicator", payload)
     svg_path = artifact_dir / f"{block_id}.svg"
 
-    width = max(960, 300 + len(method_order) * 80)
+    width = max(920, 220 + len(method_order) * 80)
     height = 520
     left_margin = 72
-    right_margin = 120
+    right_margin = 28
     top_margin = 50
     bottom_margin = 140
     plot_left = float(left_margin)
@@ -583,18 +460,7 @@ def _normalized_ranking_over_indicator(
     y_to_px = _linear_scale(deep.rank_min, deep.rank_max, plot_top, plot_bottom)
 
     elements: list[str] = []
-
-    # Theme outline
-    elements.append(
-        (
-            f'<rect x="{plot_left:.2f}" y="{plot_top:.2f}" width="{plot_right - plot_left:.2f}" '
-            f'height="{plot_bottom - plot_top:.2f}" fill="none" stroke="#64748b" stroke-width="1.2" />'
-        )
-    )
-
     for rank_tick in range(int(deep.rank_min), int(math.ceil(deep.rank_max)) + 1):
-        if rank_tick <= deep.rank_min or rank_tick >= deep.rank_max:
-            continue
         y_pos = y_to_px(float(rank_tick))
         elements.append(
             (
@@ -614,16 +480,6 @@ def _normalized_ranking_over_indicator(
     else:
         step = 1.0
 
-    # Vertical grid lines
-    for method_index in range(len(method_order)):
-        x_center = plot_left + step * (method_index + 0.5)
-        elements.append(
-            (
-                f'<line x1="{x_center:.2f}" y1="{plot_top:.2f}" x2="{x_center:.2f}" y2="{plot_bottom:.2f}" '
-                f'stroke="#dbe5f2" stroke-width="1" />'
-            )
-        )
-
     summary_rows: list[dict[str, Any]] = []
     for method_index, method in enumerate(method_order):
         x_center = plot_left + step * (method_index + 0.5)
@@ -640,49 +496,6 @@ def _normalized_ranking_over_indicator(
         max_value = clean_values[-1]
 
         method_color = _rank_color(method_index + 1, max(1, len(method_order)))
-        
-        # --- VIOLIN PLOT (KDE) HALF-SIDED ---
-        n_val = len(clean_values)
-        if n_val > 1:
-            std_val = math.sqrt(sum((v - mean_value)**2 for v in clean_values) / (n_val - 1))
-            bw = max(0.15, 1.06 * std_val / (n_val ** 0.2))
-        else:
-            bw = 0.2
-            
-        y_pts = []
-        densities = []
-        kde_steps = 50
-        kde_min = max(deep.rank_min, min_value - bw * 2.5)
-        kde_max = min(deep.rank_max, max_value + bw * 2.5)
-        kde_step = (kde_max - kde_min) / max(1, kde_steps - 1)
-        
-        for k_idx in range(kde_steps):
-            y_val = kde_min + k_idx * kde_step
-            if y_val < deep.rank_min: y_val = deep.rank_min
-            if y_val > deep.rank_max: y_val = deep.rank_max
-            
-            d_val = sum(math.exp(-0.5 * ((y_val - v) / bw)**2) for v in clean_values) / (n_val * bw * math.sqrt(2 * math.pi))
-            y_pts.append(y_to_px(y_val))
-            densities.append(d_val)
-            
-        max_density = max(densities) if densities else 1.0
-        if max_density < 1e-9:
-            max_density = 1.0
-            
-        violin_width = max(24.0, min(50.0, step * 0.45))
-        poly_points = []
-        for y_px, d in zip(y_pts, densities):
-            poly_points.append(f"{x_center:.2f},{y_px:.2f}")
-        for y_px, d in reversed(list(zip(y_pts, densities))):
-            dx = (d / max_density) * violin_width
-            poly_points.append(f"{x_center + dx:.2f},{y_px:.2f}")
-            
-        poly_str = " ".join(poly_points)
-        elements.append(
-            f'<polygon points="{poly_str}" fill="{method_color}" fill-opacity="0.3" stroke="#334155" stroke-width="1.2" />'
-        )
-        # --- END VIOLIN PLOT ---
-
         box_width = max(18.0, min(28.0, step * 0.38))
         y_q1 = y_to_px(q1)
         y_q3 = y_to_px(q3)
@@ -710,7 +523,7 @@ def _normalized_ranking_over_indicator(
         elements.append(
             (
                 f'<rect x="{x_center - box_width / 2:.2f}" y="{y_q1:.2f}" width="{box_width:.2f}" '
-                f'height="{max(1.0, y_q3 - y_q1):.2f}" fill="#ffffff" fill-opacity="0.9" '
+                f'height="{max(1.0, y_q3 - y_q1):.2f}" fill="{method_color}" fill-opacity="0.2" '
                 f'stroke="#334155" stroke-width="1.4" />'
             )
         )
@@ -726,53 +539,29 @@ def _normalized_ranking_over_indicator(
             value = deep.matrix.get(indicator, {}).get(method)
             if value is None:
                 continue
-            jitter_center_x = x_center - step * 0.22
-            jitter_x = jitter_center_x + _stable_jitter(f"{method}|{indicator}", max(4.0, step * 0.1))
-            jitter_y_amp = max(0.015, (deep.rank_max - deep.rank_min) * 0.015)
-            jitter_y = _stable_jitter(f"Y|{method}|{indicator}", jitter_y_amp)
-            cy_val = y_to_px(value + jitter_y)
+            jitter_x = x_center + _stable_jitter(f"{method}|{indicator}", max(6.0, step * 0.12))
             elements.append(
                 (
-                    f'<circle cx="{jitter_x:.2f}" cy="{cy_val:.2f}" r="4.0" '
-                    f'fill="{method_color}" fill-opacity="0.95" stroke="#f8fafc" stroke-width="0.8" />'
+                    f'<circle cx="{jitter_x:.2f}" cy="{y_to_px(value):.2f}" r="2.8" '
+                    f'fill="{method_color}" fill-opacity="0.7" />'
                 )
             )
 
-        mean_cy = y_to_px(mean_value)
         elements.append(
             (
-                f'<circle cx="{x_center:.2f}" cy="{mean_cy:.2f}" r="7.5" '
-                f'fill="#b91c1c" stroke="#000000" stroke-width="1.5" />'
-            )
-        )
-        
-        mean_str = f"{mean_value:.2f}"
-        elements.append(
-            (
-                f'<rect x="{x_center + 10:.2f}" y="{mean_cy - 10:.2f}" width="86" height="20" '
-                f'fill="#ffffff" fill-opacity="0.125" stroke="#94a3b8" stroke-width="0.8" rx="2" />'
+                f'<circle cx="{x_center:.2f}" cy="{y_to_px(mean_value):.2f}" r="5.4" '
+                f'fill="#b91c1c" stroke="#7f1d1d" stroke-width="1.2" />'
             )
         )
         elements.append(
             (
-                f'<text text-anchor="start" fill="#0f172a" font-weight="600" font-family="system-ui, sans-serif">'
-                f'<tspan x="{x_center + 16:.2f}" y="{mean_cy + 4:.2f}" font-size="11">μ</tspan>'
-                f'<tspan x="{x_center + 18.5:.2f}" y="{mean_cy - 1:.2f}" font-size="10">^</tspan>'
-                f'<tspan x="{x_center + 24:.2f}" y="{mean_cy + 8:.2f}" font-size="8.5">mean</tspan>'
-                f'<tspan x="{x_center + 47:.2f}" y="{mean_cy + 4:.2f}" font-size="11">= {mean_str}</tspan>'
-                f'</text>'
-            )
-        )
-
-        elements.append(
-            (
-                f'<text x="{x_center:.2f}" y="{plot_bottom + 22:.2f}" text-anchor="middle" font-size="11" '
+                f'<text x="{x_center:.2f}" y="{plot_bottom + 22:.2f}" text-anchor="middle" font-size="10" '
                 f'transform="rotate(35 {x_center:.2f} {plot_bottom + 22:.2f})" fill="#0f172a">{_xml_escape(method)}</text>'
             )
         )
         elements.append(
             (
-                f'<text x="{x_center:.2f}" y="{plot_bottom + 62:.2f}" text-anchor="middle" font-size="11" '
+                f'<text x="{x_center:.2f}" y="{plot_bottom + 62:.2f}" text-anchor="middle" font-size="10" '
                 f'fill="#334155">(K={len(clean_values)})</text>'
             )
         )
@@ -791,12 +580,12 @@ def _normalized_ranking_over_indicator(
     elements.append(
         (
             f'<text x="{(plot_left + plot_right) / 2:.2f}" y="{height - 22:.2f}" text-anchor="middle" '
-            f'font-size="13" fill="#334155">Methods</text>'
+            f'font-size="12" fill="#334155">Methods</text>'
         )
     )
     elements.append(
         (
-            f'<text x="18" y="{(plot_top + plot_bottom) / 2:.2f}" text-anchor="middle" font-size="13" '
+            f'<text x="18" y="{(plot_top + plot_bottom) / 2:.2f}" text-anchor="middle" font-size="12" '
             f'fill="#334155" transform="rotate(-90 18 {(plot_top + plot_bottom) / 2:.2f})">Normalized Rank (lower is better)</text>'
         )
     )
@@ -820,55 +609,6 @@ def _normalized_ranking_over_indicator(
         caption_academic=(
             "Per-indicator normalized rank distributions across methods; "
             "box-and-whisker summaries and mean markers quantify stability and coverage."
-        ),
-        hint_ids=["hint-ci"],
-    )
-
-
-def _indicator_rankings_heatmap_r(
-    csv_path: str,
-    artifact_dir: Path,
-    indicator_col: str = "phenotype",
-) -> PlotSpec:
-    """Generate [Indicator] Rankings heatmap using R script."""
-    source = Path(csv_path).resolve()
-    if not source.exists():
-        raise FileNotFoundError(f"Data file not found: {source}")
-
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
-    r_script = project_root / "scripts" / "plot_phenotype_rankings.R"
-    if not r_script.exists():
-        raise FileNotFoundError(f"R plot script not found: {r_script}")
-
-    block_id = _stable_block_id("figure-indicator-rankings-heatmap", str(source))
-    png_path = artifact_dir / f"{block_id}.png"
-
-    result = subprocess.run(  # noqa: S603
-        ["Rscript", str(r_script), "--csv", str(source), "--heatmap-out", str(png_path)],
-        cwd=str(project_root),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"R heatmap script failed: {result.stderr or result.stdout or 'unknown error'}"
-        )
-    if not png_path.exists():
-        raise RuntimeError(f"R heatmap script did not produce output: {png_path}")
-
-    tc, _ = _indicator_label(indicator_col)
-    caption = f"{tc} Rankings"
-    return PlotSpec(
-        type="indicator_rankings_heatmap",
-        data={"indicator_col": indicator_col},
-        config={"source": "r"},
-        svg_path=str(png_path),
-        block_id=block_id,
-        caption_plain=caption,
-        caption_academic=(
-            f"Per-{indicator_col.lower()} ranking heatmap across methods; "
-            "orange indicates better (lower) rank, blue indicates worse (higher) rank."
         ),
         hint_ids=["hint-ci"],
     )
@@ -904,6 +644,178 @@ def _indicator_rankings_heatmap(
     bottom_margin = 138
     width = left_margin + len(method_order) * cell_w + right_margin
     height = top_margin + len(indicator_order) * cell_h + bottom_margin
+
+    elements: list[str] = []
+    plot_left = float(left_margin)
+    plot_top = float(top_margin)
+    plot_width = len(method_order) * cell_w
+    plot_height = len(indicator_order) * cell_h
+
+    for row_index, indicator in enumerate(indicator_order):
+        y = plot_top + row_index * cell_h
+        elements.append(
+            (
+                f'<text x="{plot_left - 8:.2f}" y="{y + cell_h / 2 + 4:.2f}" text-anchor="end" '
+                f'font-size="10.5" fill="#0f172a">{_xml_escape(indicator)}</text>'
+            )
+        )
+        row = deep.matrix.get(indicator, {})
+        for col_index, method in enumerate(method_order):
+            x = plot_left + col_index * cell_w
+            value = row.get(method)
+            fill = "#d1d5db" if value is None else _deep_rank_color(value, deep.rank_min, deep.rank_max)
+            elements.append(
+                (
+                    f'<rect x="{x:.2f}" y="{y:.2f}" width="{cell_w:.2f}" height="{cell_h:.2f}" '
+                    f'fill="{fill}" stroke="#94a3b8" stroke-width="0.6" />'
+                )
+            )
+
+    for col_index, method in enumerate(method_order):
+        x = plot_left + col_index * cell_w + cell_w * 0.5
+        label_y = plot_top + plot_height + 14
+        elements.append(
+            (
+                f'<text x="{x:.2f}" y="{label_y:.2f}" text-anchor="start" font-size="10" fill="#0f172a" '
+                f'transform="rotate(45 {x:.2f} {label_y:.2f})">{_xml_escape(method)}</text>'
+            )
+        )
+
+    legend_x = plot_left + plot_width + 36
+    legend_y = plot_top + 20
+    legend_h = 140
+    steps = 32
+    for step in range(steps):
+        ratio = step / max(1, steps - 1)
+        rank_value = deep.rank_min + ratio * (deep.rank_max - deep.rank_min)
+        y = legend_y + (legend_h * ratio)
+        elements.append(
+            (
+                f'<rect x="{legend_x:.2f}" y="{y:.2f}" width="16" height="{legend_h / steps + 1:.2f}" '
+                f'fill="{_deep_rank_color(rank_value, deep.rank_min, deep.rank_max)}" stroke="none" />'
+            )
+        )
+    for rank_tick in [deep.rank_min, (deep.rank_min + deep.rank_max) / 2, deep.rank_max]:
+        ratio = (rank_tick - deep.rank_min) / max(1e-9, deep.rank_max - deep.rank_min)
+        y = legend_y + legend_h * ratio
+        elements.append(
+            f'<text x="{legend_x + 24:.2f}" y="{y + 4:.2f}" text-anchor="start" font-size="11" fill="#334155">{_fmt_rank_bound(rank_tick)}</text>'
+        )
+    elements.append(
+        (
+            f'<text x="{legend_x:.2f}" y="{legend_y - 10:.2f}" text-anchor="start" font-size="11" fill="#334155">'
+            "Rank scale</text>"
+        )
+    )
+
+    elements.append(
+        (
+            f'<text x="{(plot_left + plot_left + plot_width) / 2:.2f}" y="{height - 22:.2f}" text-anchor="middle" '
+            f'font-size="12" fill="#334155">Methods</text>'
+        )
+    )
+
+    _write_svg(svg_path, _render_svg(width=width, height=height, elements=elements, background="#f8fafc"))
+
+    matrix_rows: list[list[float | None]] = [
+        [deep.matrix.get(indicator, {}).get(method) for method in method_order]
+        for indicator in indicator_order
+    ]
+    return PlotSpec(
+        type="indicator_rankings_heatmap",
+        data={
+            "indicator_col": deep.indicator_col,
+            "methods": method_order,
+            "indicator_values": indicator_order,
+            "matrix_rows": matrix_rows,
+            "rank_min": deep.rank_min,
+            "rank_max": deep.rank_max,
+        },
+        config={"x_label": "method", "y_label": deep.indicator_col},
+        svg_path=str(svg_path),
+        block_id=block_id,
+        caption_plain="Phenotype Rankings",
+        caption_academic=(
+            "Indicator-by-method heatmap of normalized spectral ranks, enabling direct comparison of method "
+            "stability and subgroup-specific performance patterns."
+        ),
+        hint_ids=["hint-ci"],
+    )
+
+
+def _as_ranking_mode(value: RankingMode | str | None) -> RankingMode:
+    if isinstance(value, RankingMode):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered == RankingMode.DEEP.value:
+            return RankingMode.DEEP
+    return RankingMode.FLASH
+
+
+def generate_visualizations(
+    results: RankingResults,
+    viz_types: list[str],
+    artifact_dir: str,
+    csv_path: str | None = None,
+    indicator_col: str | None = None,
+    selected_indicator_values: list[str] | None = None,
+    selected_items: list[str] | None = None,
+    bigbetter: int = 1,
+    ranking_mode: RankingMode | str | None = None,
+    bootstrap_iterations: int = 2000,
+    seed: int = 42,
+    r_script_path: str = "src/spectral_ranking/spectral_ranking.R",
+) -> VisualizationOutput:
+    """Create deterministic SVG artifacts from ranking results."""
+    output_dir = Path(artifact_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    plots: list[PlotSpec] = []
+    errors: list[str] = []
+    mode = _as_ranking_mode(ranking_mode)
+    deep_cache: _DeepRankingData | None = None
+
+    for viz_type in viz_types:
+        try:
+            if viz_type == "ci_forest":
+                plots.append(_ci_forest(results, output_dir))
+                continue
+
+            if viz_type not in {"normalized_ranking_over_indicator", "indicator_rankings_heatmap"}:
+                errors.append(f"Unsupported viz_type: {viz_type}")
+                continue
+
+            if mode != RankingMode.DEEP:
+                errors.append(f"Skipped {viz_type}: ranking mode is '{mode.value}', not 'deep'.")
+                continue
+            if not indicator_col:
+                errors.append(f"Skipped {viz_type}: indicator column is not configured.")
+                continue
+            if not csv_path:
+                errors.append(f"Skipped {viz_type}: csv_path is missing.")
+                continue
+
+            if deep_cache is None:
+                deep_cache = _compute_deep_ranking_data(
+                    csv_path=csv_path,
+                    indicator_col=indicator_col,
+                    selected_indicator_values=selected_indicator_values,
+                    selected_items=selected_items,
+                    bigbetter=bigbetter,
+                    bootstrap_iterations=bootstrap_iterations,
+                    seed=seed,
+                    r_script_path=r_script_path,
+                )
+
+            if viz_type == "normalized_ranking_over_indicator":
+                plots.append(_normalized_ranking_over_indicator(deep_cache, output_dir))
+            elif viz_type == "indicator_rankings_heatmap":
+                plots.append(_indicator_rankings_heatmap(deep_cache, output_dir))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{viz_type} failed: {exc}")
+
+    return VisualizationOutput(plots=plots, errors=errors)
 
     elements: list[str] = []
     plot_left = float(left_margin)

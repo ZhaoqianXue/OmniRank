@@ -66,9 +66,9 @@ The system comprises three functionally distinct components operating in a coord
 
 3. **Analyst Agent**: An LLM-powered component that synthesizes computational results into interpretable outputs, generates visualizations, and supports interactive question-answering through domain knowledge integration.
 
-Figure 1 illustrates the system architecture and information flow between components. The workflow proceeds through four phases: data ingestion and schema inference, interactive parameter configuration, spectral computation with adaptive refinement, and result synthesis with user interaction. Algorithm 1 formalizes this process.
+[Figure: OmniRank system architecture] illustrates the system architecture and information flow between components. The workflow proceeds through four phases: data ingestion and schema inference, interactive parameter configuration, spectral computation with adaptive refinement, and result synthesis with user interaction. Algorithm 1 formalizes this process.
 
-**Figure 1: OmniRank System Architecture.** The system comprises three core components: the Data Agent (LLM-powered) for semantic understanding, the Engine Orchestrator (deterministic) for statistical computation, and the Analyst Agent (LLM-powered) for result interpretation. Solid arrows indicate data flow; dashed arrows indicate feedback loops for error handling.
+**[Figure: OmniRank system architecture]** The system comprises three core components: the Data Agent (LLM-powered) for semantic understanding, the Engine Orchestrator (deterministic) for statistical computation, and the Analyst Agent (LLM-powered) for result interpretation. Solid arrows indicate data flow; dashed arrows indicate feedback loops for error handling.
 
 **Algorithm 1** OmniRank Workflow
 
@@ -123,9 +123,9 @@ Following format recognition, the agent performs validation against theoretical 
 
 **Data Integrity Checks.** The agent verifies the presence of required columns, ensures a minimum of two rankable items, and confirms that comparison outcomes are properly encoded. Data failing these checks is rejected with explanatory feedback generated through LLM-based natural language synthesis.
 
-This tiered validation approach, illustrated in Figure 2, ensures that users receive actionable feedback about data limitations while permitting valid exploratory analyses on imperfect datasets.
+This tiered validation approach, illustrated in [Figure: Data Agent validation workflow], ensures that users receive actionable feedback about data limitations while permitting valid exploratory analyses on imperfect datasets.
 
-**Figure 2: Data Agent Validation Workflow.** The flowchart depicts the hierarchical validation process: critical errors block execution, warnings inform users of theoretical limitations, and valid data proceeds to schema inference.
+**[Figure: Data Agent validation workflow]** The flowchart depicts the hierarchical validation process: critical errors block execution, warnings inform users of theoretical limitations, and valid data proceeds to schema inference.
 
 #### 3.2.2 Semantic Schema Inference
 
@@ -215,11 +215,11 @@ We adopt structured system prompts following established practices in LLM agent 
 
 **Knowledge Layer.** Embeds domain expertise directly into the prompt, enabling expert-level reasoning without requiring fine-tuning. The Data Agent's knowledge layer includes format recognition rules and validation thresholds; the Analyst Agent's knowledge layer includes spectral ranking theory concepts such as confidence interval interpretation and ranking diagnostics.
 
-This knowledge integration approach, illustrated in Figures 4 and 5, follows the in-context learning paradigm [45] that has proven effective for knowledge-intensive tasks without model modification.
+This knowledge integration approach, illustrated in [Figure: Data Agent system prompt structure] and [Figure: Analyst Agent system prompt structure], follows the in-context learning paradigm [45] that has proven effective for knowledge-intensive tasks without model modification.
 
-**Figure 4: Data Agent System Prompt Structure.** The prompt comprises role specification, format recognition rules, validation thresholds derived from spectral ranking theory, and output format constraints.
+**[Figure: Data Agent system prompt structure]** The prompt comprises role specification, format recognition rules, validation thresholds derived from spectral ranking theory, and output format constraints.
 
-**Figure 5: Analyst Agent System Prompt Structure.** The prompt includes role specification, spectral ranking domain knowledge (confidence intervals, ranking thresholds), and report generation guidelines.
+**[Figure: Analyst Agent system prompt structure]** The prompt includes role specification, spectral ranking domain knowledge (confidence intervals, ranking thresholds), and report generation guidelines.
 
 ### 3.6 User Interface
 
@@ -231,9 +231,9 @@ OmniRank provides a web-based conversational interface designed for accessibilit
 
 **Stage 3: Results and Exploration.** Upon computation completion, the interface displays ranking results with interactive visualizations and a natural language summary. A chat panel enables follow-up queries such as "Which items have statistically indistinguishable rankings?" or "What would change if we excluded item X?"
 
-Figure 6 presents interface screenshots illustrating each stage.
+[Figure: OmniRank user interface] presents interface screenshots illustrating each stage.
 
-**Figure 6: OmniRank User Interface.** Panel (a) shows the data upload and schema inference display; panel (b) shows the interactive configuration panel; panel (c) shows the results dashboard with visualizations and chat interface.
+**[Figure: OmniRank user interface]** Panel (a) shows the data upload and schema inference display; panel (b) shows the interactive configuration panel; panel (c) shows the results dashboard with visualizations and chat interface.
 
 ### 3.7 Spectral Ranking Inference Engine
 
@@ -289,9 +289,22 @@ For rank inference, we employ the bootstrap to assess whether observed rank diff
 
 ## 5 Case Study
 
-### 5.1
+Here we validate OmniRank and demonstrate the statistical insights it can provide through two real-world applications. The first involves ranking distinct training methodologies for polygenic risk scores (PRS) using multiway comparisons (A single distinct comparison of performance metrics is conducted between more than two methods). We present results for two ranking scenarios: an overall comparison and a phenotype-stratified comparison. The second application focuses on the Large Language Model (LLM) arena, drawing on two publicly available, head-to-head, user-oriented LLM battle platform datasets. This represents a typical pairwise comparison setting, in which only two candidates are compared in a sample. For both applications, full results and reports generated by OmniRank are provided in the Appendix (XXX).
 
-### 5.2
+### 5.1 Ranking of Polygenic Risk Score Training Methods
+
+Polygenic risk scores (PRS), also commonly referred to as Polygenic scores (PGS), serve as a genetic risk factor in disease risk models by aggregating the genetic effects across hundreds to millions of genetic variants, i.e., Single Nucleotide Polymorphism (SNPs). Conventionally, PRS weights are trained by utilizing individual-level genotype and disease data. However, due to limited data access and privacy concerns, current methodologies have largely shifted toward leveraging summary-level statistical information, such as genome-wide association study (GWAS) summary statistics and linkage disequilibrium (LD, i.e., between-SNP correlation) reference panels, for PRS model training. As PRS has gradually evolved from a purely statistical indicator into a clinically relevant tool for disease prevention and personalized medicine, understanding which methods perform better across different phenotypes and assessing their robustness has become increasingly important.
+
+In this section, we analyze a benchmarking dataset comprising results from 14 distinct PRS training methods drawn from 26 PubMed-indexed papers published between 2015 and 2026. The dataset was originally collected and curated by (citation needed) and is publicly available at XXX. We treat this as a multiway comparison problem, where each comparison represents a validation run targeting a particular phenotype in a specific population cohort, evaluated under consistent metrics and sourced from the same reference paper. The dataset spans 108 phenotypes, including 68 binary outcomes (e.g., Alzheimer's disease) and 40 continuous outcomes (e.g., body mass index), with evaluation metrics comprising R-squared, AUC, and partial correlation. The 14 PRS training methods under comparison are: C+T, SCT, LDpred, LDpred2, LDpred2-auto, LDpred2-inf, LDpred-funct, AnnoPred, lassosum, lassosum2, PRS-CS, PRS-CS-auto, SBayesR, and DBSLMM.
+Using this dataset, we showcase the ranking inference results and the summarized reports generated by OmniRank, presented in [Figure: PRS method rankings with confidence intervals, global and phenotype-stratified]. These results include method rankings with two-sided confidence intervals, reported both globally across all traits and stratified by individual phenotype.
+
+[Figure: PRS method rankings with confidence intervals, global and phenotype-stratified]
+
+From [Table: PRS method rankings with confidence intervals], we can readily address several key questions regarding ranking inference. For instance, does each method maintain a consistent rank across different phenotypes, and which method performs best overall? Our results show that LDpred2, AnnoPred, SCT, lassosum2, and LDpred-funct occupy the top five positions, with LDpred2 achieving the highest rank and a notably narrow confidence interval, indicating stable and consistent superiority across phenotypes. At the other end of the spectrum, C+T ranks lowest among the 14 methods, with a confidence interval of [12, 14]. These findings align well with real-world practice since LDpred2 is widely regarded as the current standard for PRS training, while C+T is broadly recognized as the most naïve and baseline model for benchmarking.
+
+### 5.2 Ranking of LLM in head-to-head Arena
+
+In this section, we analyze two open-source LLM evaluation datasets through head-to-head, user-centric model comparisons. The first is the Hugging Face Open LLM Leaderboard, which evaluates language models across six key benchmarks: IFEval, BBH (Big Bench Hard), MATH, GPQA (Graduate-Level Google-Proof Q&A Benchmark), MuSR (Multistep Soft Reasoning), and MMLU-Pro (Massive Multitask Language Understanding — Professional). The second is the LMSYS Chatbot Arena Leaderboard, which assesses anonymous LLMs head-to-head by presenting model-generated responses to user-submitted prompts and collecting human preference judgments. Readers interested in the underlying data are referred to the respective sources at https://arena.lmsys.org and https://huggingface.co/docs/leaderboards/index.
 
 ## 6 Conclusion
 
