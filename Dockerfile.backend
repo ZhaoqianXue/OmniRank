@@ -10,8 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libblas-dev liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install required R packages used by src/spectral_ranking/spectral_ranking.R.
-RUN R -e "install.packages(c('readr','dplyr','jsonlite'), repos='https://cloud.r-project.org')"
+# Install required R packages used by spectral engine + report plotting scripts.
+# plot_phenotype_rankings.R loads ggstatsplot/gghalves/tidyverse/paletteer/ggrepel/patchwork/forcats/jsonlite
+# (grid is part of base R and does not need installation).
+RUN R -e "install.packages(c( \
+    'readr','dplyr','jsonlite', \
+    'ggstatsplot','gghalves','tidyverse','paletteer','ggplot2','ggrepel','patchwork','forcats' \
+  ), repos='https://cloud.r-project.org')"
 
 WORKDIR /opt/render/project/src
 
