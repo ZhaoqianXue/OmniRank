@@ -132,7 +132,13 @@ p_violin <- ggbetweenstats(
   sample.size.label = "K = ",
   violin.args = list(width = 0, linewidth = 0),
   point.args = list(position = position_jitterdodge(jitter.width = 0.1, dodge.width = 0.6)),
-  centrality.label.args = list(size = 7),
+  centrality.label.args = list(
+    size = 7,
+    nudge_x = 0.35,
+    box.padding = 0.5,
+    point.padding = 0.3,
+    min.segment.length = 0.2
+  ),
   ggtheme = ggplot2::theme_bw(base_size = 16),
   results.subtitle = FALSE,
   pairwise.display = "none",

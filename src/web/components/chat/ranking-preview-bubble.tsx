@@ -136,7 +136,6 @@ export function RankingPreviewBubble({
   const [tempSelectedItems, setTempSelectedItems] = useState<string[]>([]);
   const [tempIndicatorEnabled, setTempIndicatorEnabled] = useState<boolean>(Boolean(schema.indicator_col));
   const [tempSelectedIndicatorValues, setTempSelectedIndicatorValues] = useState<string[]>([]);
-  const [tempRankingMode, setTempRankingMode] = useState<RankingMode>("flash");
   const [tempBootstrapIterations, setTempBootstrapIterations] = useState(2000);
   const [tempRandomSeed, setTempRandomSeed] = useState(42);
 
@@ -146,7 +145,6 @@ export function RankingPreviewBubble({
     setTempSelectedItems([...selectedItems]);
     setTempIndicatorEnabled(indicatorCol !== null);
     setTempSelectedIndicatorValues([...selectedIndicatorValues]);
-    setTempRankingMode(indicatorCol ? rankingMode : "flash");
     setTempBootstrapIterations(bootstrapIterations);
     setTempRandomSeed(randomSeed);
     setShowAdvanced(false);
@@ -156,7 +154,7 @@ export function RankingPreviewBubble({
   // Save changes from dialog
   const handleSaveConfig = () => {
     const nextIndicatorCol = tempIndicatorEnabled ? schema.indicator_col : null;
-    const nextRankingMode: RankingMode = nextIndicatorCol ? tempRankingMode : "flash";
+    const nextRankingMode: RankingMode = nextIndicatorCol ? rankingMode : "flash";
     setBigbetter(tempBigbetter);
     setSelectedItems(tempSelectedItems);
     setIndicatorCol(nextIndicatorCol);
@@ -193,9 +191,12 @@ export function RankingPreviewBubble({
   const selectAllIndicators = () => setTempSelectedIndicatorValues([...schema.indicator_values]);
   const deselectAllIndicators = () => setTempSelectedIndicatorValues([]);
 
-  const handleStartAnalysis = () => {
+  const handleStartAnalysis = (modeOverride?: RankingMode) => {
     const useIndicator = indicatorCol !== null;
-    const nextRankingMode: RankingMode = useIndicator ? rankingMode : "flash";
+    const nextRankingMode: RankingMode = useIndicator ? (modeOverride ?? rankingMode) : "flash";
+    if (useIndicator && modeOverride) {
+      setRankingMode(modeOverride);
+    }
     const config: AnalysisConfig = {
       bigbetter,
       indicator_col: useIndicator ? indicatorCol : null,
@@ -216,9 +217,9 @@ export function RankingPreviewBubble({
     indicatorCol !== schema.indicator_col ||
     selectedItems.length !== schema.ranking_items.length ||
     selectedIndicatorValues.length !== schema.indicator_values.length ||
-    (hasIndicator && rankingMode !== "flash") ||
     bootstrapIterations !== 2000 ||
     randomSeed !== 42;
+  const supportsDualRankingModes = hasIndicator && indicatorCol !== null;
 
   return (
     <>
@@ -262,14 +263,6 @@ export function RankingPreviewBubble({
               >
                 {bigbetter === 1 ? "Higher is better" : "Lower is better"}
               </DisplayRow>
-              {hasIndicator && (
-                <DisplayRow
-                  label="Ranking Mode"
-                  valueHelpText="Flash ranking keeps the current overall workflow; Deep ranking adds phenotype-level normalized distribution and heatmap analyses."
-                >
-                  {rankingMode === "deep" ? "Deep Ranking" : "Flash Ranking"}
-                </DisplayRow>
-              )}
               {warnings.length > 0 && (
                 <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
                   {warnings.map((w, i) => (
@@ -340,27 +333,71 @@ export function RankingPreviewBubble({
                 )}
               </Button>
             ) : (
-              // Before/during analysis: Start Ranking button
+              // Before/during analysis: Start button or mode-specific buttons
               <>
-                <Button
-                  onClick={handleStartAnalysis}
-                  disabled={isAnalyzing || !canStartAnalysis || selectedItems.length < 2}
-                  variant="outline"
-                  className="w-full hover:text-foreground"
-                  size="lg"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Start Ranking
-                    </>
-                  )}
-                </Button>
+                {isAnalyzing ? (
+                  <Button
+                    disabled
+                    variant="outline"
+                    className="w-full hover:text-foreground"
+                    size="lg"
+                  >
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </Button>
+                ) : supportsDualRankingModes ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => handleStartAnalysis("flash")}
+                          disabled={!canStartAnalysis || selectedItems.length < 2}
+                          variant="outline"
+                          className="w-full hover:text-foreground"
+                          size="lg"
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Flash Ranking
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="leading-relaxed">
+                          Uses the existing workflow and report plots only.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => handleStartAnalysis("deep")}
+                          disabled={!canStartAnalysis || selectedItems.length < 2}
+                          variant="outline"
+                          className="w-full hover:text-foreground"
+                          size="lg"
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Deep Ranking
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="leading-relaxed">
+                          Adds normalized ranking over indicator groups and an indicator-level ranking heatmap.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => handleStartAnalysis()}
+                    disabled={!canStartAnalysis || selectedItems.length < 2}
+                    variant="outline"
+                    className="w-full hover:text-foreground"
+                    size="lg"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Start Ranking
+                  </Button>
+                )}
                 {selectedItems.length < 2 && (
                   <p className="text-xs text-destructive mt-1 text-center">
                     Select at least 2 items to rank
@@ -443,46 +480,12 @@ export function RankingPreviewBubble({
                     <h4 className="text-sm font-medium">Indicator: {schema.indicator_col}</h4>
                     <Switch
                       checked={tempIndicatorEnabled}
-                      onCheckedChange={(checked) => {
-                        setTempIndicatorEnabled(checked);
-                        if (!checked) {
-                          setTempRankingMode("flash");
-                        }
-                      }}
+                      onCheckedChange={setTempIndicatorEnabled}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {tempIndicatorEnabled ? "Enabled for segmented ranking." : "Disabled (global ranking only)."}
                   </p>
-                  <div className="space-y-2 rounded-lg border border-border/50 bg-muted/30 p-3">
-                    <h5 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ranking Mode</h5>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant={tempRankingMode === "flash" ? "default" : "outline"}
-                        size="sm"
-                        className="justify-center"
-                        onClick={() => setTempRankingMode("flash")}
-                      >
-                        Flash Ranking
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={tempRankingMode === "deep" ? "default" : "outline"}
-                        size="sm"
-                        className="justify-center"
-                        onClick={() => setTempRankingMode("deep")}
-                        disabled={!tempIndicatorEnabled}
-                      >
-                        Deep Ranking
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {tempRankingMode === "deep"
-                        ? "Adds two extra report plots: normalized ranking over indicator groups and indicator-level ranking heatmap."
-                        : "Uses the existing workflow and report plots only."}
-                    </p>
-                  </div>
                   <div className="flex items-center justify-between">
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={selectAllIndicators}>
