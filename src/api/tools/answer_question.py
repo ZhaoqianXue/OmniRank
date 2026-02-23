@@ -198,6 +198,21 @@ def _normalize_answer_english(text: str) -> str:
         normalized,
         flags=re.IGNORECASE,
     )
+    normalized = re.sub(
+        r"\bbigbetter\s*=\s*1\b",
+        "direction = higher is better",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        r"\bbigbetter\s*=\s*0\b",
+        "direction = lower is better",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(r"\bbigbetter\b", "direction setting", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\beigenvector[- ]like\b", "pattern-based", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\beigenvector\b", "pattern-based", normalized, flags=re.IGNORECASE)
     return _sanitize_text_field(normalized)
 
 
@@ -359,6 +374,8 @@ def _format_structured_answer(
 
     if max_evidence > 0 and evidence_lines:
         lines.extend(f"- {entry}" for entry in evidence_lines[:max_evidence])
+    if quote_context:
+        lines.append(f"- Quote context considered: {quote_context}")
     if max_references > 0 and reference_lines:
         lines.append("References:")
         lines.extend(f"- {entry}" for entry in reference_lines[:max_references])
@@ -640,11 +657,12 @@ def _fallback_with_results(
         else:
             conclusion = (
                 _top_summary(results)
-                + " Mention two item names for a direct pairwise comparison with CI interpretation."
+                + " Name two specific items to compare them with confidence intervals."
             )
             top_idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
             supporting_evidence.append(
-                f"{results.items[top_idx]} currently leads by rank with theta_hat={results.theta_hat[top_idx]:.4f}."
+                f"{results.items[top_idx]}: rank {results.ranks[top_idx]}, "
+                f"CI=[{_to_int(results.ci_lower[top_idx])}, {_to_int(results.ci_upper[top_idx])}]."
             )
 
     references: list[str] = []
@@ -750,7 +768,7 @@ def answer_question(
             "one_sentence": wants_one_sentence,
             "max_sections": 2 if wants_one_sentence else (3 if wants_concise else 3),
             "max_bullets_per_section": 2,
-            "target_length_words": 28 if wants_one_sentence else (45 if wants_concise else 60),
+            "target_length_words": 35 if wants_one_sentence else (55 if wants_concise else 75),
         },
         "results": (
             {
@@ -771,7 +789,7 @@ def answer_question(
     }
 
     try:
-        llm_output = client.generate_json("answer_question", payload=payload, max_completion_tokens=640)
+        llm_output = client.generate_json("answer_question", payload=payload, max_completion_tokens=768)
         conclusion = _sanitize_text_field(str(llm_output.get("conclusion") or llm_output.get("answer") or ""))
         if not conclusion:
             raise LLMCallError("Answer payload is empty.")
@@ -781,8 +799,8 @@ def answer_question(
         if not isinstance(evidence_raw, list):
             evidence_raw = llm_output.get("supporting_evidence")
         supporting_evidence = [str(entry).strip() for entry in evidence_raw] if isinstance(evidence_raw, list) else []
-        supporting_evidence = [_normalize_answer_english(_first_sentence(entry)) for entry in supporting_evidence]
-        supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=1)
+        supporting_evidence = [_normalize_answer_english(entry) for entry in supporting_evidence]
+        supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=2)
         if not supporting_evidence:
             if results is None and not wants_one_sentence:
                 stage_evidence = _session_evidence(session_context)
@@ -820,26 +838,24 @@ def answer_question(
         if wants_one_sentence:
             conclusion = _truncate_words(conclusion, 34)
         else:
-            conclusion_limit = 26 if results is None else 30
+            conclusion_limit = 36 if results is None else 42
             if needs_reference and not wants_concise:
-                conclusion_limit = 36
+                conclusion_limit = 48
             conclusion = _truncate_words(conclusion, conclusion_limit)
-            if results is None and conclusion.endswith("..."):
+            if results is None and conclusion.endswith("...") and len(conclusion.split()) < 10:
                 stage_msg, _ = _stage_guidance(str((session_context or {}).get("status") or "idle"))
                 conclusion = _normalize_answer_english(_first_sentence(stage_msg))
-            supporting_evidence = [_truncate_words(entry, 22) for entry in supporting_evidence]
-            supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=1)
+            supporting_evidence = [_truncate_words(entry, 30) for entry in supporting_evidence]
+            supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=2)
             note_fingerprint = ""
             if note:
-                note = _truncate_words(note, 14 if (wants_concise or results is not None) else 18)
+                note = _truncate_words(note, 18 if (wants_concise or results is not None) else 24)
                 note_fingerprint = _sanitize_text_field(note).lower()
             if note_fingerprint and any(
                 note_fingerprint == _sanitize_text_field(x).lower()
                 for x in [conclusion, *supporting_evidence]
             ):
                 note = None
-            if any(entry.endswith("...") for entry in supporting_evidence):
-                supporting_evidence = []
             if note and note.endswith("..."):
                 if results is None and stage_next_action:
                     note = _sanitize_text_field(stage_next_action)
@@ -856,7 +872,7 @@ def answer_question(
             max_references = 0
         else:
             quote_context_local = None if wants_concise else quote_context
-            max_evidence = 1
+            max_evidence = 2
             max_references = 1 if (wants_concise and references) else 2
 
         answer_text = _format_structured_answer(

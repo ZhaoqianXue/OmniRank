@@ -52,24 +52,24 @@ OmniRank instantiates these architectural principles in the context of ranking i
 
 ## 3 Methodology
 
-This section presents the methodological framework of OmniRank, an agentic system that bridges large language model reasoning with rigorous spectral ranking inference. We first provide an architectural overview of the single-agent tool-calling design (Section 3.1), then detail the three pipeline phases: data processing and schema inference (Section 3.2), interactive configuration and spectral computation (Section 3.3), and result synthesis with user interaction (Section 3.4). We subsequently describe prompt engineering strategies (Section 3.5) and user interface design (Section 3.6).
+This section describes the methodological framework of OmniRank, a tool-calling LLM system that couples semantic understanding with deterministic spectral ranking inference. Section 3.1 introduces the single-agent architecture and tool registry. Sections 3.2-3.4 detail the three-phase pipeline: data processing and schema inference (Section 3.2), user-confirmed configuration and spectral computation (Section 3.3), and result synthesis with interactive analysis (Section 3.4). We then summarize prompt design (Section 3.5) and the user interface (Section 3.6).
 
 ### 3.1 Overview
 
-OmniRank employs a single-agent architecture with tool calling, designed to separate semantic understanding from mathematical computation. This architectural principle, termed "decoupled reasoning," addresses a fundamental limitation of current LLMs---their propensity for hallucination in arithmetic and algorithmic tasks [32]---and has proven effective in recent scientific agent systems [33, 34].
+OmniRank employs a single-agent tool-calling architecture that separates semantic understanding from mathematical computation. This decoupling mitigates a key limitation of current LLMs: unreliable arithmetic and algorithmic execution when performed purely in-model [32]. Similar designs are common in recent scientific agent systems that use LLMs as controllers while delegating computation to deterministic components [33, 34].
 
-The system centers on a single LLM agent operating within one context window, equipped with a registry of ten specialized tools organized into four categories:
+The system centers on a single LLM agent operating within one context window, equipped with a fixed registry of ten specialized tools organized into four categories:
 
-- **Data Tools** (5): `read_data_file`, `infer_semantic_schema`, `validate_data_format`, `validate_data_quality`, and `preprocess_data`---responsible for data ingestion, semantic understanding, and validation against spectral ranking requirements.
-- **User Interaction Tool** (1): `request_user_confirmation`---an explicit checkpoint for human-in-the-loop parameter verification.
+- **Data Tools** (5): `read_data_file`, `infer_semantic_schema`, `validate_data_format`, `validate_data_quality`, and `preprocess_data`---used for data ingestion, schema inference, and validation against spectral ranking requirements.
+- **User Interaction Tool** (1): `request_user_confirmation`---an explicit human-in-the-loop checkpoint for parameter verification.
 - **Engine Tool** (1): `execute_spectral_ranking`---a deterministic tool that invokes the spectral computation engine in an isolated subprocess.
-- **Analysis Tools** (3): `generate_report`, `generate_visualizations`, and `answer_question`---responsible for result interpretation, visualization, and interactive follow-up.
+- **Analysis Tools** (3): `generate_report`, `generate_visualizations`, and `answer_question`---used for reporting, visualization, and interactive follow-up.
 
-The agent orchestrates these tools through a fixed three-phase pipeline: (1) data processing and schema inference, (2) interactive configuration and spectral computation, and (3) result synthesis and user interaction. Unlike multi-agent architectures that incur coordination overhead [35], this single-agent design keeps all reasoning within one context window, reducing token cost and eliminating inter-agent communication failures. The tool-calling mechanism ensures that precise numerical computation is delegated to verified deterministic tools rather than attempted by the LLM internally.
+The agent orchestrates these tools through a fixed three-phase pipeline: (1) data processing and schema inference, (2) interactive configuration and spectral computation, and (3) result synthesis and user interaction. We adopt a single-agent design to keep reasoning and intermediate tool outputs within one context window and to avoid the coordination overhead of multi-agent architectures [35]. Tool calling ensures that precise numerical computation is delegated to verified deterministic tools rather than attempted by the LLM internally.
 
 [Figure: OmniRank system architecture] illustrates the system architecture. The agent receives user requests, selects appropriate tools based on the current pipeline phase, and synthesizes tool outputs into coherent responses. Algorithm 1 formalizes this process.
 
-**[Figure: OmniRank system architecture]** OmniRank employs a single LLM agent with a registry of ten tools. The agent orchestrates a three-phase pipeline: data processing (five data tools), computation (one engine tool with human confirmation), and output generation (three analysis tools). All reasoning occurs within a single context window.
+**[Figure: OmniRank system architecture]** OmniRank comprises a single LLM agent and a fixed registry of ten tools. The agent orchestrates a three-phase pipeline: data processing (five data tools), computation (one engine tool with an explicit user confirmation step), and output generation (three analysis tools). All orchestration occurs within a single context window; numerical computation is delegated to deterministic tools.
 
 **Algorithm 1** OmniRank Pipeline
 
@@ -96,68 +96,64 @@ The agent orchestrates these tools through a fixed three-phase pipeline: (1) dat
 13:     $\texttt{answer} \leftarrow \texttt{call}(\texttt{answer\_question}, \texttt{query}, \mathcal{R}, \texttt{report})$
 14: **end loop**
 
-This tool-calling pipeline instantiates the "programmer-inspector" paradigm [35] at the tool level: the LLM agent handles reasoning and orchestration, while deterministic tools handle computation and validation. By delegating precise numerical computation to verified tools, OmniRank achieves both accessibility and mathematical rigor.
+At a high level, this tool-calling pipeline parallels the "programmer-inspector" paradigm [35]: the LLM agent handles planning and natural-language synthesis, while deterministic tools handle validation and computation. By delegating numerical operations to verified tools, OmniRank aims to provide an accessible interface while preserving mathematical rigor.
 
 ### 3.2 Data Processing and Schema Inference
 
-The data processing phase serves as the intelligent interface between raw user data and the spectral computation engine. Unlike generic data analysis agents that rely solely on LLM code generation [36], OmniRank employs a hybrid approach: LLM-based semantic reasoning for schema inference combined with deterministic validation rules grounded in spectral ranking theory [37].
+The data processing phase converts heterogeneous user uploads into validated inputs for the spectral computation engine. OmniRank uses LLM-based semantic reasoning to infer a semantic schema and deterministic checks grounded in spectral ranking theory [37], rather than relying solely on unconstrained LLM code generation [36].
 
 #### 3.2.1 Format Recognition and Validation
 
-The agent automatically identifies the structural format of uploaded comparison data and validates its suitability for spectral ranking analysis. We support three canonical formats that encompass the majority of real-world comparison data:
+OmniRank automatically identifies the structural format of uploaded comparison data and validates its suitability for spectral ranking analysis. We support three canonical formats that encompass the majority of real-world comparison data:
 
 - **Pointwise Format**: Performance metrics for each item across evaluation contexts (e.g., model accuracy on different benchmark tasks).
 - **Pairwise Format**: Direct head-to-head comparison outcomes between item pairs (e.g., tournament match results).
 - **Multiway Format**: Ranking or selection outcomes from choice sets of arbitrary size (e.g., top-$k$ selections from candidate pools).
 
-Format recognition employs a rule-based classifier augmented with LLM-based disambiguation for edge cases. The agent examines column structure, data types, and semantic patterns to determine the appropriate format, then applies format-specific transformation rules to construct the comparison graph required by the spectral engine.
+Format recognition employs a rule-based classifier augmented with LLM-based disambiguation for edge cases. The system examines column structure, data types, and semantic patterns to determine the appropriate format, then applies format-specific transformations to construct the comparison graph required by the spectral engine.
 
-Following format recognition, the agent performs validation against theoretical requirements established in the spectral ranking literature [8, 38]. Three categories of validation feedback are provided:
+Following format recognition, OmniRank performs validation against theoretical requirements established in the spectral ranking literature [8, 38]. Three categories of validation feedback are provided:
 
-**Sparsity Assessment.** The agent evaluates whether the comparison count $M$ satisfies the sample complexity bound $M \geq cn\log n$ for some constant $c > 0$, where $n$ denotes the number of items. This threshold, analogous to the coupon collector bound, represents the minimum sample size required for consistent spectral estimation [38]. When $M < n\log n$, the agent issues a warning indicating that ranking estimates may exhibit elevated variance.
+**Sparsity Assessment.** OmniRank evaluates whether the comparison count $M$ satisfies the sample complexity bound $M \geq cn\log n$ for some constant $c > 0$, where $n$ denotes the number of items. This threshold, analogous to the coupon collector bound, represents the minimum sample size required for consistent spectral estimation [38]. When $M < n\log n$, the system issues a warning indicating that ranking estimates may exhibit elevated variance.
 
-**Connectivity Verification.** Global ranking requires the comparison graph to form a connected component. The agent employs standard graph algorithms to detect disconnected subgraphs. When the graph is disjoint, the agent notifies users that rankings can only be computed within connected components and identifies the largest connected subgraph for analysis.
+**Connectivity Verification.** Global ranking requires the comparison graph to form a connected component. OmniRank employs standard graph algorithms to detect disconnected subgraphs. When the graph is disjoint, the system notifies users that rankings can only be computed within connected components and identifies the largest connected subgraph for analysis.
 
-**Data Integrity Checks.** The agent verifies the presence of required columns, ensures a minimum of two rankable items, and confirms that comparison outcomes are properly encoded. Data failing these checks is rejected with explanatory feedback generated through LLM-based natural language synthesis.
+**Data Integrity Checks.** OmniRank verifies the presence of required columns, ensures a minimum of two rankable items, and confirms that comparison outcomes are properly encoded. Datasets failing these checks are rejected with explanatory feedback generated through LLM-based natural language synthesis.
 
-This tiered validation approach, illustrated in [Figure: Data validation workflow], ensures that users receive actionable feedback about data limitations while permitting valid exploratory analyses on imperfect datasets.
+This tiered validation approach, illustrated in [Figure: Data validation workflow], separates critical errors from non-blocking warnings, enabling valid exploratory analyses while explicitly communicating theoretical limitations.
 
-**[Figure: Data validation workflow]** The flowchart depicts the hierarchical validation process: critical errors block execution, warnings inform users of theoretical limitations, and valid data proceeds to schema inference.
+**[Figure: Data validation workflow]** The flowchart depicts a hierarchical validation process: critical errors block execution, warnings communicate theoretical limitations, and valid data proceeds to schema inference.
 
 #### 3.2.2 Semantic Schema Inference
 
-Beyond structural validation, the agent infers the semantic meaning of data components to enable flexible downstream analysis. This capability distinguishes OmniRank from traditional statistical software that requires explicit parameter specification.
+After structural validation, OmniRank infers a semantic schema $\mathcal{S}$ that binds data fields to analysis primitives and parameterizes downstream configuration. This design reduces reliance on explicit parameter specification common in traditional statistical software.
 
-**Preference Direction Inference.** The agent determines whether higher metric values indicate superior performance (e.g., accuracy, win rate) or inferior performance (e.g., latency, error rate). This inference combines lexical analysis of column names with distributional properties of the data. For instance, columns containing terms such as "accuracy" or "score" suggest a higher-is-better interpretation, while "time" or "error" suggest the opposite.
+**Preference Direction Inference.** OmniRank infers whether higher metric values indicate superior performance (e.g., accuracy, win rate) or inferior performance (e.g., latency, error rate) using lexical cues in column names and distributional summaries. For example, columns containing terms such as "accuracy" or "score" suggest a higher-is-better interpretation, while "time" or "error" suggest the opposite.
 
-**Entity and Indicator Extraction.** The agent identifies:
-- *Ranking Items*: The entities to be ranked (e.g., model names, player identifiers).
-- *Ranking Indicators*: Categorical dimensions that partition comparisons into semantically meaningful subgroups (e.g., task categories, evaluation conditions).
+**Entity and Indicator Extraction.** OmniRank identifies the ranking items (e.g., model names, player identifiers) and, when present, a categorical ranking indicator that partitions comparisons into semantically meaningful subgroups (e.g., task categories, evaluation conditions). When multiple potential indicator columns exist, OmniRank selects at most one to maintain analytical focus, prioritizing columns with moderate cardinality and clear semantic interpretation.
 
-When multiple potential indicator columns exist, the agent selects at most one to maintain analytical focus, prioritizing columns with moderate cardinality and clear semantic interpretation.
-
-This metadata extraction enables the subsequent configuration phase to present users with intuitive options, allowing customized analysis without requiring statistical expertise.
+The inferred schema is surfaced in the configuration phase to provide intuitive options for customized analysis without requiring statistical expertise.
 
 ### 3.3 Interactive Configuration and Computation
 
-This phase manages the transition from inferred schema to statistical computation through human-in-the-loop verification and deterministic engine execution. The design reflects the "tool-use" paradigm in agentic AI, where LLMs serve as cognitive controllers while delegating precise computations to specialized tools [39, 40].
+This phase translates the inferred schema into statistical computation through (i) explicit human confirmation of key parameters and (ii) deterministic engine execution. The design reflects the "tool-use" paradigm in agentic AI, where LLMs act as controllers while delegating precise computations to specialized tools [39, 40].
 
 #### 3.3.1 Human-in-the-Loop Configuration
 
-The agent presents inferred parameters through an interactive configuration interface, enabling users to verify and adjust settings before computation. Configurable parameters include:
+Before computation, the interface presents the inferred schema and validation results and asks users to confirm or revise the following parameters:
 
 - **Preference Direction**: Users confirm or override the inferred interpretation of metric values.
 - **Item Selection**: Users may restrict analysis to a subset of items.
 - **Indicator Selection**: Users select which indicator values to include in the analysis.
 - **Statistical Parameters**: Advanced users may configure bootstrap iterations (default: 2,000) and random seed (default: 42) for reproducibility.
 
-This explicit confirmation checkpoint addresses a known limitation of fully automated agent systems: misalignment between inferred parameters and user intent [35]. By requiring human verification, OmniRank ensures that final analyses reflect user requirements while maintaining a complete audit trail of parameter decisions.
+This confirmation step mitigates misalignment between inferred parameters and user intent, a known failure mode of fully automated agent systems [35]. The confirmed configuration is recorded to support auditability and reproducibility.
 
 #### 3.3.2 Spectral Ranking Inference
 
-The mathematical foundation of OmniRank's computation engine rests on spectral methods for ranking inference from comparison data. We summarize the key elements here; full theoretical treatment including minimax optimality proofs is provided in Fan et al. [8].
+The computation engine implements spectral methods for ranking inference from comparison data. We summarize the assumed choice model and the resulting spectral estimator; full theoretical treatment, including minimax optimality proofs, is provided in Fan et al. [8].
 
-Consider $n$ items to be ranked based on comparison outcomes. We model preferences through the Plackett-Luce framework [46, 47], parameterizing item quality by $\boldsymbol{\theta}^* = (\theta_1^*, \ldots, \theta_n^*)^\top$ such that for any choice set $A \subseteq [n]$ and item $i \in A$:
+Let $n$ denote the number of items. We model preferences through the Plackett-Luce framework [46, 47], parameterizing item quality by $\boldsymbol{\theta}^* = (\theta_1^*, \ldots, \theta_n^*)^\top$ such that for any choice set $A \subseteq [n]$ and item $i \in A$:
 
 $$P(i \text{ wins among } A) = \frac{e^{\theta_i^*}}{\sum_{k \in A} e^{\theta_k^*}}$$
 
@@ -173,7 +169,7 @@ Confidence intervals are constructed using the Gaussian multiplier bootstrap [52
 
 #### 3.3.3 Engine Execution
 
-Upon user confirmation, the agent invokes the spectral engine as a deterministic subprocess. The engine applies the spectral estimator with uniform weighting $f(A_l) = |A_l|$ to obtain consistent preference score estimates $\hat{\boldsymbol{\theta}}$ that achieve minimax optimal rates [8]. The execution workflow consists of:
+After user confirmation, OmniRank invokes the spectral engine as a deterministic subprocess. The engine applies the spectral estimator with uniform weighting $f(A_l) = |A_l|$, producing preference score estimates $\hat{\boldsymbol{\theta}}$ that achieve minimax optimal rates [8]. The execution workflow consists of:
 
 1. **Parameter Preparation**: Constructing the R script command with validated parameters (data path, preference direction, bootstrap iterations, random seed).
 
@@ -181,24 +177,24 @@ Upon user confirmation, the agent invokes the spectral engine as a deterministic
 
 3. **Output Parsing**: Processing the JSON output to extract preference scores ($\hat{\theta}_i$), rankings, and 95% bootstrap confidence intervals.
 
-4. **Trace Logging**: Recording execution parameters and results in session memory for potential error diagnosis.
+4. **Trace Logging**: Recording execution parameters and results in session memory for reproducibility and potential error diagnosis.
 
-This deterministic workflow ensures reliable and reproducible ranking computations, fully isolated from the stochastic behavior of the LLM agent.
+Because engine execution is deterministic given the confirmed inputs, ranking computations are reproducible and isolated from the stochastic behavior of the LLM agent.
 
 ### 3.4 Result Synthesis and User Interaction
 
-The result synthesis phase transforms computational outputs into interpretable results and supports ongoing user interaction. This phase addresses a critical gap in statistical software: the translation of numerical outputs into actionable insights accessible to domain experts without statistical training.
+The result synthesis phase converts computational outputs into interpretable artifacts and supports ongoing user interaction. It produces natural-language summaries and visualizations while grounding explanations in the computed preference estimates and uncertainty quantification.
 
 #### 3.4.1 Report and Visualization Generation
 
-Upon receiving ranking results from the engine, the agent synthesizes comprehensive analysis reports through LLM-based natural language generation. Reports include:
+Upon receiving ranking results from the engine, OmniRank generates an analysis report through LLM-based natural language generation. Reports include:
 
 - **Executive Summary**: Key findings highlighting top-ranked items and notable patterns.
 - **Detailed Rankings**: Tabular presentation of ranks, preference scores, and confidence intervals with statistical significance indicators.
 - **Methodology Notes**: Explanation of the spectral approach and validation outcomes.
 - **Domain-Specific Insights**: Contextual interpretation tailored to the data domain, leveraging the semantic schema inferred during data processing.
 
-The agent generates a complementary suite of deterministic visualizations:
+OmniRank generates a complementary suite of deterministic visualizations:
 
 1. *Rank Plots*: Forest plots displaying point estimates with confidence interval error bars, enabling visual assessment of ranking uncertainty [41].
 2. *Comparison Heatmaps*: Matrix visualizations of pairwise win rates revealing competitive structure among items.
@@ -208,19 +204,19 @@ These outputs are rendered in both interactive web formats and exportable static
 
 #### 3.4.2 Interactive Question-Answering
 
-The agent supports follow-up queries through a conversational interface, enabling users to explore results without restarting the analysis. This capability is implemented through a session memory architecture comprising three components:
+OmniRank supports follow-up queries through a conversational interface, enabling users to explore results without restarting the analysis. This capability is implemented through a session memory architecture comprising three components:
 
 - **Data State**: Current schema, validation results, and configuration parameters.
 - **Execution Trace**: Log of computation invocations and intermediate results for error diagnosis.
 - **Conversation Context**: History of user queries and agent responses enabling contextual follow-up.
 
-The agent interprets queries by combining session context with domain knowledge embedded in its system prompt. For example, when a user asks "Is model A significantly better than model B?", the agent retrieves the relevant confidence intervals and applies the non-overlapping confidence interval heuristic to provide a statistically grounded response.
+OmniRank interprets queries by combining session context with domain knowledge embedded in its system prompt. For example, when a user asks "Is model A significantly better than model B?", the agent retrieves the relevant confidence intervals and applies the non-overlapping confidence interval heuristic to provide a statistically grounded response.
 
-This retrieval-augmented generation approach [42] ensures responses are grounded in computed results rather than hallucinated, addressing a known failure mode of vanilla LLM applications to quantitative domains [32].
+This retrieval-augmented generation approach [42] grounds responses in computed artifacts rather than free-form generation, mitigating a known failure mode of vanilla LLM applications in quantitative domains [32].
 
 ### 3.5 Prompt Engineering and Knowledge Integration
 
-We adopt structured system prompts following established practices in LLM agent design [43, 44]. The agent's prompt comprises three layers: role specification, operational constraints, and domain knowledge.
+We adopt structured system prompts following established practices in LLM agent design [43, 44]. The system prompt comprises three layers: role specification, operational constraints, and domain knowledge.
 
 **Role Specification.** Defines the agent's identity and primary responsibilities as a statistical analyst specializing in comparison data formats and ranking inference.
 
@@ -228,7 +224,7 @@ We adopt structured system prompts following established practices in LLM agent 
 
 **Knowledge Layer.** Embeds domain expertise directly into the prompt, enabling expert-level reasoning without requiring fine-tuning. The knowledge layer includes format recognition rules, validation thresholds derived from spectral ranking theory (e.g., the $n\log n$ sparsity threshold), confidence interval interpretation guidelines, and ranking diagnostics.
 
-This knowledge integration approach, illustrated in [Figure: System prompt structure], follows the in-context learning paradigm [45] that has proven effective for knowledge-intensive tasks without model modification. Unlike retrieval-augmented approaches that dynamically fetch external knowledge, our static knowledge layer provides deterministic access to the complete domain context required for spectral ranking analysis.
+This knowledge integration approach, illustrated in [Figure: System prompt structure], follows the in-context learning paradigm [45] that has proven effective for knowledge-intensive tasks without model modification. Unlike retrieval-augmented approaches that dynamically fetch external knowledge, the static knowledge layer provides deterministic access to the domain context required for spectral ranking analysis.
 
 **[Figure: System prompt structure]** The prompt comprises role specification, format recognition rules, validation thresholds derived from spectral ranking theory, tool invocation protocols, and output format constraints.
 
@@ -236,7 +232,7 @@ This knowledge integration approach, illustrated in [Figure: System prompt struc
 
 OmniRank provides a web-based conversational interface designed for accessibility across user expertise levels. The interface guides users through a three-stage workflow:
 
-**Stage 1: Data Upload and Analysis.** Users upload comparison data in standard formats (CSV, Excel). The agent processes the upload, displaying format recognition results, validation outcomes, and inferred schema parameters in an organized panel.
+**Stage 1: Data Upload and Analysis.** Users upload comparison data in standard formats (CSV, Excel). OmniRank processes the upload and displays format recognition results, validation outcomes, and inferred schema parameters.
 
 **Stage 2: Interactive Configuration.** The interface presents inferred settings in a visual control panel where users can confirm or modify preference direction, select items and indicator values, and configure advanced statistical parameters. This stage ensures alignment between system inference and user intent before computation proceeds.
 
