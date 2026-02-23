@@ -363,9 +363,7 @@ def _format_structured_answer(
         lines.append("References:")
         lines.extend(f"- {entry}" for entry in reference_lines[:max_references])
     if note:
-        lines.append(f"Note: {_integerize_ci_text(_sanitize_text_field(note))}")
-    if quote_context:
-        lines.append(f"Quote context considered: {_integerize_ci_text(_sanitize_text_field(quote_context))}")
+        lines.append(f"- Note: {_integerize_ci_text(_sanitize_text_field(note))}")
     return "\n".join(lines)
 
 
@@ -831,15 +829,16 @@ def answer_question(
                 conclusion = _normalize_answer_english(_first_sentence(stage_msg))
             supporting_evidence = [_truncate_words(entry, 22) for entry in supporting_evidence]
             supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=1)
+            note_fingerprint = ""
             if note:
                 note = _truncate_words(note, 14 if (wants_concise or results is not None) else 18)
                 note_fingerprint = _sanitize_text_field(note).lower()
-                if note_fingerprint and any(
-                    note_fingerprint == _sanitize_text_field(x).lower()
-                    for x in [conclusion, *supporting_evidence]
-                ):
-                    note = None
-            if wants_concise and any(entry.endswith("...") for entry in supporting_evidence):
+            if note_fingerprint and any(
+                note_fingerprint == _sanitize_text_field(x).lower()
+                for x in [conclusion, *supporting_evidence]
+            ):
+                note = None
+            if any(entry.endswith("...") for entry in supporting_evidence):
                 supporting_evidence = []
             if note and note.endswith("..."):
                 if results is None and stage_next_action:
