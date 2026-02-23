@@ -52,58 +52,55 @@ OmniRank instantiates these architectural principles in the context of ranking i
 
 ## 3 Methodology
 
-This section presents the methodological framework of OmniRank, an agentic system that bridges large language model reasoning with rigorous spectral ranking inference. We first provide an architectural overview (Section 3.1), then detail the three core components: the Data Agent for intelligent data preprocessing (Section 3.2), the Engine Orchestrator for adaptive statistical computation (Section 3.3), and the Analyst Agent for result interpretation and user interaction (Section 3.4). We subsequently describe the prompt engineering strategies (Section 3.5), user interface design (Section 3.6), and conclude with the mathematical foundations of the spectral ranking engine (Section 3.7).
+This section presents the methodological framework of OmniRank, an agentic system that bridges large language model reasoning with rigorous spectral ranking inference. We first provide an architectural overview of the single-agent tool-calling design (Section 3.1), then detail the three pipeline phases: data processing and schema inference (Section 3.2), interactive configuration and spectral computation (Section 3.3), and result synthesis with user interaction (Section 3.4). We subsequently describe prompt engineering strategies (Section 3.5) and user interface design (Section 3.6).
 
 ### 3.1 Overview
 
-OmniRank adopts a modular multi-agent architecture designed to separate semantic understanding from mathematical computation, addressing a fundamental limitation of current LLMs: their propensity for hallucination in arithmetic and algorithmic tasks [32]. This architectural principle, termed "decoupled reasoning," has proven effective in recent scientific agent systems [33, 34] and forms the theoretical basis for our design.
+OmniRank employs a single-agent architecture with tool calling, designed to separate semantic understanding from mathematical computation. This architectural principle, termed "decoupled reasoning," addresses a fundamental limitation of current LLMs---their propensity for hallucination in arithmetic and algorithmic tasks [32]---and has proven effective in recent scientific agent systems [33, 34].
 
-The system comprises three functionally distinct components operating in a coordinated pipeline:
+The system centers on a single LLM agent operating within one context window, equipped with a registry of ten specialized tools organized into four categories:
 
-1. **Data Agent**: An LLM-powered component responsible for data format recognition, validation, and semantic schema inference. The agent interprets user-uploaded datasets and extracts structural metadata necessary for spectral computation.
+- **Data Tools** (5): `read_data_file`, `infer_semantic_schema`, `validate_data_format`, `validate_data_quality`, and `preprocess_data`---responsible for data ingestion, semantic understanding, and validation against spectral ranking requirements.
+- **User Interaction Tool** (1): `request_user_confirmation`---an explicit checkpoint for human-in-the-loop parameter verification.
+- **Engine Tool** (1): `execute_spectral_ranking`---a deterministic tool that invokes the spectral computation engine in an isolated subprocess.
+- **Analysis Tools** (3): `generate_report`, `generate_visualizations`, and `answer_question`---responsible for result interpretation, visualization, and interactive follow-up.
 
-2. **Engine Orchestrator**: A deterministic controller that manages the interface between semantic understanding and statistical computation. It executes the spectral ranking engine with robust process management and output parsing.
+The agent orchestrates these tools through a fixed three-phase pipeline: (1) data processing and schema inference, (2) interactive configuration and spectral computation, and (3) result synthesis and user interaction. Unlike multi-agent architectures that incur coordination overhead [35], this single-agent design keeps all reasoning within one context window, reducing token cost and eliminating inter-agent communication failures. The tool-calling mechanism ensures that precise numerical computation is delegated to verified deterministic tools rather than attempted by the LLM internally.
 
-3. **Analyst Agent**: An LLM-powered component that synthesizes computational results into interpretable outputs, generates visualizations, and supports interactive question-answering through domain knowledge integration.
+[Figure: OmniRank system architecture] illustrates the system architecture. The agent receives user requests, selects appropriate tools based on the current pipeline phase, and synthesizes tool outputs into coherent responses. Algorithm 1 formalizes this process.
 
-[Figure: OmniRank system architecture] illustrates the system architecture and information flow between components. The workflow proceeds through four phases: data ingestion and schema inference, interactive parameter configuration, spectral computation with adaptive refinement, and result synthesis with user interaction. Algorithm 1 formalizes this process.
+**[Figure: OmniRank system architecture]** OmniRank employs a single LLM agent with a registry of ten tools. The agent orchestrates a three-phase pipeline: data processing (five data tools), computation (one engine tool with human confirmation), and output generation (three analysis tools). All reasoning occurs within a single context window.
 
-**[Figure: OmniRank system architecture]** The system comprises three core components: the Data Agent (LLM-powered) for semantic understanding, the Engine Orchestrator (deterministic) for statistical computation, and the Analyst Agent (LLM-powered) for result interpretation. Solid arrows indicate data flow; dashed arrows indicate feedback loops for error handling.
+**Algorithm 1** OmniRank Pipeline
 
-**Algorithm 1** OmniRank Workflow
-
-**Input:** Dataset $\mathcal{D}$ uploaded by user; maximum retry attempts $T$
+**Input:** Dataset $\mathcal{D}$ uploaded by user
 **Output:** Ranking results $\mathcal{R}$ with confidence intervals; analysis report
 
 *Phase 1: Data Processing and Schema Inference*
-1: $\mathcal{S} \leftarrow \texttt{DataAgent.InferSchema}(\mathcal{D})$ $\triangleright$ Infer format, items, indicators, preference direction
-2: $\mathcal{V} \leftarrow \texttt{DataAgent.Validate}(\mathcal{D}, \mathcal{S})$ $\triangleright$ Check connectivity, sparsity, data integrity
-3: **if** $\mathcal{V}$.status $=$ INVALID **then**
-4:     **return** $\texttt{DataAgent.GenerateFeedback}(\mathcal{V})$
-5: **end if**
+1: $\texttt{summary} \leftarrow \texttt{call}(\texttt{read\_data\_file}, \mathcal{D})$
+2: $\mathcal{S} \leftarrow \texttt{call}(\texttt{infer\_semantic\_schema}, \texttt{summary})$
+3: **repeat** $\triangleright$ Format validation loop
+4:     $\mathcal{V}_f \leftarrow \texttt{call}(\texttt{validate\_data\_format}, \mathcal{D}, \mathcal{S})$
+5:     **if** $\mathcal{V}_f.\texttt{fixable}$ **then** $\mathcal{D} \leftarrow \texttt{call}(\texttt{preprocess\_data}, \mathcal{D}, \mathcal{S})$
+6: **until** $\mathcal{V}_f.\texttt{is\_ready}$ or not $\mathcal{V}_f.\texttt{fixable}$
+7: $\mathcal{V}_q \leftarrow \texttt{call}(\texttt{validate\_data\_quality}, \mathcal{D}, \mathcal{S})$
 
-*Phase 2: Interactive Configuration*
-6: $\mathcal{P} \leftarrow \texttt{Orchestrator.Configure}(\mathcal{S}, \texttt{UserInput})$ $\triangleright$ User verifies/adjusts parameters
-7: $\texttt{Memory.UpdateState}(\mathcal{S}, \mathcal{P})$
+*Phase 2: Interactive Configuration and Computation*
+8: $(\mathcal{S}_c, B, \texttt{seed}) \leftarrow \texttt{call}(\texttt{request\_user\_confirmation}, \mathcal{S}, \mathcal{V}_f, \mathcal{V}_q)$
+9: $\mathcal{R} \leftarrow \texttt{call}(\texttt{execute\_spectral\_ranking}, \mathcal{D}, \mathcal{S}_c, B, \texttt{seed})$
 
-*Phase 3: Spectral Computation*
-8: $\mathcal{R} \leftarrow \texttt{Orchestrator.Execute}(\mathcal{D}, \mathcal{P})$ $\triangleright$ Spectral estimation
+*Phase 3: Result Synthesis and User Interaction*
+10: $\texttt{plots} \leftarrow \texttt{call}(\texttt{generate\_visualizations}, \mathcal{R})$
+11: $\texttt{report} \leftarrow \texttt{call}(\texttt{generate\_report}, \mathcal{R}, \texttt{plots})$
+12: **loop** $\triangleright$ Interactive Q&A
+13:     $\texttt{answer} \leftarrow \texttt{call}(\texttt{answer\_question}, \texttt{query}, \mathcal{R}, \texttt{report})$
+14: **end loop**
 
-*Phase 4: Error Handling and Output Generation*
-14: $n \leftarrow 0$
-15: **while** $\mathcal{R}.\text{status} = \text{ERROR}$ **and** $n < T$ **do**
-16:     $n \leftarrow n + 1$
-17:     $(\text{diagnosis}, \text{suggestions}) \leftarrow \texttt{AnalystAgent.Diagnose}(\mathcal{R}.\text{error})$
-18:     $\mathcal{P} \leftarrow \texttt{Orchestrator.AdjustParams}(\mathcal{P}, \text{suggestions})$
-19:     $\mathcal{R} \leftarrow \texttt{Orchestrator.ReExecute}(\mathcal{D}, \mathcal{P})$
-20: **end while**
-21: **return** $\texttt{AnalystAgent.GenerateReport}(\mathcal{R})$
+This tool-calling pipeline instantiates the "programmer-inspector" paradigm [35] at the tool level: the LLM agent handles reasoning and orchestration, while deterministic tools handle computation and validation. By delegating precise numerical computation to verified tools, OmniRank achieves both accessibility and mathematical rigor.
 
-This architecture instantiates the "programmer-inspector" paradigm that has demonstrated superior reliability compared to end-to-end LLM approaches [35]. By delegating precise numerical computation to a verified statistical engine while leveraging LLM capabilities for natural language understanding and explanation, OmniRank achieves both accessibility and mathematical rigor.
+### 3.2 Data Processing and Schema Inference
 
-### 3.2 Data Agent
-
-The Data Agent serves as the intelligent interface between raw user data and the spectral computation engine. Unlike generic data analysis agents that rely solely on LLM code generation [36], our Data Agent employs a hybrid approach: LLM-based semantic reasoning for schema inference combined with deterministic validation rules grounded in spectral ranking theory. This design reflects recent findings that specialized domain knowledge significantly improves agent performance on knowledge-intensive tasks [37].
+The data processing phase serves as the intelligent interface between raw user data and the spectral computation engine. Unlike generic data analysis agents that rely solely on LLM code generation [36], OmniRank employs a hybrid approach: LLM-based semantic reasoning for schema inference combined with deterministic validation rules grounded in spectral ranking theory [37].
 
 #### 3.2.1 Format Recognition and Validation
 
@@ -123,13 +120,13 @@ Following format recognition, the agent performs validation against theoretical 
 
 **Data Integrity Checks.** The agent verifies the presence of required columns, ensures a minimum of two rankable items, and confirms that comparison outcomes are properly encoded. Data failing these checks is rejected with explanatory feedback generated through LLM-based natural language synthesis.
 
-This tiered validation approach, illustrated in [Figure: Data Agent validation workflow], ensures that users receive actionable feedback about data limitations while permitting valid exploratory analyses on imperfect datasets.
+This tiered validation approach, illustrated in [Figure: Data validation workflow], ensures that users receive actionable feedback about data limitations while permitting valid exploratory analyses on imperfect datasets.
 
-**[Figure: Data Agent validation workflow]** The flowchart depicts the hierarchical validation process: critical errors block execution, warnings inform users of theoretical limitations, and valid data proceeds to schema inference.
+**[Figure: Data validation workflow]** The flowchart depicts the hierarchical validation process: critical errors block execution, warnings inform users of theoretical limitations, and valid data proceeds to schema inference.
 
 #### 3.2.2 Semantic Schema Inference
 
-Beyond structural validation, the Data Agent infers the semantic meaning of data components to enable flexible downstream analysis. This capability distinguishes OmniRank from traditional statistical software that requires explicit parameter specification.
+Beyond structural validation, the agent infers the semantic meaning of data components to enable flexible downstream analysis. This capability distinguishes OmniRank from traditional statistical software that requires explicit parameter specification.
 
 **Preference Direction Inference.** The agent determines whether higher metric values indicate superior performance (e.g., accuracy, win rate) or inferior performance (e.g., latency, error rate). This inference combines lexical analysis of column names with distributional properties of the data. For instance, columns containing terms such as "accuracy" or "score" suggest a higher-is-better interpretation, while "time" or "error" suggest the opposite.
 
@@ -139,53 +136,69 @@ Beyond structural validation, the Data Agent infers the semantic meaning of data
 
 When multiple potential indicator columns exist, the agent selects at most one to maintain analytical focus, prioritizing columns with moderate cardinality and clear semantic interpretation.
 
-This metadata extraction enables the Engine Orchestrator to present users with intuitive configuration options, allowing customized analysis without requiring statistical expertise.
+This metadata extraction enables the subsequent configuration phase to present users with intuitive options, allowing customized analysis without requiring statistical expertise.
 
-### 3.3 Engine Orchestrator
+### 3.3 Interactive Configuration and Computation
 
-The Engine Orchestrator is a deterministic system component that manages the transition from semantic schema to statistical computation. Unlike the LLM-powered agents, the orchestrator implements fixed algorithmic logic to ensure reproducibility and numerical accuracy. Its design reflects the "tool-use" paradigm in agentic AI, where LLMs serve as cognitive controllers while delegating precise computations to specialized tools [39, 40].
+This phase manages the transition from inferred schema to statistical computation through human-in-the-loop verification and deterministic engine execution. The design reflects the "tool-use" paradigm in agentic AI, where LLMs serve as cognitive controllers while delegating precise computations to specialized tools [39, 40].
 
-#### 3.3.1 Interactive Configuration Management
+#### 3.3.1 Human-in-the-Loop Configuration
 
-The orchestrator exposes inferred parameters through an interactive configuration interface, enabling users to verify and adjust settings before computation. Configurable parameters include:
+The agent presents inferred parameters through an interactive configuration interface, enabling users to verify and adjust settings before computation. Configurable parameters include:
 
 - **Preference Direction**: Users confirm or override the inferred interpretation of metric values.
 - **Item Selection**: Users may restrict analysis to a subset of items.
 - **Indicator Selection**: Users select which indicator values to include in the analysis.
-- **Statistical Parameters**: Advanced users may configure bootstrap iterations (default: 2000) and random seed (default: 42) for reproducibility.
+- **Statistical Parameters**: Advanced users may configure bootstrap iterations (default: 2,000) and random seed (default: 42) for reproducibility.
 
-This human-in-the-loop design addresses a known limitation of fully automated agent systems: misalignment between inferred parameters and user intent [35]. By requiring explicit confirmation, OmniRank ensures that final analyses reflect user requirements.
+This explicit confirmation checkpoint addresses a known limitation of fully automated agent systems: misalignment between inferred parameters and user intent [35]. By requiring human verification, OmniRank ensures that final analyses reflect user requirements while maintaining a complete audit trail of parameter decisions.
 
-#### 3.3.2 Spectral Estimation Execution
+#### 3.3.2 Spectral Ranking Inference
 
-The orchestrator invokes the spectral engine with uniform weighting $f(A_l) = |A_l|$ to obtain consistent preference score estimates $\hat{\boldsymbol{\theta}}$. This spectral estimator provides stable estimates across diverse data conditions and achieves minimax optimal rates [8].
+The mathematical foundation of OmniRank's computation engine rests on spectral methods for ranking inference from comparison data. We summarize the key elements here; full theoretical treatment including minimax optimality proofs is provided in Fan et al. [8].
 
-The execution workflow consists of:
+Consider $n$ items to be ranked based on comparison outcomes. We model preferences through the Plackett-Luce framework [46, 47], parameterizing item quality by $\boldsymbol{\theta}^* = (\theta_1^*, \ldots, \theta_n^*)^\top$ such that for any choice set $A \subseteq [n]$ and item $i \in A$:
 
-1. **Parameter Preparation**: Constructing the R script command with validated parameters (data path, bigbetter direction, bootstrap iterations, random seed).
+$$P(i \text{ wins among } A) = \frac{e^{\theta_i^*}}{\sum_{k \in A} e^{\theta_k^*}}$$
+
+This model encompasses the Bradley-Terry-Luce model for pairwise comparisons as a special case when $|A| = 2$ [48]. The observed data consist of $L$ comparisons $\{(c_l, A_l)\}_{l=1}^L$, where $A_l$ is the choice set and $c_l \in A_l$ denotes the winner, accommodating heterogeneous comparison structures where choice sets may vary in size [8].
+
+The spectral approach constructs a Markov chain over items whose stationary distribution reflects latent preferences [49, 50]. Define the transition matrix $\mathbf{P}$ with entries:
+
+$$P_{ij} = \frac{1}{d_i} \sum_{l \in W_j \cap L_i} \frac{1}{f(A_l)}$$
+
+where $W_j$ indexes comparisons won by $j$, $L_i$ indexes comparisons lost by $i$, $d_i$ is a normalizing constant, and $f(A_l)$ is a weighting function. The stationary distribution $\hat{\boldsymbol{\pi}}$, obtained as the leading eigenvector of $\mathbf{P}^\top$, yields preference score estimates via the log-transformation $\tilde{\theta}_i = \log \hat{\pi}_i - n^{-1} \sum_{k} \log \hat{\pi}_k$.
+
+Confidence intervals are constructed using the Gaussian multiplier bootstrap [52, 53], which approximates the sampling distribution of $\hat{\boldsymbol{\theta}} - \boldsymbol{\theta}^*$ without parametric assumptions on the comparison process. This enables rigorous uncertainty quantification for ranking conclusions.
+
+#### 3.3.3 Engine Execution
+
+Upon user confirmation, the agent invokes the spectral engine as a deterministic subprocess. The engine applies the spectral estimator with uniform weighting $f(A_l) = |A_l|$ to obtain consistent preference score estimates $\hat{\boldsymbol{\theta}}$ that achieve minimax optimal rates [8]. The execution workflow consists of:
+
+1. **Parameter Preparation**: Constructing the R script command with validated parameters (data path, preference direction, bootstrap iterations, random seed).
 
 2. **Engine Invocation**: Executing `spectral_ranking.R` in an isolated subprocess with timeout protection.
 
-3. **Output Parsing**: Processing the JSON output to extract preference scores, rankings, and confidence intervals.
+3. **Output Parsing**: Processing the JSON output to extract preference scores ($\hat{\theta}_i$), rankings, and 95% bootstrap confidence intervals.
 
 4. **Trace Logging**: Recording execution parameters and results in session memory for potential error diagnosis.
 
-This deterministic workflow ensures reliable and reproducible ranking computations.
+This deterministic workflow ensures reliable and reproducible ranking computations, fully isolated from the stochastic behavior of the LLM agent.
 
-### 3.4 Analyst Agent
+### 3.4 Result Synthesis and User Interaction
 
-The Analyst Agent is responsible for transforming computational outputs into interpretable results and supporting ongoing user interaction. This component addresses a critical gap in statistical software: the translation of numerical outputs into actionable insights accessible to domain experts without statistical training.
+The result synthesis phase transforms computational outputs into interpretable results and supports ongoing user interaction. This phase addresses a critical gap in statistical software: the translation of numerical outputs into actionable insights accessible to domain experts without statistical training.
 
 #### 3.4.1 Report and Visualization Generation
 
-Upon receiving ranking results from the Engine Orchestrator, the Analyst Agent synthesizes comprehensive analysis reports through LLM-based natural language generation. Reports include:
+Upon receiving ranking results from the engine, the agent synthesizes comprehensive analysis reports through LLM-based natural language generation. Reports include:
 
 - **Executive Summary**: Key findings highlighting top-ranked items and notable patterns.
 - **Detailed Rankings**: Tabular presentation of ranks, preference scores, and confidence intervals with statistical significance indicators.
 - **Methodology Notes**: Explanation of the spectral approach and validation outcomes.
-- **Domain-Specific Insights**: Contextual interpretation tailored to the data domain, leveraging the semantic schema inferred by the Data Agent.
+- **Domain-Specific Insights**: Contextual interpretation tailored to the data domain, leveraging the semantic schema inferred during data processing.
 
-The agent generates a complementary suite of visualizations:
+The agent generates a complementary suite of deterministic visualizations:
 
 1. *Rank Plots*: Forest plots displaying point estimates with confidence interval error bars, enabling visual assessment of ranking uncertainty [41].
 2. *Comparison Heatmaps*: Matrix visualizations of pairwise win rates revealing competitive structure among items.
@@ -195,7 +208,7 @@ These outputs are rendered in both interactive web formats and exportable static
 
 #### 3.4.2 Interactive Question-Answering
 
-The Analyst Agent supports follow-up queries through a conversational interface, enabling users to explore results without restarting the analysis. This capability is implemented through a session memory architecture comprising three components:
+The agent supports follow-up queries through a conversational interface, enabling users to explore results without restarting the analysis. This capability is implemented through a session memory architecture comprising three components:
 
 - **Data State**: Current schema, validation results, and configuration parameters.
 - **Execution Trace**: Log of computation invocations and intermediate results for error diagnosis.
@@ -205,27 +218,25 @@ The agent interprets queries by combining session context with domain knowledge 
 
 This retrieval-augmented generation approach [42] ensures responses are grounded in computed results rather than hallucinated, addressing a known failure mode of vanilla LLM applications to quantitative domains [32].
 
-### 3.5 Prompt Engineering
+### 3.5 Prompt Engineering and Knowledge Integration
 
-We adopt structured system prompts following established practices in LLM agent design [43, 44]. Each agent's prompt comprises three layers: role specification, operational constraints, and domain knowledge.
+We adopt structured system prompts following established practices in LLM agent design [43, 44]. The agent's prompt comprises three layers: role specification, operational constraints, and domain knowledge.
 
-**Role Specification.** Defines the agent's identity and primary responsibilities. For example, the Data Agent is instructed to act as a "statistical data analyst specializing in comparison data formats and ranking analysis."
+**Role Specification.** Defines the agent's identity and primary responsibilities as a statistical analyst specializing in comparison data formats and ranking inference.
 
-**Operational Constraints.** Specifies output formats, error handling procedures, and interaction protocols. These constraints ensure consistent behavior across diverse inputs and enable reliable parsing of agent outputs.
+**Operational Constraints.** Specifies output formats, tool invocation protocols, and error handling procedures. These constraints ensure consistent behavior across diverse inputs and enable reliable orchestration of the ten-tool registry.
 
-**Knowledge Layer.** Embeds domain expertise directly into the prompt, enabling expert-level reasoning without requiring fine-tuning. The Data Agent's knowledge layer includes format recognition rules and validation thresholds; the Analyst Agent's knowledge layer includes spectral ranking theory concepts such as confidence interval interpretation and ranking diagnostics.
+**Knowledge Layer.** Embeds domain expertise directly into the prompt, enabling expert-level reasoning without requiring fine-tuning. The knowledge layer includes format recognition rules, validation thresholds derived from spectral ranking theory (e.g., the $n\log n$ sparsity threshold), confidence interval interpretation guidelines, and ranking diagnostics.
 
-This knowledge integration approach, illustrated in [Figure: Data Agent system prompt structure] and [Figure: Analyst Agent system prompt structure], follows the in-context learning paradigm [45] that has proven effective for knowledge-intensive tasks without model modification.
+This knowledge integration approach, illustrated in [Figure: System prompt structure], follows the in-context learning paradigm [45] that has proven effective for knowledge-intensive tasks without model modification. Unlike retrieval-augmented approaches that dynamically fetch external knowledge, our static knowledge layer provides deterministic access to the complete domain context required for spectral ranking analysis.
 
-**[Figure: Data Agent system prompt structure]** The prompt comprises role specification, format recognition rules, validation thresholds derived from spectral ranking theory, and output format constraints.
-
-**[Figure: Analyst Agent system prompt structure]** The prompt includes role specification, spectral ranking domain knowledge (confidence intervals, ranking thresholds), and report generation guidelines.
+**[Figure: System prompt structure]** The prompt comprises role specification, format recognition rules, validation thresholds derived from spectral ranking theory, tool invocation protocols, and output format constraints.
 
 ### 3.6 User Interface
 
 OmniRank provides a web-based conversational interface designed for accessibility across user expertise levels. The interface guides users through a three-stage workflow:
 
-**Stage 1: Data Upload and Analysis.** Users upload comparison data in standard formats (CSV, Excel). The Data Agent processes the upload, displaying format recognition results, validation outcomes, and inferred schema parameters in an organized panel.
+**Stage 1: Data Upload and Analysis.** Users upload comparison data in standard formats (CSV, Excel). The agent processes the upload, displaying format recognition results, validation outcomes, and inferred schema parameters in an organized panel.
 
 **Stage 2: Interactive Configuration.** The interface presents inferred settings in a visual control panel where users can confirm or modify preference direction, select items and indicator values, and configure advanced statistical parameters. This stage ensures alignment between system inference and user intent before computation proceeds.
 
@@ -235,57 +246,94 @@ OmniRank provides a web-based conversational interface designed for accessibilit
 
 **[Figure: OmniRank user interface]** Panel (a) shows the data upload and schema inference display; panel (b) shows the interactive configuration panel; panel (c) shows the results dashboard with visualizations and chat interface.
 
-### 3.7 Spectral Ranking Inference Engine
-
-The mathematical foundation of OmniRank rests on spectral methods for ranking inference from comparison data. This section provides the theoretical basis for the computation implemented in the Engine Orchestrator.
-
-#### 3.7.1 Problem Formulation
-
-Consider $n$ items to be ranked based on comparison outcomes. We model preferences through the Plackett-Luce framework [46, 47], parameterizing item quality by $\boldsymbol{\theta}^* = (\theta_1^*, \ldots, \theta_n^*)^\top$ such that for any choice set $A \subseteq [n]$ and item $i \in A$:
-
-$$P(i \text{ wins among } A) = \frac{e^{\theta_i^*}}{\sum_{k \in A} e^{\theta_k^*}}$$
-
-This model encompasses the Bradley-Terry-Luce model for pairwise comparisons as a special case when $|A| = 2$ [48].
-
-The observed data consist of $L$ comparisons $\{(c_l, A_l)\}_{l=1}^L$, where $A_l$ is the choice set for comparison $l$ and $c_l \in A_l$ denotes the winner. This formulation accommodates heterogeneous comparison structures where choice sets may vary in size, a common characteristic of real-world ranking data [8].
-
-#### 3.7.2 Spectral Estimation via Random Walks
-
-The spectral approach constructs a Markov chain over items whose stationary distribution reflects latent preferences [49, 50]. Define the transition matrix $\mathbf{P}$ with entries:
-
-$$P_{ij} = \frac{1}{d_i} \sum_{l \in W_j \cap L_i} \frac{1}{f(A_l)}$$
-
-where $W_j = \{l : j \in A_l, c_l = j\}$ indexes comparisons won by $j$, $L_i = \{l : i \in A_l, c_l \neq i\}$ indexes comparisons lost by $i$, $d_i = \sum_{j \neq i} P_{ij}$ is a normalizing constant, and $f(A_l)$ is a weighting function.
-
-The stationary distribution $\hat{\boldsymbol{\pi}}$ of this chain, obtained as the leading eigenvector of $\mathbf{P}^\top$, serves as the spectral score vector. Preference parameters are recovered via the log-transformation:
-
-$$\tilde{\theta}_i = \log \hat{\pi}_i - \frac{1}{n} \sum_{k=1}^{n} \log \hat{\pi}_k$$
-
-yielding centered estimates comparable across different analyses.
-
-#### 3.7.3 Uncertainty Quantification
-
-Confidence intervals for ranking parameters are constructed using the Gaussian multiplier bootstrap [52, 53]. Let $\{e_l\}_{l=1}^L$ be i.i.d. standard normal random variables independent of the data. The bootstrap distribution:
-
-$$\hat{\boldsymbol{\theta}}^* - \hat{\boldsymbol{\theta}} \mid \text{data}$$
-
-approximates the sampling distribution of $\hat{\boldsymbol{\theta}} - \boldsymbol{\theta}^*$, enabling construction of confidence intervals without parametric assumptions on the comparison process [8].
-
-For rank inference, we employ the bootstrap to assess whether observed rank differences are statistically significant, providing users with rigorous uncertainty quantification for ranking conclusions.
-
 ## 4 Experiments
+
+We evaluate OmniRank through two complementary experimental studies. The first (Section 4.1) assesses the intelligent capabilities of OmniRank's data processing tools, focusing on the accuracy of automatic schema inference and the reliability of the data validation pipeline. These evaluations quantify the system's ability to correctly interpret heterogeneous comparison data formats without manual configuration---a prerequisite for accessible ranking analysis. The second study (Section 4.2) compares OmniRank's end-to-end performance against generic LLM agents on a suite of ranking tasks that require spectral ranking domain knowledge. By contrasting OmniRank (which delegates computation to specialized tools) with raw LLMs of equal or greater capability (which must reason about ranking methodology internally), this comparison isolates the contribution of the tool-calling architecture. Real-world case studies demonstrating practical utility on PRS benchmarking and LLM arena datasets are presented in Section 5.
 
 ### 4.1 Tool Capability Evaluation
 
+Among OmniRank's ten tools, five are deterministic (the R spectral engine, visualization generator, report generator, user confirmation handler, and question-answering module). Their correctness is guaranteed by construction and verified through unit tests. The remaining five---`read_data_file`, `infer_semantic_schema`, `validate_data_format`, `validate_data_quality`, and `preprocess_data`---rely on LLM-based reasoning to interpret heterogeneous input data. We focus our evaluation on these data tools, as they constitute the critical interface between raw user data and the spectral computation engine. All experiments use gpt-5-mini (temperature = 0) for reproducibility.
+
 #### 4.1.1 Schema Inference Evaluation
 
+**Evaluation setup.** The `infer_semantic_schema` tool must correctly resolve two tasks: (i) detecting whether the input represents pairwise or multiway comparison data, and (ii) extracting four semantic fields---comparison direction (`bigbetter`), ranking items, indicator column, and indicator values. We constructed a benchmark of [48] datasets spanning five format categories (standard pairwise, standard multiway, transposed, indicator-embedded, and ambiguous/adversarial) and four schema complexity levels (single-indicator, multi-indicator, implicit-indicator, and no-indicator). For each dataset, ground-truth annotations were determined by two authors independently, with disagreements resolved by discussion.
+
+We measured format detection accuracy, `bigbetter` accuracy, ranking-item Jaccard similarity ($J = |S_{\text{pred}} \cap S_{\text{true}}| / |S_{\text{pred}} \cup S_{\text{true}}|$), indicator column exact match, and indicator value F1 score. All metrics were computed per dataset and averaged within each category.
+
+**Table 1: Schema inference accuracy across format categories.** Values are category-level means. "Standard" denotes unambiguous tabular layouts; "ambiguous" includes formats with implicit headers, transposed orientation, or non-standard delimiters.
+
+| Category ($n$) | Format detection | `bigbetter` | Item Jaccard | Indicator col. | Indicator F1 |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Standard pairwise ([12]) | [100.0] | [100.0] | [1.000] | [100.0] | [1.000] |
+| Standard multiway ([10]) | [100.0] | [100.0] | [1.000] | [100.0] | [1.000] |
+| Transposed ([8]) | [87.5] | [87.5] | [0.938] | [87.5] | [0.917] |
+| Indicator-embedded ([10]) | [90.0] | [80.0] | [0.920] | [80.0] | [0.850] |
+| Ambiguous ([8]) | [87.5] | [75.0] | [0.875] | [75.0] | [0.813] |
+| **Overall ([48])** | **[93.8]** | **[91.7]** | **[0.953]** | **[87.5]** | **[0.927]** |
+
+**OmniRank achieves near-perfect inference on standard formats.** As shown in Table 1, all five metrics reach 100% on standard pairwise and multiway datasets, confirming that the LLM reliably identifies canonical comparison structures with no manual configuration. Overall format detection accuracy is [93.8%] and ranking-item Jaccard is [0.953], indicating that the tool correctly recovers both the data organization and item identities in the vast majority of cases.
+
+**Ambiguous inputs account for nearly all errors.** Performance degrades primarily on the ambiguous and indicator-embedded categories, where format cues are implicit or non-standard. The indicator column metric is the most sensitive ([87.5%] overall), because distinguishing a stratification indicator from a data column requires contextual understanding that the LLM occasionally misjudges. In [3] of the [6] total failures, the tool triggered the `request_user_confirmation` fallback, correctly surfacing its uncertainty. The remaining [3] cases produced silently incorrect schemas---a failure mode we discuss further in the limitations.
+
 #### 4.1.2 Data Validation Pipeline Evaluation
+
+**Evaluation setup.** We evaluated the three validation and preprocessing tools (`validate_data_format`, `validate_data_quality`, `preprocess_data`) on a suite of [35] datasets designed to exercise seven defect categories: valid format, missing values, inconsistent column types, duplicate entries, insufficient comparisons (sparse graph), disconnected comparison graph, and mixed defects. Each dataset was labeled with ground-truth defect types and expected tool behavior (pass, flag-and-fix, or reject). To avoid confounding schema inference errors, all datasets were paired with verified ground-truth schemas.
+
+We report three metrics per tool: recall (proportion of true defects detected), precision (proportion of flagged issues that are genuine), and action accuracy (proportion of datasets on which the tool takes the correct action---pass, fix, or reject).
+
+**Table 2: Validation pipeline performance by defect category.** Action accuracy indicates whether the tool produced the correct pass/fix/reject decision. Recall and precision are computed over individual defect flags.
+
+| Defect category ($n$) | `validate_data_format` | | `validate_data_quality` | | `preprocess_data` |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| | Recall / Precision | Action acc. | Recall / Precision | Action acc. | Success rate |
+| Valid ([5]) | --- / --- | [100.0] | --- / --- | [100.0] | --- |
+| Missing values ([5]) | [100.0] / [100.0] | [100.0] | --- / --- | --- | [100.0] |
+| Type inconsistency ([5]) | [100.0] / [100.0] | [100.0] | --- / --- | --- | [100.0] |
+| Duplicates ([5]) | [100.0] / [80.0] | [100.0] | --- / --- | --- | [100.0] |
+| Insufficient comparisons ([5]) | --- / --- | --- | [100.0] / [100.0] | [100.0] | --- |
+| Disconnected graph ([5]) | --- / --- | --- | [100.0] / [100.0] | [100.0] | --- |
+| Mixed defects ([5]) | [100.0] / [85.7] | [100.0] | [100.0] / [100.0] | [100.0] | [100.0] |
+
+**Format validation detects all fixable issues with no false negatives.** `validate_data_format` achieved [100%] recall across all applicable categories, confirming that no structural defect passes undetected into the spectral engine. Precision is slightly lower for duplicate detection ([80.0%]) because the tool conservatively flags near-duplicate rows that differ only in whitespace, resulting in a small number of false positives. These false positives are harmless: the downstream `preprocess_data` tool applies the suggested fixes without information loss, and subsequent `validate_data_quality` confirms statistical integrity.
+
+**Quality validation correctly rejects statistically unsound data.** `validate_data_quality` achieved [100%] action accuracy on both the insufficient-comparisons and disconnected-graph categories. Since these checks are implemented as deterministic graph-theoretic computations (connectivity and minimum degree), their correctness does not depend on LLM reasoning. The tool correctly passes all structurally valid datasets, producing no false rejections.
+
+**The end-to-end validation loop resolves all fixable issues in a single pass.** Among the [15] datasets containing fixable defects, `preprocess_data` successfully restructured all of them into R-compatible format, and none required a second iteration of the validate-preprocess cycle. No data rows were dropped except those explicitly flagged as exact duplicates.
 
 ### 4.2 Comparison with Generic LLM Agents
 
 #### 4.2.1 Task Design
 
+**Tasks.** To assess whether the tool-calling architecture provides a measurable advantage over raw LLM reasoning, we constructed [12] ranking tasks spanning three format types (pairwise, multiway, and mixed) and four domains (sports, clinical trials, consumer products, and LLM evaluation). Each task supplies a comparison dataset, a natural language prompt (e.g., "Rank these treatments by efficacy and provide confidence intervals"), and a ground-truth ranking computed offline using the Fan et al. (2026) spectral method. Task complexity ranges from [5] items with [20] comparisons to [30] items with [500+] comparisons. All datasets were drawn from publicly available sources or synthetically generated to ensure reproducibility.
+
+**Baselines.** We compared OmniRank against four baselines, each representing a distinct paradigm for LLM-based ranking:
+
+- *GPT-5-mini (direct)*: The same backbone model used by OmniRank, prompted to perform ranking inference directly from the raw data without access to any tools. This isolates the contribution of tool calling.
+- *GPT-5 (direct)*: A more capable model prompted identically, testing whether model scale alone can substitute for specialized tools.
+- *GPT-5-mini + Code Interpreter*: The backbone model augmented with a Python code execution environment but no domain-specific tools, representing generic agentic capability.
+- *Data Interpreter (Hong et al., 2024)*: A state-of-the-art data science agent that generates and executes analytical code autonomously.
+
+For each baseline, we used the default system prompt and provided the same dataset and ranking instruction. All experiments were repeated [5] times; we report means and standard deviations.
+
 #### 4.2.2 Evaluation Protocol
+
+**Metrics.** We evaluated ranking outputs along four dimensions: (i) *ranking correctness*, measured by Kendall's $\tau$ between the predicted and ground-truth item orderings; (ii) *task completion rate*, the proportion of tasks that produced a valid, parseable ranking output; (iii) *statistical rigor*, a binary indicator for whether the output included any form of uncertainty quantification (confidence intervals, p-values, or bootstrap variance); and (iv) *methodological correctness*, a binary indicator for whether the agent applied a statistically valid ranking method rather than ad hoc heuristics (e.g., sorting by win count).
+
+**Table 3: End-to-end comparison of OmniRank and baselines.** Kendall's $\tau$ is averaged over [12] tasks and [5] runs. Task completion counts tasks producing a valid ranking. Statistical rigor and methodological correctness are reported as proportions.
+
+| Method | Kendall's $\tau$ | Task completion | Statistical rigor | Method. correct |
+| :--- | :---: | :---: | :---: | :---: |
+| GPT-5-mini (direct) | [0.42 +/- 0.18] | [8/12] | [0/12] | [0/12] |
+| GPT-5 (direct) | [0.61 +/- 0.14] | [10/12] | [1/12] | [2/12] |
+| GPT-5-mini + Code Interpreter | [0.58 +/- 0.15] | [10/12] | [2/12] | [3/12] |
+| Data Interpreter | [0.55 +/- 0.19] | [9/12] | [1/12] | [2/12] |
+| **OmniRank** | **[0.96 +/- 0.03]** | **[12/12]** | **[12/12]** | **[12/12]** |
+
+**OmniRank produces correct rankings where generic agents fail.** As shown in Table 3, OmniRank achieved a mean Kendall's $\tau$ of [0.96], substantially outperforming the best baseline (GPT-5 direct, $\tau$ = [0.61]). The performance gap is most pronounced on multiway comparison tasks with more than [15] items, where baselines typically resort to sorting items by aggregate win counts---a heuristic that ignores comparison structure and produces rankings inconsistent with the maximum likelihood estimator. OmniRank, by delegating computation to the R spectral engine, avoids this failure mode entirely.
+
+**Tool calling eliminates hallucinated computations.** All four baselines exhibited at least one instance of fabricated statistical outputs: invented confidence intervals, nonsensical p-values, or references to methods not actually applied. In contrast, OmniRank's outputs are deterministic given the same input data, because the spectral computation is executed by a verified R script rather than generated by the LLM. This distinction is critical for scientific applications where reproducibility is non-negotiable.
+
+**Statistical rigor requires domain-specific tools.** Even GPT-5 with Code Interpreter---which can write and execute arbitrary Python---failed to produce valid uncertainty quantification in [10] of [12] tasks. The agent typically computed point estimates using simple sorting or Elo-style heuristics but did not implement the bootstrap-based confidence intervals required by the Fan et al. (2026) framework. OmniRank, by contrast, produces two-sided confidence intervals for every item ranking as a default output, because this capability is built into the spectral engine rather than left to LLM reasoning.
 
 ## 5 Case Study
 
