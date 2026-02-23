@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -118,8 +119,15 @@ def _indicator_label(indicator_col: str) -> tuple[str, str]:
     return tc, plural
 
 
-def _ci_forest_r(results: RankingResults, artifact_dir: Path) -> PlotSpec:
-    """Generate Ranking Confidence Interval Plot using R script."""
+def _phenotype_plot_py_script(project_root: Path) -> Path:
+    script = project_root / "src" / "spectral_ranking" / "plot_phenotype_rankings.py"
+    if not script.exists():
+        raise FileNotFoundError(f"Python plot script not found: {script}")
+    return script
+
+
+def _ci_forest_py(results: RankingResults, artifact_dir: Path) -> PlotSpec:
+    """Generate Ranking Confidence Interval Plot using Python plot script."""
     payload = (
         "|".join(results.items)
         + ":"
@@ -131,9 +139,7 @@ def _ci_forest_r(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     png_path = artifact_dir / f"{block_id}.png"
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
-    r_script = project_root / "src" / "spectral_ranking" / "plot_phenotype_rankings.R"
-    if not r_script.exists():
-        raise FileNotFoundError(f"R plot script not found: {r_script}")
+    py_script = _phenotype_plot_py_script(project_root)
 
     ci_data = {
         "items": results.items,
@@ -148,7 +154,7 @@ def _ci_forest_r(results: RankingResults, artifact_dir: Path) -> PlotSpec:
 
     try:
         result = subprocess.run(  # noqa: S603
-            ["Rscript", str(r_script), "--ci-plot", str(json_path), "--ci-out", str(png_path)],
+            [sys.executable, str(py_script), "--ci-plot", str(json_path), "--ci-out", str(png_path)],
             cwd=str(project_root),
             capture_output=True,
             text=True,
@@ -156,10 +162,10 @@ def _ci_forest_r(results: RankingResults, artifact_dir: Path) -> PlotSpec:
         )
         if result.returncode != 0:
             raise RuntimeError(
-                f"R CI plot script failed: {result.stderr or result.stdout or 'unknown error'}"
+                f"Python CI plot script failed: {result.stderr or result.stdout or 'unknown error'}"
             )
         if not png_path.exists():
-            raise RuntimeError(f"R CI plot script did not produce output: {png_path}")
+            raise RuntimeError(f"Python CI plot script did not produce output: {png_path}")
     finally:
         json_path.unlink(missing_ok=True)
 
@@ -172,7 +178,7 @@ def _ci_forest_r(results: RankingResults, artifact_dir: Path) -> PlotSpec:
             "ci_lower": results.ci_lower,
             "ci_upper": results.ci_upper,
         },
-        config={"x_label": "rank", "point": "rank", "interval": "rank_ci", "source": "r"},
+        config={"x_label": "rank", "point": "rank", "interval": "rank_ci", "source": "python"},
         svg_path=str(png_path),
         block_id=block_id,
         caption_plain="Ranking Confidence Interval Plot",
@@ -181,26 +187,37 @@ def _ci_forest_r(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     )
 
 
-def _normalized_ranking_over_indicator_r(
+def _normalized_ranking_over_indicator_py(
     csv_path: str,
     artifact_dir: Path,
     indicator_col: str = "phenotype",
+    bigbetter: int = 0,
 ) -> PlotSpec:
-    """Generate Normalized Ranking Over Individual [Indicators] using R script."""
+    """Generate Normalized Ranking Over Individual [Indicators] using Python plot script."""
     source = Path(csv_path).resolve()
     if not source.exists():
         raise FileNotFoundError(f"Data file not found: {source}")
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
-    r_script = project_root / "src" / "spectral_ranking" / "plot_phenotype_rankings.R"
-    if not r_script.exists():
-        raise FileNotFoundError(f"R plot script not found: {r_script}")
+    py_script = _phenotype_plot_py_script(project_root)
 
-    block_id = _stable_block_id("figure-normalized-ranking-over-indicator", str(source))
+    block_id = _stable_block_id(
+        "figure-normalized-ranking-over-indicator",
+        f"{source}|bigbetter={int(bigbetter)}",
+    )
     png_path = artifact_dir / f"{block_id}.png"
 
     result = subprocess.run(  # noqa: S603
-        ["Rscript", str(r_script), "--csv", str(source), "--out", str(png_path)],
+        [
+            sys.executable,
+            str(py_script),
+            "--csv",
+            str(source),
+            "--out",
+            str(png_path),
+            "--bigbetter",
+            str(int(bigbetter)),
+        ],
         cwd=str(project_root),
         capture_output=True,
         text=True,
@@ -208,17 +225,22 @@ def _normalized_ranking_over_indicator_r(
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"R plot script failed: {result.stderr or result.stdout or 'unknown error'}"
+            f"Python plot script failed: {result.stderr or result.stdout or 'unknown error'}"
         )
     if not png_path.exists():
-        raise RuntimeError(f"R plot script did not produce output: {png_path}")
+        raise RuntimeError(f"Python plot script did not produce output: {png_path}")
 
     _, plural = _indicator_label(indicator_col)
     caption = f"Normalized Ranking Over Individual {plural}"
     return PlotSpec(
         type="normalized_ranking_over_indicator",
         data={"indicator_col": indicator_col},
-        config={"x_label": "method", "y_label": "normalized_rank", "source": "r"},
+        config={
+            "x_label": "method",
+            "y_label": "normalized_rank",
+            "source": "python",
+            "bigbetter": int(bigbetter),
+        },
         svg_path=str(png_path),
         block_id=block_id,
         caption_plain=caption,
@@ -231,7 +253,7 @@ def _normalized_ranking_over_indicator_r(
 
 
 def _write_deep_matrix_csv(deep: _DeepRankingData, out_path: Path) -> None:
-    """Write phenotype x method rank matrix to CSV for plot_phenotype_rankings.R."""
+    """Write phenotype x method rank matrix to CSV for plot_phenotype_rankings.py."""
     rows = []
     for indicator in deep.indicator_order:
         row = {deep.indicator_col: indicator}
@@ -242,26 +264,37 @@ def _write_deep_matrix_csv(deep: _DeepRankingData, out_path: Path) -> None:
     df.to_csv(out_path, index=False)
 
 
-def _indicator_rankings_heatmap_r(
+def _indicator_rankings_heatmap_py(
     csv_path: str,
     artifact_dir: Path,
     indicator_col: str = "phenotype",
+    bigbetter: int = 0,
 ) -> PlotSpec:
-    """Generate [Indicator] Rankings heatmap using R script."""
+    """Generate [Indicator] Rankings heatmap using Python plot script."""
     source = Path(csv_path).resolve()
     if not source.exists():
         raise FileNotFoundError(f"Data file not found: {source}")
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
-    r_script = project_root / "src" / "spectral_ranking" / "plot_phenotype_rankings.R"
-    if not r_script.exists():
-        raise FileNotFoundError(f"R plot script not found: {r_script}")
+    py_script = _phenotype_plot_py_script(project_root)
 
-    block_id = _stable_block_id("figure-indicator-rankings-heatmap", str(source))
+    block_id = _stable_block_id(
+        "figure-indicator-rankings-heatmap",
+        f"{source}|bigbetter={int(bigbetter)}",
+    )
     png_path = artifact_dir / f"{block_id}.png"
 
     result = subprocess.run(  # noqa: S603
-        ["Rscript", str(r_script), "--csv", str(source), "--heatmap-out", str(png_path)],
+        [
+            sys.executable,
+            str(py_script),
+            "--csv",
+            str(source),
+            "--heatmap-out",
+            str(png_path),
+            "--bigbetter",
+            str(int(bigbetter)),
+        ],
         cwd=str(project_root),
         capture_output=True,
         text=True,
@@ -269,17 +302,17 @@ def _indicator_rankings_heatmap_r(
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"R heatmap script failed: {result.stderr or result.stdout or 'unknown error'}"
+            f"Python heatmap script failed: {result.stderr or result.stdout or 'unknown error'}"
         )
     if not png_path.exists():
-        raise RuntimeError(f"R heatmap script did not produce output: {png_path}")
+        raise RuntimeError(f"Python heatmap script did not produce output: {png_path}")
 
     tc, _ = _indicator_label(indicator_col)
     caption = f"{tc} Rankings"
     return PlotSpec(
         type="indicator_rankings_heatmap",
         data={"indicator_col": indicator_col},
-        config={"source": "r"},
+        config={"source": "python", "bigbetter": int(bigbetter)},
         svg_path=str(png_path),
         block_id=block_id,
         caption_plain=caption,
@@ -984,7 +1017,7 @@ def generate_visualizations(
     for viz_type in viz_types:
         try:
             if viz_type == "ci_forest":
-                plots.append(_ci_forest_r(results, output_dir))
+                plots.append(_ci_forest_py(results, output_dir))
                 continue
 
             if viz_type not in {"normalized_ranking_over_indicator", "indicator_rankings_heatmap"}:
@@ -1001,12 +1034,14 @@ def generate_visualizations(
                 errors.append(f"Skipped {viz_type}: csv_path is missing.")
                 continue
 
-            # Multiway phenotype: CSV is phenotype x method with raw scores; R script ranks
+            # Multiway phenotype: CSV is phenotype x method with raw scores; plot script ranks
             # within each row. Pairwise: each row has ~2 values; we must run spectral
             # ranking per indicator and pass the rank matrix.
             is_multiway = _is_multiway_phenotype_format(csv_path, indicator_col)
             if is_multiway:
                 plot_csv = csv_path
+                # Multiway phenotype CSV contains raw method scores/counts; follow Ranking Preview direction.
+                plot_bigbetter = int(bigbetter)
             else:
                 if deep_cache is None:
                     deep_cache = _compute_deep_ranking_data(
@@ -1022,11 +1057,27 @@ def generate_visualizations(
                 matrix_csv = output_dir / "_plot_matrix.csv"
                 _write_deep_matrix_csv(deep_cache, matrix_csv)
                 plot_csv = str(matrix_csv)
+                # Pairwise-deep path writes normalized ranks (1 is best), so lower is always better.
+                plot_bigbetter = 0
 
             if viz_type == "normalized_ranking_over_indicator":
-                plots.append(_normalized_ranking_over_indicator_r(plot_csv, output_dir, indicator_col))
+                plots.append(
+                    _normalized_ranking_over_indicator_py(
+                        plot_csv,
+                        output_dir,
+                        indicator_col,
+                        bigbetter=plot_bigbetter,
+                    )
+                )
             elif viz_type == "indicator_rankings_heatmap":
-                plots.append(_indicator_rankings_heatmap_r(plot_csv, output_dir, indicator_col))
+                plots.append(
+                    _indicator_rankings_heatmap_py(
+                        plot_csv,
+                        output_dir,
+                        indicator_col,
+                        bigbetter=plot_bigbetter,
+                    )
+                )
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{viz_type} failed: {exc}")
 

@@ -137,6 +137,19 @@ def _sanitize_text_field(text: str) -> str:
     return cleaned
 
 
+def _truncate_words(text: str, max_words: int) -> str:
+    cleaned = _sanitize_text_field(text)
+    if max_words <= 0 or not cleaned:
+        return ""
+    words = cleaned.split()
+    if len(words) <= max_words:
+        return cleaned
+    trimmed = " ".join(words[:max_words]).rstrip(",;: ")
+    if trimmed and trimmed[-1] not in ".!?":
+        trimmed += "..."
+    return trimmed
+
+
 def _first_sentence(text: str) -> str:
     cleaned = _sanitize_text_field(text)
     if not cleaned:
@@ -155,6 +168,37 @@ def _first_sentence(text: str) -> str:
             continue
         return cleaned[:end].strip()
     return cleaned
+
+
+def _normalize_answer_english(text: str) -> str:
+    normalized = _sanitize_text_field(text)
+    if not normalized:
+        return ""
+    normalized = re.sub(r"\bCIs\b", "confidence intervals", normalized)
+    normalized = re.sub(r"\bci\b", "CI", normalized)
+    normalized = normalized.replace("executed results", "results")
+    normalized = normalized.replace("decision-ready outputs", "results")
+    normalized = normalized.replace("decision-ready results", "results")
+    normalized = normalized.replace("ranking_items", "ranking items")
+    normalized = re.sub(
+        r"analysis is awaiting (your )?confirmation of the inferred schema",
+        "the system is waiting for schema confirmation",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        r"the inferred schema is awaiting (your )?confirmation",
+        "the system is waiting for schema confirmation",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        r"inferred schema",
+        "schema",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    return _sanitize_text_field(normalized)
 
 
 def _dedupe_nonempty(items: list[str], max_items: int) -> list[str]:
@@ -286,14 +330,14 @@ def _build_quote_context(
             if quote.block_id not in used_ids:
                 used_ids.append(quote.block_id)
             text = citation_blocks[quote.block_id].strip()
-            snippets.append(text[:140] + ("..." if len(text) > 140 else ""))
+            snippets.append(text[:72] + ("..." if len(text) > 72 else ""))
         else:
             text = quote.quoted_text.strip()
-            snippets.append(text[:140] + ("..." if len(text) > 140 else ""))
+            snippets.append(text[:72] + ("..." if len(text) > 72 else ""))
 
     if not snippets:
         return None, used_ids
-    context = " | ".join(snippets)
+    context = " | ".join(snippets[:2])
     return context, used_ids
 
 
@@ -330,37 +374,37 @@ def _stage_guidance(status: str) -> tuple[str, str]:
     normalized = (status or "").strip().lower()
     if normalized == "idle":
         return (
-            "No dataset is loaded yet, so item-level ranking and confidence-interval answers are not available.",
-            "Upload a CSV/TSV first, then I can validate format and guide schema setup before ranking.",
+            "No dataset is loaded yet, so ranking results and confidence intervals are not available.",
+            "Upload a CSV/TSV file first, then confirm the schema and run the analysis.",
         )
     if normalized == "uploaded":
         return (
-            "Data is uploaded, but schema confirmation is not finished, so ranking outputs are not available yet.",
-            "Review and confirm ranking items/direction, then start analysis.",
+            "Data is uploaded, but schema confirmation is not finished, so results are not available yet.",
+            "Review and confirm the ranking items and direction, then start the analysis.",
         )
     if normalized == "awaiting_confirmation":
         return (
-            "Schema confirmation is pending, so ranking outputs are not available yet.",
-            "Confirm or revise the inferred schema, then run analysis.",
+            "Schema confirmation is still pending, so results are not available yet.",
+            "Confirm or revise the schema, then run the analysis.",
         )
     if normalized == "confirmed":
         return (
-            "Configuration is confirmed, but analysis has not run yet, so ranking outputs are not available.",
-            "Start analysis to generate ranks, theta_hat, and integer confidence intervals.",
+            "Configuration is confirmed, but the analysis has not run yet, so results are not available.",
+            "Start the analysis to generate ranks and confidence intervals.",
         )
     if normalized == "running":
         return (
-            "Analysis is still running, so item-level ranking outputs are not available yet.",
-            "Wait for completion, then ask for top-vs-runner-up robustness with CI overlap.",
+            "The analysis is still running, so results are not available yet.",
+            "Wait for completion, then ask about the top item and CI overlap with the runner-up.",
         )
     if normalized == "error":
         return (
-            "Session is currently blocked by an error, so ranking-specific conclusions are not available.",
-            "Fix the blocking issue first, then rerun analysis for decision-ready outputs.",
+            "This session is blocked by an error, so ranking conclusions are not available.",
+            "Fix the error first, then rerun the analysis.",
         )
     return (
-        "Ranking results are not available yet for item-level inference.",
-        "Complete the run first, then ask for item-level comparison with CI evidence.",
+        "Ranking results are not available yet.",
+        "Complete the run first, then ask for a comparison with confidence intervals.",
     )
 
 
@@ -708,7 +752,7 @@ def answer_question(
             "one_sentence": wants_one_sentence,
             "max_sections": 2 if wants_one_sentence else (3 if wants_concise else 3),
             "max_bullets_per_section": 2,
-            "target_length_words": 35 if wants_one_sentence else (65 if wants_concise else 90),
+            "target_length_words": 28 if wants_one_sentence else (45 if wants_concise else 60),
         },
         "results": (
             {
@@ -733,19 +777,18 @@ def answer_question(
         conclusion = _sanitize_text_field(str(llm_output.get("conclusion") or llm_output.get("answer") or ""))
         if not conclusion:
             raise LLMCallError("Answer payload is empty.")
+        conclusion = _normalize_answer_english(_first_sentence(conclusion))
 
         evidence_raw = llm_output.get("evidence")
         if not isinstance(evidence_raw, list):
             evidence_raw = llm_output.get("supporting_evidence")
         supporting_evidence = [str(entry).strip() for entry in evidence_raw] if isinstance(evidence_raw, list) else []
-        supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=2)
+        supporting_evidence = [_normalize_answer_english(_first_sentence(entry)) for entry in supporting_evidence]
+        supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=1)
         if not supporting_evidence:
-            if results is None:
-                supporting_evidence = _session_evidence(session_context) or [
-                    "No ranking results yet; this answer is based on current stage and available context."
-                ]
-            else:
-                supporting_evidence = ["Derived from ranking outputs (rank, theta_hat, and confidence intervals)."]
+            if results is None and not wants_one_sentence:
+                stage_evidence = _session_evidence(session_context)
+                supporting_evidence = stage_evidence[:1] if stage_evidence else []
 
         conclusion, supporting_evidence = _enforce_capability_consistency(
             question=question,
@@ -756,9 +799,14 @@ def answer_question(
 
         note_value = llm_output.get("note")
         note = _sanitize_text_field(str(note_value)) if isinstance(note_value, str) and note_value.strip() else None
-        if results is None and not note:
+        note = _normalize_answer_english(_first_sentence(note)) if note else None
+        stage_next_action: str | None = None
+        if results is None:
             _, stage_next_action = _stage_guidance(str((session_context or {}).get("status") or "idle"))
+            # Prefer deterministic plain-language next step over verbose LLM phrasing.
             note = stage_next_action
+        elif wants_concise:
+            note = None
 
         # Keep citation trace strict: only quote-provided ids are returned.
         used_ids = [quote_id for quote_id in quoted_ids if quote_id in known_ids]
@@ -772,6 +820,34 @@ def answer_question(
                 references = [_reference_markdown(ref_candidates[0])]
 
         if wants_one_sentence:
+            conclusion = _truncate_words(conclusion, 34)
+        else:
+            conclusion_limit = 26 if results is None else 30
+            if needs_reference and not wants_concise:
+                conclusion_limit = 36
+            conclusion = _truncate_words(conclusion, conclusion_limit)
+            if results is None and conclusion.endswith("..."):
+                stage_msg, _ = _stage_guidance(str((session_context or {}).get("status") or "idle"))
+                conclusion = _normalize_answer_english(_first_sentence(stage_msg))
+            supporting_evidence = [_truncate_words(entry, 22) for entry in supporting_evidence]
+            supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=1)
+            if note:
+                note = _truncate_words(note, 14 if (wants_concise or results is not None) else 18)
+                note_fingerprint = _sanitize_text_field(note).lower()
+                if note_fingerprint and any(
+                    note_fingerprint == _sanitize_text_field(x).lower()
+                    for x in [conclusion, *supporting_evidence]
+                ):
+                    note = None
+            if wants_concise and any(entry.endswith("...") for entry in supporting_evidence):
+                supporting_evidence = []
+            if note and note.endswith("..."):
+                if results is None and stage_next_action:
+                    note = _sanitize_text_field(stage_next_action)
+                else:
+                    note = None
+
+        if wants_one_sentence:
             conclusion = _first_sentence(conclusion)
             supporting_evidence = []
             references = []
@@ -780,8 +856,8 @@ def answer_question(
             max_evidence = 0
             max_references = 0
         else:
-            quote_context_local = quote_context
-            max_evidence = 1 if wants_concise else 2
+            quote_context_local = None if wants_concise else quote_context
+            max_evidence = 1
             max_references = 1 if (wants_concise and references) else 2
 
         answer_text = _format_structured_answer(
