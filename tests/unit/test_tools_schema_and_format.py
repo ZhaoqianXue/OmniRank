@@ -532,6 +532,26 @@ def test_infer_semantic_schema_selects_single_indicator_column(tmp_path: Path):
         assert len(result.schema.indicator_values) >= 2
 
 
+def test_infer_semantic_schema_accepts_high_cardinality_phenotype_indicator(tmp_path: Path, monkeypatch):
+    rows = ["Phenotype,model_a,model_b,model_c"]
+    for i in range(60):
+        phenotype = f"Trait_{i:03d}"
+        rows.append(f"{phenotype},0.90,0.80,0.70")
+        rows.append(f"{phenotype},0.88,0.79,0.69")
+
+    file_path = _write(tmp_path / "phenotype_high_cardinality.csv", "\n".join(rows) + "\n")
+    summary = read_data_file(file_path).data
+    assert summary is not None
+
+    monkeypatch.setattr("tools.infer_semantic_schema.get_llm_client", lambda: _UnavailableLLMClient())
+    result = infer_semantic_schema(summary, file_path)
+
+    assert result.success is True
+    assert result.schema is not None
+    assert result.schema.indicator_col == "Phenotype"
+    assert len(result.schema.indicator_values) == 60
+
+
 def test_validate_data_format_pass(tmp_path: Path):
     file_path = _write(
         tmp_path / "ready.csv",

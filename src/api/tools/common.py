@@ -335,12 +335,15 @@ def is_reasonable_indicator_column(
     if non_null_count == 0:
         return False
 
+    has_indicator_keyword = any(keyword in lower for keyword in INDICATOR_KEYWORDS)
+
     unique_count = int(non_null.nunique())
-    if unique_count < 2 or unique_count > 50:
+    if unique_count < 2:
+        return False
+    if unique_count > 50 and not has_indicator_keyword:
         return False
 
     unique_ratio = unique_count / non_null_count
-    has_indicator_keyword = any(keyword in lower for keyword in INDICATOR_KEYWORDS)
     # Allow high unique_ratio when column is clearly a row indicator (e.g. phenotype in traits x methods matrix)
     if unique_ratio > 0.8 and not has_indicator_keyword:
         return False
