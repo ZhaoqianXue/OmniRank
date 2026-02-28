@@ -2,7 +2,6 @@
 
 import { isValidElement, useCallback, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import html2canvas from "html2canvas";
 import { Download, MessageSquareQuote, Moon, Sun, X } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
@@ -17,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ForestPlot, NormalizedRankingPlot, PhenotypeRankingsPlot } from "@/components/visualizations";
 import { cn } from "@/lib/utils";
 import {
   artifactUrl,
@@ -26,7 +24,6 @@ import {
   type HintSpec,
   type PlotSpec,
   type QuotePayload,
-  type RankingItem,
   type RankingResults,
   type ReportOutput,
   type SemanticSchema,
@@ -76,15 +73,6 @@ async function downloadImageFromUrl(url: string, filename: string): Promise<void
   URL.revokeObjectURL(blobUrl);
 }
 
-async function downloadElementAsPng(el: HTMLElement, filename: string): Promise<void> {
-  const canvas = await html2canvas(el, { useCORS: true, scale: 2, backgroundColor: null });
-  const dataUrl = canvas.toDataURL("image/png");
-  const a = document.createElement("a");
-  a.href = dataUrl;
-  a.download = filename;
-  a.click();
-}
-
 function slugFromCaption(caption: string): string {
   return caption
     .replace(/[^a-zA-Z0-9\s-]/g, "")
@@ -129,81 +117,13 @@ function LightboxDownloadButton({
   );
 }
 
-function LightboxPlotDownload({
-  plot,
-  theme,
-  isLightTheme,
-}: {
-  plot: PlotSpec;
-  theme: ReportTheme;
-  isLightTheme: boolean;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const filename = `${slugFromCaption(plot.caption_plain || "plot")}.png`;
-  const handleClick = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (!containerRef.current) return;
-      try {
-        await downloadElementAsPng(containerRef.current, filename);
-      } catch {
-        // Silently ignore
-      }
-    },
-    [filename]
-  );
-  return (
-    <div ref={containerRef} className="relative flex min-w-0 justify-center">
-      <div className="min-w-[min(90vw,1200px)]">
-        <NormalizedRankingPlot plot={plot} className="w-full" theme={theme} />
-      </div>
-      <button
-        type="button"
-        onClick={handleClick}
-        className={cn(
-          "absolute top-2 right-2 z-20 rounded-md p-2 border shadow-md opacity-90 hover:opacity-100 transition-opacity",
-          isLightTheme ? "bg-white border-slate-200 text-slate-700" : "bg-card border-border text-foreground"
-        )}
-        title="Download"
-        aria-label="Download"
-      >
-        <Download className="h-5 w-5" />
-      </button>
-    </div>
-  );
-}
-
-function PlotWithCaptureDownload({
-  children,
-  filename,
-  isLightTheme,
-}: {
-  children: ReactNode;
-  filename: string;
-  isLightTheme: boolean;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  return (
-    <div ref={containerRef} className="relative group my-2 overflow-hidden rounded-xl p-0">
-      {children}
-      <PlotDownloadButton
-        containerRef={containerRef}
-        filename={filename}
-        isLightTheme={isLightTheme}
-      />
-    </div>
-  );
-}
-
 function PlotDownloadButton({
   imageUrl,
-  containerRef,
   filename,
   isLightTheme,
   className,
 }: {
   imageUrl?: string | null;
-  containerRef?: React.RefObject<HTMLDivElement | null>;
   filename: string;
   isLightTheme: boolean;
   className?: string;
@@ -215,14 +135,12 @@ function PlotDownloadButton({
       try {
         if (imageUrl) {
           await downloadImageFromUrl(imageUrl, filename);
-        } else if (containerRef?.current) {
-          await downloadElementAsPng(containerRef.current, filename);
         }
       } catch {
         // Silently ignore download errors
       }
     },
-    [imageUrl, containerRef, filename]
+    [imageUrl, filename]
   );
   return (
     <button
@@ -297,66 +215,10 @@ const LIGHT_SECTION_STYLES: Record<string, string> = {
 /* Custom Markdown components                                                  */
 /* -------------------------------------------------------------------------- */
 
-function parseStringArray(value: unknown): string[] | null {
-  if (!Array.isArray(value)) return null;
-  const out: string[] = [];
-  for (const entry of value) {
-    if (typeof entry !== "string") return null;
-    out.push(entry);
-  }
-  return out;
-}
-
-function parseNumberArray(value: unknown): number[] | null {
-  if (!Array.isArray(value)) return null;
-  const out: number[] = [];
-  for (const entry of value) {
-    const numberValue = typeof entry === "number" ? entry : Number(entry);
-    if (!Number.isFinite(numberValue)) return null;
-    out.push(numberValue);
-  }
-  return out;
-}
-
-function rankingItemsFromPlot(plot: PlotSpec): RankingItem[] | null {
-  const names = parseStringArray(plot.data["names"]);
-  if (!names || names.length === 0) return null;
-
-  const thetaHat = parseNumberArray(plot.data["theta_hat"]) ?? parseNumberArray(plot.data["scores"]);
-  const rankPoint = parseNumberArray(plot.data["rank_point"]) ?? parseNumberArray(plot.data["ranks"]);
-  const ciLower = parseNumberArray(plot.data["ci_lower"]) ?? parseNumberArray(plot.data["rank_ci_lower"]);
-  const ciUpper = parseNumberArray(plot.data["ci_upper"]) ?? parseNumberArray(plot.data["rank_ci_upper"]);
-
-  if (!thetaHat || !rankPoint || !ciLower || !ciUpper) return null;
-  if (
-    thetaHat.length !== names.length ||
-    rankPoint.length !== names.length ||
-    ciLower.length !== names.length ||
-    ciUpper.length !== names.length
-  ) {
-    return null;
-  }
-
-  return names.map((name, index) => {
-    const lower = Math.round(ciLower[index]);
-    const upper = Math.round(ciUpper[index]);
-    const rank = Math.round(rankPoint[index]);
-    return {
-      name,
-      theta_hat: thetaHat[index],
-      rank,
-      ci_lower: lower,
-      ci_upper: upper,
-      ci_two_sided: [lower, upper],
-    };
-  });
-}
-
 function buildMarkdownComponents(
   artifactPathToUrl: Map<string, string>,
   figureUrls: Map<string, string>,
   plotsBySource: Map<string, PlotSpec>,
-  rankingItems: RankingItem[],
   theme: ReportTheme,
   reportMetaBadges?: ReactNode,
   onEnlargeableFigureClick?: (imageSrc?: string, plot?: PlotSpec) => void,
@@ -582,130 +444,84 @@ function buildMarkdownComponents(
         plotsBySource.get(normalizedFilename);
 
       if (matchedPlot) {
-        const interactiveItems =
-          rankingItems.length > 0 ? rankingItems : rankingItemsFromPlot(matchedPlot) || [];
-
         if (matchedPlot.type === "ci_forest") {
-          const isRGenerated =
-            matchedPlot.config?.source === "r" || matchedPlot.svg_path?.toLowerCase().endsWith(".png");
           const dlFilename = `${slugFromCaption(matchedPlot.caption_plain || "ci_forest")}.png`;
-          if (isRGenerated) {
-            return (
-              <div className="relative group my-2">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
-                  onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
-                  className="w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  title="Click to enlarge"
-                >
-                  <img
-                    src={normalizedSrc}
-                    alt={matchedPlot.caption_plain || "Ranking Confidence Interval Plot"}
-                    className="w-full"
-                  />
-                </div>
-                <PlotDownloadButton
-                  imageUrl={normalizedSrc}
-                  filename={dlFilename}
-                  isLightTheme={isLightTheme}
-                />
-              </div>
-            );
-          }
-          if (interactiveItems.length > 0) {
-            return (
-              <PlotWithCaptureDownload
-                filename={dlFilename}
-                isLightTheme={isLightTheme}
-              >
-                <ForestPlot items={interactiveItems} className="w-full" theme={theme} />
-              </PlotWithCaptureDownload>
-            );
-          }
-        }
-
-        if (matchedPlot.type === "normalized_ranking_over_indicator") {
-          const isRGenerated =
-            matchedPlot.config?.source === "r" || matchedPlot.svg_path?.toLowerCase().endsWith(".png");
-          const dlFilename = `${slugFromCaption(matchedPlot.caption_plain || "normalized_ranking")}.png`;
-          if (isRGenerated) {
-            return (
-              <div className="relative group my-2">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
-                  onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
-                  className="w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  title="Click to enlarge"
-                >
-                  <img
-                    src={normalizedSrc}
-                    alt={matchedPlot.caption_plain || "Normalized Ranking Over Individual Phenotypes"}
-                    className="w-full"
-                  />
-                </div>
-                <PlotDownloadButton
-                  imageUrl={normalizedSrc}
-                  filename={dlFilename}
-                  isLightTheme={isLightTheme}
-                />
-              </div>
-            );
-          }
           return (
-            <PlotWithCaptureDownload filename={dlFilename} isLightTheme={isLightTheme}>
+            <div className="relative group my-2">
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => onEnlargeableFigureClick?.(undefined, matchedPlot)}
-                onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(undefined, matchedPlot)}
-                className="overflow-hidden rounded-xl p-0 cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary/50"
+                onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                className="w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
                 title="Click to enlarge"
               >
-                <NormalizedRankingPlot plot={matchedPlot} className="w-full" theme={theme} />
+                <img
+                  src={normalizedSrc}
+                  alt={matchedPlot.caption_plain || "Ranking Confidence Interval Plot"}
+                  className="w-full"
+                />
               </div>
-            </PlotWithCaptureDownload>
+              <PlotDownloadButton
+                imageUrl={normalizedSrc}
+                filename={dlFilename}
+                isLightTheme={isLightTheme}
+              />
+            </div>
+          );
+        }
+
+        if (matchedPlot.type === "normalized_ranking_over_indicator") {
+          const dlFilename = `${slugFromCaption(matchedPlot.caption_plain || "normalized_ranking")}.png`;
+          return (
+            <div className="relative group my-2">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                className="w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
+                title="Click to enlarge"
+              >
+                <img
+                  src={normalizedSrc}
+                  alt={matchedPlot.caption_plain || "Normalized Ranking Over Individual Phenotypes"}
+                  className="w-full"
+                />
+              </div>
+              <PlotDownloadButton
+                imageUrl={normalizedSrc}
+                filename={dlFilename}
+                isLightTheme={isLightTheme}
+              />
+            </div>
           );
         }
 
         if (matchedPlot.type === "indicator_rankings_heatmap") {
-          const isRGenerated =
-            matchedPlot.config?.source === "r" || matchedPlot.svg_path?.toLowerCase().endsWith(".png");
           const dlFilename = `${slugFromCaption(matchedPlot.caption_plain || "heatmap")}.png`;
-          if (isRGenerated) {
-            return (
-              <div className="relative group my-2">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
-                  onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
-                  className="w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  title="Click to enlarge"
-                >
-                  <img
-                    src={normalizedSrc}
-                    alt={matchedPlot.caption_plain || "Phenotype Rankings"}
-                    className="w-full"
-                  />
-                </div>
-                <PlotDownloadButton
-                  imageUrl={normalizedSrc}
-                  filename={dlFilename}
-                  isLightTheme={isLightTheme}
+          return (
+            <div className="relative group my-2">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                className="w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
+                title="Click to enlarge"
+              >
+                <img
+                  src={normalizedSrc}
+                  alt={matchedPlot.caption_plain || "Phenotype Rankings"}
+                  className="w-full"
                 />
               </div>
-            );
-          }
-          return (
-            <PlotWithCaptureDownload filename={dlFilename} isLightTheme={isLightTheme}>
-              <div className="overflow-hidden rounded-xl p-0">
-                <PhenotypeRankingsPlot plot={matchedPlot} className="w-full" theme={theme} />
-              </div>
-            </PlotWithCaptureDownload>
+              <PlotDownloadButton
+                imageUrl={normalizedSrc}
+                filename={dlFilename}
+                isLightTheme={isLightTheme}
+              />
+            </div>
           );
         }
       }
@@ -789,13 +605,11 @@ export function ReportOverlay({
   const [quoteDraft, setQuoteDraft] = useState<QuoteDraft | null>(null);
   const [reportTheme, setReportTheme] = useState<ReportTheme>("dark");
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [lightboxPlot, setLightboxPlot] = useState<PlotSpec | null>(null);
   const [lightboxTitle, setLightboxTitle] = useState<string>("Enlarged view");
   const isLightTheme = reportTheme === "light";
 
   const handleEnlargeableFigureClick = useCallback((imageSrc?: string, plot?: PlotSpec) => {
     setLightboxImage(imageSrc ?? null);
-    setLightboxPlot(plot ?? null);
     setLightboxTitle(plot?.caption_plain ? `${plot.caption_plain} (enlarged view)` : "Enlarged view");
   }, []);
 
@@ -905,12 +719,11 @@ export function ReportOverlay({
         artifactPathToUrl,
         figureUrls,
         plotsBySource,
-        results?.items || [],
         reportTheme,
         reportMetaBadges,
         handleEnlargeableFigureClick,
       ),
-    [artifactPathToUrl, figureUrls, handleEnlargeableFigureClick, plotsBySource, reportMetaBadges, reportTheme, results?.items],
+    [artifactPathToUrl, figureUrls, handleEnlargeableFigureClick, plotsBySource, reportMetaBadges, reportTheme],
   );
   const renderedMarkdown = useMemo(
     () => (
@@ -1071,13 +884,12 @@ export function ReportOverlay({
             </div>
           )}
 
-          {/* ── Normalized Ranking lightbox ───────────────────────────── */}
+          {/* ── Figure lightbox ───────────────────────────────────────── */}
           <Dialog
-            open={!!(lightboxImage || lightboxPlot)}
+            open={!!lightboxImage}
             onOpenChange={(open) => {
               if (!open) {
                 setLightboxImage(null);
-                setLightboxPlot(null);
               }
             }}
           >
@@ -1101,9 +913,6 @@ export function ReportOverlay({
                     isLightTheme={isLightTheme}
                   />
                 </div>
-              )}
-              {lightboxPlot && !lightboxImage && (
-                <LightboxPlotDownload plot={lightboxPlot} theme={reportTheme} isLightTheme={isLightTheme} />
               )}
             </DialogContent>
           </Dialog>

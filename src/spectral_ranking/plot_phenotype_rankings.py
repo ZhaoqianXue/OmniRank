@@ -488,7 +488,7 @@ def _plot_violin(table: pd.DataFrame, method_cols: list[str], out_path: str) -> 
                 zorder=6,
             )
             ann = ax.annotate(
-                rf"$\hat{{\mu}}_{{\mathrm{{mean}}}} = {mean_rank:.2f}$",
+                rf"$\hat{{R}}_{{\mathrm{{mean}}}} = {mean_rank:.2f}$",
                 xy=(idx, mean_rank),
                 xytext=(idx + 0.35, mean_rank),
                 textcoords="data",
