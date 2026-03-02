@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from typing import Any
 
@@ -200,6 +201,52 @@ def _render_ranking_table(results: RankingResults) -> str:
             f"| {results.ranks[idx]} | {item} | {_ci_pair(ci_lo, ci_hi)} | {score:.4f} |"
         )
     return "\n".join(lines)
+
+
+def _render_indicator_ranking_table(plot: PlotSpec) -> str | None:
+    data = plot.data or {}
+    item_order_raw = data.get("item_order")
+    phenotype_order_raw = data.get("phenotype_order")
+    rank_rows_raw = data.get("rank_rows")
+    if not isinstance(item_order_raw, list) or not isinstance(phenotype_order_raw, list) or not isinstance(rank_rows_raw, list):
+        return None
+    if not item_order_raw or not phenotype_order_raw or not rank_rows_raw:
+        return None
+
+    item_order = [str(item) for item in item_order_raw]
+    phenotype_order = [str(value) for value in phenotype_order_raw]
+    rank_rows: list[list[Any]] = [row if isinstance(row, list) else [] for row in rank_rows_raw]
+    if len(rank_rows) != len(phenotype_order):
+        return None
+
+    indicator = str((data or {}).get("indicator_col") or "indicator")
+    indicator_title = indicator[0].upper() + indicator[1:].lower() if indicator else "Indicator"
+
+    def _rank_cell(value: Any) -> str:
+        if value is None:
+            return "NA"
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                return "NA"
+            rounded = int(round(float(value)))
+            if abs(float(value) - rounded) < 1e-9:
+                return str(rounded)
+        return _escape_table_cell(value)
+
+    header = [indicator_title, *item_order]
+    lines = [
+        "| " + " | ".join(_escape_table_cell(cell) for cell in header) + " |",
+        "|" + "---|" * len(header),
+    ]
+    for phenotype_value, row in zip(phenotype_order, rank_rows, strict=False):
+        padded = list(row[: len(item_order)])
+        if len(padded) < len(item_order):
+            padded.extend([None] * (len(item_order) - len(padded)))
+        cells = [_escape_table_cell(phenotype_value), *[_rank_cell(value) for value in padded]]
+        lines.append("| " + " | ".join(cells) + " |")
+
+    table_title = f"{indicator_title} Ranking Table"
+    return f"### {table_title}\n\n" + "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -496,6 +543,10 @@ def generate_report(
         cap_acad = plot.caption_academic or plot.type
         if plot.type == "ci_forest":
             figure_title = "Ranking Confidence Interval Plot"
+        elif plot.type == "indicator_rankings_combined":
+            ind = (plot.data or {}).get("indicator_col") or "phenotype"
+            tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
+            figure_title = f"{tc} Ranking Overview"
         elif plot.type == "normalized_ranking_over_indicator":
             ind = (plot.data or {}).get("indicator_col") or "phenotype"
             tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
@@ -513,6 +564,10 @@ def generate_report(
             f"![{figure_title}]({plot.svg_path})\n\n"
             f"*{cap_acad}*"
         )
+        if plot.type == "indicator_rankings_combined":
+            indicator_table_md = _render_indicator_ranking_table(plot)
+            if indicator_table_md:
+                fig_body += f"\n\n{indicator_table_md}"
         fig_md = _section(fig_bid, "figure", fig_body)
         figure_mds.append(fig_md)
 

@@ -185,8 +185,7 @@ def test_full_pipeline_deep_ranking_adds_indicator_plots(monkeypatch):
     run_body = run.json()
     plot_types = [plot["type"] for plot in run_body["visualizations"]["plots"]]
     assert "ci_forest" in plot_types
-    assert "normalized_ranking_over_indicator" in plot_types
-    assert "indicator_rankings_heatmap" in plot_types
+    assert "indicator_rankings_combined" in plot_types
 
 
 @pytest.mark.parametrize(

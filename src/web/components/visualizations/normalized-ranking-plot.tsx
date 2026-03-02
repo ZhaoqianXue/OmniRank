@@ -450,7 +450,7 @@ export function NormalizedRankingPlot({ plot, className, theme = "dark" }: Norma
           })}
 
           <text x={(plotLeft + plotRight) / 2} y={height - 20} textAnchor="middle" fontSize={16} fill={axisColor} fontWeight={600}>
-            Methods
+            Items
           </text>
           <text
             x={20}

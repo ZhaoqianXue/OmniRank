@@ -126,6 +126,37 @@ def _phenotype_plot_py_script(project_root: Path) -> Path:
     return script
 
 
+def _item_rank_matrix_from_csv(
+    csv_path: str,
+    indicator_col: str,
+    bigbetter: int,
+) -> tuple[list[str], list[str], list[list[float | None]]]:
+    """Build indicator x item rank matrix using the same row-wise ranking logic as plot script."""
+    df = pd.read_csv(csv_path)
+    if df.empty:
+        return [], [], []
+
+    indicator_key = indicator_col if indicator_col in df.columns else str(df.columns[0])
+    item_order = [col for col in df.columns if col != indicator_key]
+    if not item_order:
+        return [], [], []
+
+    numeric = df[item_order].apply(pd.to_numeric, errors="coerce")
+    ascending = int(bigbetter) != 1
+    ranked = numeric.rank(
+        axis=1,
+        method="average",
+        na_option="keep",
+        ascending=ascending,
+    )
+    phenotype_order = df[indicator_key].astype(str).tolist()
+    rank_rows: list[list[float | None]] = [
+        [None if pd.isna(value) else float(value) for value in row]
+        for row in ranked.to_numpy().tolist()
+    ]
+    return item_order, phenotype_order, rank_rows
+
+
 def _ci_forest_py(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     """Generate Ranking Confidence Interval Plot using Python plot script."""
     payload = (
@@ -319,6 +350,175 @@ def _indicator_rankings_heatmap_py(
         caption_academic=(
             f"Per-{indicator_col.lower()} ranking heatmap across methods; "
             "orange indicates better (lower) rank, blue indicates worse (higher) rank."
+        ),
+        hint_ids=["hint-ci"],
+    )
+
+
+def _indicator_rankings_combined_py(
+    csv_path: str,
+    artifact_dir: Path,
+    indicator_col: str = "phenotype",
+    bigbetter: int = 0,
+) -> PlotSpec:
+    """Generate a single 2-panel figure for normalized ranks and heatmap."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    style_version = "v6-leftalign-b-and-tablefit"
+
+    source = Path(csv_path).resolve()
+    if not source.exists():
+        raise FileNotFoundError(f"Data file not found: {source}")
+
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    py_script = _phenotype_plot_py_script(project_root)
+
+    block_id = _stable_block_id(
+        "figure-indicator-rankings-combined",
+        f"{source}|bigbetter={int(bigbetter)}|style={style_version}",
+    )
+    png_path = artifact_dir / f"{block_id}.png"
+
+    with tempfile.TemporaryDirectory(prefix="omnirank-indicator-combined-") as tmp_dir:
+        panel_a_path = Path(tmp_dir) / "panel_a.png"
+        panel_b_path = Path(tmp_dir) / "panel_b.png"
+        result = subprocess.run(  # noqa: S603
+            [
+                sys.executable,
+                str(py_script),
+                "--csv",
+                str(source),
+                "--out",
+                str(panel_a_path),
+                "--heatmap-out",
+                str(panel_b_path),
+                "--bigbetter",
+                str(int(bigbetter)),
+            ],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Python combined plot script failed: {result.stderr or result.stdout or 'unknown error'}"
+            )
+        if not panel_a_path.exists() or not panel_b_path.exists():
+            raise RuntimeError("Python combined plot script did not produce both panel images.")
+
+        with Image.open(panel_a_path) as panel_a:
+            panel_a_img = panel_a.convert("RGB")
+        with Image.open(panel_b_path) as panel_b:
+            panel_b_img = panel_b.convert("RGB")
+
+    panel_a_w, panel_a_h = panel_a_img.size
+    panel_b_w, panel_b_h = panel_b_img.size
+
+    tc, plural = _indicator_label(indicator_col)
+    panel_a_title = f"(A) Normalized Ranking Over Individual {plural}"
+    panel_b_title = f"(B) {tc}-specific rankings"
+
+    # Keep panel A unchanged. Upscale panel B for better readability in the stacked layout.
+    target_b_w = max(panel_b_w, int(panel_a_w * 0.82))
+    target_b_w = min(target_b_w, panel_a_w)
+    if target_b_w > panel_b_w:
+        scale = target_b_w / panel_b_w
+        target_b_h = int(round(panel_b_h * scale))
+        resample = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.LANCZOS
+        panel_b_img = panel_b_img.resize((target_b_w, target_b_h), resample)
+        panel_b_w, panel_b_h = panel_b_img.size
+
+    # Keep each panel at original pixel size; only add title rows and vertical stacking.
+    panel_w_max = max(panel_a_w, panel_b_w)
+    side_padding = 24
+    panel_gap = 24
+
+    font_candidates = [
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        "/Library/Fonts/Arial Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    ]
+    title_font = None
+    for candidate in font_candidates:
+        try:
+            title_font = ImageFont.truetype(candidate, size=39)
+            break
+        except OSError:
+            continue
+    if title_font is None:
+        title_font = ImageFont.load_default()
+    title_font_b = title_font
+    if hasattr(title_font, "size"):
+        for candidate in font_candidates:
+            try:
+                title_font_b = ImageFont.truetype(candidate, size=int(title_font.size) + 1)
+                break
+            except OSError:
+                continue
+
+    measure_draw = ImageDraw.Draw(Image.new("RGB", (1, 1), "white"))
+    title_bbox_a = measure_draw.textbbox((0, 0), panel_a_title, font=title_font)
+    title_bbox_b = measure_draw.textbbox((0, 0), panel_b_title, font=title_font_b)
+    title_h_a = title_bbox_a[3] - title_bbox_a[1]
+    title_h_b = title_bbox_b[3] - title_bbox_b[1]
+    title_height = max(52, title_h_a, title_h_b) + 16
+
+    canvas_w = panel_w_max + side_padding * 2
+    canvas_h = title_height + panel_a_h + panel_gap + title_height + panel_b_h + 12
+    combined = Image.new("RGB", (canvas_w, canvas_h), "white")
+    draw = ImageDraw.Draw(combined)
+
+    y = 0
+    title_bbox_a = draw.textbbox((0, 0), panel_a_title, font=title_font)
+    title_a_w = title_bbox_a[2] - title_bbox_a[0]
+    draw.text(
+        ((canvas_w - title_a_w) // 2, y + (title_height - title_h_a) // 2),
+        panel_a_title,
+        fill=(0, 0, 0),
+        font=title_font,
+    )
+    y += title_height
+
+    panel_a_x = side_padding + (panel_w_max - panel_a_w) // 2
+    combined.paste(panel_a_img, (panel_a_x, y))
+    y += panel_a_h + panel_gap
+
+    title_bbox_b = draw.textbbox((0, 0), panel_b_title, font=title_font_b)
+    title_b_w = title_bbox_b[2] - title_bbox_b[0]
+    draw.text(
+        ((canvas_w - title_b_w) // 2, y + (title_height - title_h_b) // 2),
+        panel_b_title,
+        fill=(0, 0, 0),
+        font=title_font_b,
+    )
+    y += title_height
+
+    panel_b_x = panel_a_x
+    combined.paste(panel_b_img, (panel_b_x, y))
+    combined.save(png_path, format="PNG")
+
+    item_order, phenotype_order, rank_rows = _item_rank_matrix_from_csv(
+        str(source),
+        indicator_col=indicator_col,
+        bigbetter=bigbetter,
+    )
+    caption = f"{panel_a_title}; {panel_b_title}"
+    return PlotSpec(
+        type="indicator_rankings_combined",
+        data={
+            "indicator_col": indicator_col,
+            "item_order": item_order,
+            "phenotype_order": phenotype_order,
+            "rank_rows": rank_rows,
+        },
+        config={"source": "python", "bigbetter": int(bigbetter)},
+        svg_path=str(png_path),
+        block_id=block_id,
+        caption_plain=caption,
+        caption_academic=(
+            "Two-panel view combining per-indicator normalized rank distributions and indicator-by-item heatmap "
+            "for vertically stacked stability and subgroup comparison."
         ),
         hint_ids=["hint-ci"],
     )
@@ -818,7 +1018,7 @@ def _normalized_ranking_over_indicator(
     elements.append(
         (
             f'<text x="{(plot_left + plot_right) / 2:.2f}" y="{height - 22:.2f}" text-anchor="middle" '
-            f'font-size="12" fill="#334155">Methods</text>'
+            f'font-size="12" fill="#334155">Items</text>'
         )
     )
     elements.append(
@@ -949,7 +1149,7 @@ def _indicator_rankings_heatmap(
     elements.append(
         (
             f'<text x="{(plot_left + plot_left + plot_width) / 2:.2f}" y="{height - 22:.2f}" text-anchor="middle" '
-            f'font-size="12" fill="#334155">Methods</text>'
+            f'font-size="12" fill="#334155">Items</text>'
         )
     )
 
@@ -1013,6 +1213,11 @@ def generate_visualizations(
     errors: list[str] = []
     mode = _as_ranking_mode(ranking_mode)
     deep_cache: _DeepRankingData | None = None
+    combine_indicator_plots = {
+        "normalized_ranking_over_indicator",
+        "indicator_rankings_heatmap",
+    }.issubset(set(viz_types))
+    combined_indicator_generated = False
 
     for viz_type in viz_types:
         try:
@@ -1059,6 +1264,20 @@ def generate_visualizations(
                 plot_csv = str(matrix_csv)
                 # Pairwise-deep path writes normalized ranks (1 is best), so lower is always better.
                 plot_bigbetter = 0
+
+            if combine_indicator_plots:
+                if combined_indicator_generated:
+                    continue
+                plots.append(
+                    _indicator_rankings_combined_py(
+                        plot_csv,
+                        output_dir,
+                        indicator_col,
+                        bigbetter=plot_bigbetter,
+                    )
+                )
+                combined_indicator_generated = True
+                continue
 
             if viz_type == "normalized_ranking_over_indicator":
                 plots.append(

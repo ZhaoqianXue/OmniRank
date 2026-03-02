@@ -182,8 +182,8 @@ def _style_axes_bw(ax: plt.Axes) -> None:
 
 
 def _ci_forest_y_axis_title(*, show_axes: bool) -> str | None:
-    """Match the R script: y title comes from aes(y = Method) when axes are shown."""
-    return "Method" if show_axes else None
+    """Match the configured axis labeling for CI plots."""
+    return "Item" if show_axes else None
 
 
 def _apply_ci_axis_labels(ax: plt.Axes, *, show_axes: bool) -> None:
@@ -309,7 +309,7 @@ def _plot_ci_forest(
     _style_axes_bw(ax)
     fig.patch.set_facecolor("white")
     # Match ggplot2 panel placement from ggsave(width=10, height=max(5, 0.4*n), dpi=150).
-    # Left margin increased to fit y-axis label "Method" (R: axis.title).
+    # Left margin increased to fit y-axis label.
     fig.subplots_adjust(left=0.24, right=0.99, top=0.984, bottom=0.106)
     _save_fig(fig, out_path, dpi=150, tight=True)
 
@@ -509,13 +509,13 @@ def _plot_violin(table: pd.DataFrame, method_cols: list[str], out_path: str) -> 
     # Match ggplot2 scale_y_reverse default expansion (~5% of range).
     ax.set_ylim(n_rank_levels + 0.65, 0.35)
     ax.set_xticks(np.arange(1, n_methods + 1))
-    # R: sample.size.label = "K = " -> "Method (n = K)" on x-axis
+    # R: sample.size.label = "K = " -> "Item (n = K)" on x-axis
     x_labels = [f"{m}\n(n = {int(n_per_method.get(m, 0))})" for m in method_cols]
-    ax.set_xticklabels(x_labels, rotation=0, ha="center", fontsize=14, color="black")
+    ax.set_xticklabels(x_labels, rotation=0, ha="center", fontsize=17, color="black")
     ax.set_yticks(rank_breaks)
-    ax.set_yticklabels(rank_breaks, fontsize=14, color="black")
-    ax.set_ylabel("Rank", fontsize=20, fontweight="bold", color="black")
-    ax.set_xlabel("Method", fontsize=20, fontweight="bold", color="black")
+    ax.set_yticklabels(rank_breaks, fontsize=17, color="black")
+    ax.set_ylabel("Rank", fontsize=23, fontweight="bold", color="black")
+    ax.set_xlabel("Item", fontsize=23, fontweight="bold", color="black")
 
     ax.grid(axis="both", which="major", color="#D9D9D9", linewidth=0.8)
     ax.yaxis.set_minor_locator(mticker.MultipleLocator(0.5))
@@ -556,7 +556,7 @@ def _plot_heatmap(rank_matrix: pd.DataFrame, method_cols: list[str], out_path: s
     plt.setp(ax.get_xticklabels(), rotation=315, ha="left", va="top", rotation_mode="anchor")
 
     # R: axis.title size=18, face=bold
-    ax.set_xlabel("Method", fontsize=18, fontweight="bold", color="black")
+    ax.set_xlabel("Item", fontsize=18, fontweight="bold", color="black")
     ax.set_ylabel("Phenotype", fontsize=18, fontweight="bold", color="black")
 
     # R: geom_tile color="grey60", linewidth=0.2

@@ -910,7 +910,12 @@ export default function Home() {
               animate="show"
               className="min-w-0 flex-1"
             >
-              <Card className="h-[calc(100vh-32px)] flex flex-col bg-card backdrop-blur-sm glow-border py-4 relative overflow-hidden">
+              <Card
+                className={cn(
+                  "h-[calc(100vh-32px)] flex flex-col bg-card backdrop-blur-sm glow-border py-4 relative",
+                  state.isReportVisible ? "overflow-visible" : "overflow-hidden",
+                )}
+              >
                 {showResults && (
                   <ReportOverlay
                     isVisible={state.isReportVisible}

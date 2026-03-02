@@ -263,7 +263,7 @@ export function PhenotypeRankingsPlot({ plot, className, theme = "dark" }: Pheno
           </text>
 
           <text x={heatmapLeft + heatmapWidth / 2} y={height - 20} textAnchor="middle" fontSize={12} fill={axisColor} fontWeight={600}>
-            Methods
+            Items
           </text>
         </svg>
       )}

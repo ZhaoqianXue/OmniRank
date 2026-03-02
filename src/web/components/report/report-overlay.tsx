@@ -15,7 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
   artifactUrl,
@@ -211,6 +210,27 @@ const LIGHT_SECTION_STYLES: Record<string, string> = {
   repro: "bg-slate-50 border border-slate-200 rounded-lg p-5 my-6 font-mono text-xs leading-relaxed",
 };
 
+function ReportTable({ children, isLightTheme }: { children?: ReactNode; isLightTheme: boolean }) {
+  return (
+    <div
+      className={cn(
+        "my-4 max-w-full rounded-xl shadow-sm",
+        isLightTheme ? "border border-slate-200 bg-white" : "border border-primary/25 bg-[#132841]",
+      )}
+    >
+      <div
+        className="w-full max-w-full overflow-x-auto overflow-y-visible overscroll-x-contain"
+      >
+        <table
+          className="w-max min-w-full table-auto text-xs [&_th]:whitespace-nowrap [&_thead_th:first-child]:whitespace-nowrap [&_tbody_td:first-child]:whitespace-nowrap [&_td]:whitespace-normal [&_td]:break-words [&_td]:[overflow-wrap:anywhere]"
+        >
+          {children}
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Custom Markdown components                                                  */
 /* -------------------------------------------------------------------------- */
@@ -295,25 +315,14 @@ function buildMarkdownComponents(
     ),
 
     /* ── Tables ────────────────────────────────────────────────────────── */
-    table: ({ children }) => (
-      <div
-        className={cn(
-          "overflow-x-auto rounded-xl my-4 shadow-sm",
-          isLightTheme ? "border border-slate-200 bg-white" : "border border-primary/25 bg-[#132841]",
-        )}
-      >
-        <div className="min-w-max">
-          <table className="w-full text-xs">{children}</table>
-        </div>
-      </div>
-    ),
+    table: ({ children }) => <ReportTable isLightTheme={isLightTheme}>{children}</ReportTable>,
     thead: ({ children }) => (
       <thead className={cn("sticky top-0 z-10", isLightTheme ? "bg-[#6a9fd9]" : "bg-primary/15")}>{children}</thead>
     ),
     th: ({ children }) => (
       <th
         className={cn(
-          "px-3 py-2 text-left font-semibold border-b whitespace-nowrap",
+          "px-3 py-2 text-left font-semibold border-b align-top",
           isLightTheme ? "text-white border-[#5a8fc9] bg-[#6a9fd9]" : "text-slate-200 border-primary/25 bg-primary/15",
         )}
       >
@@ -332,7 +341,7 @@ function buildMarkdownComponents(
       </tr>
     ),
     td: ({ children }) => (
-      <td className={cn("px-3 py-1.5 whitespace-nowrap", isLightTheme ? "text-slate-800" : "text-slate-300")}>
+      <td className={cn("px-3 py-1.5 align-top", isLightTheme ? "text-slate-800" : "text-slate-300")}>
         {children}
       </td>
     ),
@@ -350,7 +359,7 @@ function buildMarkdownComponents(
     blockquote: ({ children }) => (
       <blockquote
         className={cn(
-          "border-l-4 pl-4 py-1 my-4",
+          "border-l-4 pl-4 py-1 my-4 break-words [overflow-wrap:anywhere]",
           isLightTheme ? "border-slate-300 text-slate-700" : "border-primary/30 text-muted-foreground",
         )}
       >
@@ -388,7 +397,7 @@ function buildMarkdownComponents(
       };
       const hasBlockChild = hasBlockAstChild || hasBlockDescendant(children);
 
-      const className = cn("text-sm leading-relaxed mb-3", isLightTheme ? "text-slate-800" : "text-foreground/90");
+      const className = cn("text-sm leading-relaxed mb-3 break-words [overflow-wrap:anywhere]", isLightTheme ? "text-slate-800" : "text-foreground/90");
       return hasBlockChild ? (
         <div className={className}>{children}</div>
       ) : (
@@ -404,7 +413,7 @@ function buildMarkdownComponents(
     li: ({ children }) => (
       <li className={cn("flex items-start gap-2 text-sm leading-relaxed", isLightTheme ? "text-slate-800" : "text-foreground/90")}>
         <span className={cn("mt-[7px] h-1.5 w-1.5 rounded-full shrink-0", isLightTheme ? "bg-slate-400" : "bg-primary/50")} />
-        <span className="flex-1">{children}</span>
+        <span className="flex-1 break-words [overflow-wrap:anywhere]">{children}</span>
       </li>
     ),
 
@@ -418,12 +427,22 @@ function buildMarkdownComponents(
     code: ({ children }) => (
       <code
         className={cn(
-          "px-1.5 py-0.5 rounded text-xs font-mono",
+          "px-1.5 py-0.5 rounded text-xs font-mono break-all",
           isLightTheme ? "bg-slate-100 text-slate-900" : "bg-muted/50 text-primary/80",
         )}
       >
         {children}
       </code>
+    ),
+    pre: ({ children }) => (
+      <pre
+        className={cn(
+          "my-3 max-w-full overflow-x-auto rounded-lg border px-3 py-2 text-xs leading-relaxed",
+          isLightTheme ? "border-slate-200 bg-slate-50 text-slate-900" : "border-border/60 bg-muted/40 text-foreground/90",
+        )}
+      >
+        {children}
+      </pre>
     ),
 
     /* ── Images (artifact URL resolution) ──────────────────────────────── */
@@ -513,6 +532,33 @@ function buildMarkdownComponents(
                 <img
                   src={normalizedSrc}
                   alt={matchedPlot.caption_plain || "Phenotype Rankings"}
+                  className="w-full"
+                />
+              </div>
+              <PlotDownloadButton
+                imageUrl={normalizedSrc}
+                filename={dlFilename}
+                isLightTheme={isLightTheme}
+              />
+            </div>
+          );
+        }
+
+        if (matchedPlot.type === "indicator_rankings_combined") {
+          const dlFilename = `${slugFromCaption(matchedPlot.caption_plain || "indicator_rankings_combined")}.png`;
+          return (
+            <div className="relative group my-2">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                onKeyDown={(e) => e.key === "Enter" && onEnlargeableFigureClick?.(normalizedSrc, matchedPlot)}
+                className="w-full cursor-zoom-in rounded-xl border border-border/30 overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50"
+                title="Click to enlarge"
+              >
+                <img
+                  src={normalizedSrc}
+                  alt={matchedPlot.caption_plain || "(A) Normalized Ranking; (B) Phenotype Rankings"}
                   className="w-full"
                 />
               </div>
@@ -809,7 +855,7 @@ export function ReportOverlay({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className={cn(
-            "absolute inset-0 z-50 backdrop-blur-sm rounded-lg overflow-hidden",
+            "absolute inset-0 z-50 backdrop-blur-sm rounded-lg overflow-visible",
             isLightTheme ? "bg-white/95 text-slate-900" : "bg-card/95 text-foreground",
             className,
           )}
@@ -854,17 +900,20 @@ export function ReportOverlay({
 
           {/* ── Scrollable content ────────────────────────────────────── */}
           <div className="absolute inset-0 top-14" onMouseUp={handleMouseUp}>
-            <ScrollArea className="h-full">
-              <div ref={contentRef} className={cn("max-w-4xl mx-auto p-6 pb-24", isLightTheme ? "text-slate-900" : "")}>
+            <div className="h-full w-full overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
+              <div
+                ref={contentRef}
+                className={cn("w-full min-w-0 max-w-4xl mx-auto p-6 pr-8 pb-24", isLightTheme ? "text-slate-900" : "")}
+              >
                 {/* ── Markdown report ──────────────────────────────────── */}
-                <div className="report-content">
+                <div className="report-content min-w-0 max-w-full overflow-x-auto overscroll-x-contain [overflow-wrap:anywhere] [&>*]:min-w-0 [&>*]:max-w-full [&_section]:max-w-full [&_img]:h-auto [&_img]:max-w-full">
                   {renderedMarkdown}
                 </div>
 
                 {/* ── Glossary / Hints ─────────────────────────────────── */}
                 <GlossaryPanel hints={hints} theme={reportTheme} />
               </div>
-            </ScrollArea>
+            </div>
           </div>
 
           {/* ── Quote fab ─────────────────────────────────────────────── */}

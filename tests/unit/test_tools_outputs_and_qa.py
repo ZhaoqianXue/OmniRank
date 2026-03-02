@@ -110,9 +110,13 @@ def test_generate_visualizations_deep_mode_generates_indicator_plots(tmp_path: P
     assert output.errors == []
     assert [plot.type for plot in output.plots] == [
         "ci_forest",
-        "normalized_ranking_over_indicator",
-        "indicator_rankings_heatmap",
+        "indicator_rankings_combined",
     ]
+    combined = output.plots[1]
+    assert combined.data["indicator_col"] == "phenotype"
+    assert combined.data["item_order"] == ["A", "B", "C"]
+    assert combined.data["phenotype_order"] == ["p1", "p1", "p2", "p2"]
+    assert len(combined.data["rank_rows"]) == 4
     for plot in output.plots:
         path = Path(plot.svg_path)
         assert path.exists()
@@ -161,6 +165,38 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
     assert len(report.citation_blocks) > 0
     assert len(report.hints) > 0
     assert all(hint.title != "Rank Interpretation" for hint in report.hints)
+
+
+def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path: Path):
+    results = _sample_results()
+    (tmp_path / "combined.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    plot = PlotSpec(
+        type="indicator_rankings_combined",
+        data={
+            "indicator_col": "phenotype",
+            "item_order": ["A", "B", "C"],
+            "phenotype_order": ["p1", "p2"],
+            "rank_rows": [[1, 2, 3], [2, 1, 3]],
+        },
+        config={"source": "python", "bigbetter": 1},
+        svg_path=str(tmp_path / "combined.png"),
+        block_id="figure-indicator-rankings-combined-123",
+        caption_plain="(A) ...; (B) ...",
+        caption_academic="Combined ranking view.",
+        hint_ids=["hint-ci"],
+    )
+
+    report = generate_report(
+        results=results,
+        session_meta={"B": 2000, "seed": 42, "current_file_path": "/tmp/input.csv"},
+        plots=[plot],
+    )
+
+    assert "## Phenotype Ranking Overview" in report.markdown
+    assert "### Phenotype Ranking Table" in report.markdown
+    assert "| Phenotype | A | B | C |" in report.markdown
+    assert "| p1 | 1 | 2 | 3 |" in report.markdown
+    assert "| p2 | 2 | 1 | 3 |" in report.markdown
 
 
 def test_answer_question_without_quotes():
