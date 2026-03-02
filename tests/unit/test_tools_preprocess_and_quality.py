@@ -72,6 +72,31 @@ def test_preprocess_pairwise_long_to_wide(tmp_path: Path):
     assert any("pairwise long format" in entry.lower() for entry in result.transformation_log)
 
 
+def test_preprocess_drops_no_numeric_signal_ranking_columns(tmp_path: Path):
+    df = pd.DataFrame(
+        {
+            "A": [0.9, 0.8, 0.7],
+            "B": [0.6, 0.7, 0.5],
+            "AnnoPred": [None, None, None],
+            "Phenotype": ["x", "y", "z"],
+        }
+    )
+    file_path = _write_csv(tmp_path / "drop_no_signal.csv", df)
+    schema = SemanticSchema(
+        bigbetter=1,
+        ranking_items=["A", "B", "AnnoPred"],
+        indicator_col="Phenotype",
+        indicator_values=["x", "y", "z"],
+    )
+
+    result = preprocess_data(file_path=file_path, schema=schema, output_dir=str(tmp_path))
+    output = pd.read_csv(result.preprocessed_csv_path)
+
+    assert "AnnoPred" not in output.columns
+    assert "A" in output.columns and "B" in output.columns
+    assert any("no numeric signal" in entry.lower() for entry in result.transformation_log)
+
+
 def test_validate_data_quality_sparse_warning(tmp_path: Path):
     df = pd.DataFrame(
         {

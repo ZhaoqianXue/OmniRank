@@ -570,9 +570,9 @@ def test_validate_data_format_pass(tmp_path: Path):
     assert result.fixable is False
 
 
-def test_validate_data_format_fixable(tmp_path: Path):
+def test_validate_data_format_non_numeric_without_fallback_is_unfixable(tmp_path: Path):
     file_path = _write(
-        tmp_path / "fixable.csv",
+        tmp_path / "non_numeric_unfixable.csv",
         "model_a,model_b\n0.9,low\n0.8,bad\n",
     )
     schema = SemanticSchema(
@@ -585,8 +585,26 @@ def test_validate_data_format_fixable(tmp_path: Path):
     result = validate_data_format(file_path, schema)
 
     assert result.is_ready is False
-    assert result.fixable is True
+    assert result.fixable is False
     assert len(result.suggested_fixes) > 0
+
+
+def test_validate_data_format_missing_optional_item_is_ready(tmp_path: Path):
+    file_path = _write(
+        tmp_path / "missing_optional_item.csv",
+        "model_a,model_b\n0.9,0.7\n0.8,0.6\n",
+    )
+    schema = SemanticSchema(
+        bigbetter=1,
+        ranking_items=["model_a", "model_b", "AnnoPred"],
+        indicator_col=None,
+        indicator_values=[],
+    )
+
+    result = validate_data_format(file_path, schema)
+
+    assert result.is_ready is True
+    assert result.fixable is False
 
 
 def test_validate_data_format_pairwise_long_is_fixable(tmp_path: Path):

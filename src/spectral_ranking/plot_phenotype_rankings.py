@@ -45,6 +45,7 @@ def _parse_args(argv: list[str]) -> dict[str, str | None]:
     ci_plot_path = None
     ci_out_path = None
     bigbetter = "0"
+    pre_ranked = "0"
 
     i = 0
     while i < len(argv):
@@ -70,6 +71,9 @@ def _parse_args(argv: list[str]) -> dict[str, str | None]:
         elif arg == "--bigbetter" and i + 1 < len(argv):
             bigbetter = argv[i + 1]
             i += 2
+        elif arg == "--pre-ranked" and i + 1 < len(argv):
+            pre_ranked = argv[i + 1]
+            i += 2
         else:
             i += 1
 
@@ -81,6 +85,7 @@ def _parse_args(argv: list[str]) -> dict[str, str | None]:
         "ci_plot_path": ci_plot_path,
         "ci_out_path": ci_out_path,
         "bigbetter": bigbetter,
+        "pre_ranked": pre_ranked,
     }
 
 
@@ -114,25 +119,44 @@ def _rank_ascending_from_bigbetter(bigbetter: int) -> bool:
     return int(bigbetter) != 1
 
 
-def _build_rank_table(df_wide: pd.DataFrame, *, bigbetter: int = 0) -> pd.DataFrame:
+def _parse_pre_ranked(value: str | None) -> bool:
+    if value is None:
+        return False
+    text = str(value).strip()
+    if text in {"0", "1"}:
+        return text == "1"
+    raise ValueError(f"--pre-ranked must be 0 or 1, got: {value!r}")
+
+
+def _build_rank_table(df_wide: pd.DataFrame, *, bigbetter: int = 0, pre_ranked: bool = False) -> pd.DataFrame:
     table = df_wide.melt(id_vars=["Traits"], var_name="Method", value_name="Ranking")
     table["Ranking"] = pd.to_numeric(table["Ranking"], errors="coerce")
     table = table.dropna(subset=["Ranking"]).copy()
-    table["Ranking"] = table.groupby("Traits")["Ranking"].rank(
-        method="average",
-        ascending=_rank_ascending_from_bigbetter(bigbetter),
-    )
+    if not pre_ranked:
+        table["Ranking"] = table.groupby("Traits")["Ranking"].rank(
+            method="average",
+            ascending=_rank_ascending_from_bigbetter(bigbetter),
+        )
     return table
 
 
-def _row_rank_matrix(df_wide: pd.DataFrame, method_cols: list[str], *, bigbetter: int = 0) -> pd.DataFrame:
+def _row_rank_matrix(
+    df_wide: pd.DataFrame,
+    method_cols: list[str],
+    *,
+    bigbetter: int = 0,
+    pre_ranked: bool = False,
+) -> pd.DataFrame:
     numeric = df_wide[method_cols].apply(pd.to_numeric, errors="coerce")
-    ranked = numeric.rank(
-        axis=1,
-        method="average",
-        na_option="keep",
-        ascending=_rank_ascending_from_bigbetter(bigbetter),
-    )
+    if pre_ranked:
+        ranked = numeric
+    else:
+        ranked = numeric.rank(
+            axis=1,
+            method="average",
+            na_option="keep",
+            ascending=_rank_ascending_from_bigbetter(bigbetter),
+        )
     ranked.index = df_wide["Traits"].astype(str)
     ranked = ranked[method_cols]
     return ranked
@@ -641,6 +665,7 @@ def main(argv: list[str] | None = None) -> int:
     ci_plot_path = opts["ci_plot_path"]
     ci_out_path = opts["ci_out_path"]
     bigbetter = _parse_bigbetter(opts["bigbetter"])
+    pre_ranked = _parse_pre_ranked(opts["pre_ranked"])
 
     # CI forest plot (all modes) - run and exit if requested.
     if ci_plot_path is not None and ci_out_path is not None:
@@ -650,8 +675,8 @@ def main(argv: list[str] | None = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     df_wide, method_cols = _read_phenotype_csv(data_path)
-    table = _build_rank_table(df_wide, bigbetter=bigbetter)
-    rank_matrix = _row_rank_matrix(df_wide, method_cols, bigbetter=bigbetter)
+    table = _build_rank_table(df_wide, bigbetter=bigbetter, pre_ranked=pre_ranked)
+    rank_matrix = _row_rank_matrix(df_wide, method_cols, bigbetter=bigbetter, pre_ranked=pre_ranked)
 
     run_heatmaps = violin_out_path is None and heatmap_out_path is None
     if run_heatmaps:

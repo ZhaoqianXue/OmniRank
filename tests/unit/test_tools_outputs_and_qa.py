@@ -115,8 +115,9 @@ def test_generate_visualizations_deep_mode_generates_indicator_plots(tmp_path: P
     combined = output.plots[1]
     assert combined.data["indicator_col"] == "phenotype"
     assert combined.data["item_order"] == ["A", "B", "C"]
-    assert combined.data["phenotype_order"] == ["p1", "p1", "p2", "p2"]
-    assert len(combined.data["rank_rows"]) == 4
+    assert combined.data["phenotype_order"] == ["p1", "p2"]
+    assert len(combined.data["rank_rows"]) == 2
+    assert combined.config["source"] == "r_spectral"
     for plot in output.plots:
         path = Path(plot.svg_path)
         assert path.exists()
@@ -124,6 +125,70 @@ def test_generate_visualizations_deep_mode_generates_indicator_plots(tmp_path: P
             assert path.stat().st_size > 0
         else:
             assert "<svg" in path.read_text(encoding="utf-8")
+
+
+def test_generate_visualizations_deep_mode_combined_table_uses_raw_integer_ranks(tmp_path: Path, monkeypatch):
+    results = _sample_results()
+    artifact_dir = tmp_path / "artifacts"
+    csv_path = tmp_path / "phenotype_sparse.csv"
+    csv_path.write_text(
+        (
+            "phenotype,A,B,C,D\n"
+            "p1,0.90,0.70,0.10,\n"
+            "p1,0.80,0.60,0.20,\n"
+            "p2,0.88,0.68,0.40,\n"
+            "p2,0.78,0.58,0.30,\n"
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_executor_run(self, config, session_work_dir):  # noqa: ANN001
+        local_df = pd.read_csv(config.csv_path)
+        methods = list(local_df.columns)
+        means = local_df.mean(axis=0).sort_values(ascending=False)
+        ordered_methods = list(means.index)
+        rank_lookup = {method: idx + 1 for idx, method in enumerate(ordered_methods)}
+        return ExecutionResult(
+            success=True,
+            results=RankingResults(
+                items=methods,
+                theta_hat=[float(means.get(method, 0.0)) for method in methods],
+                ranks=[rank_lookup[method] for method in methods],
+                ci_lower=[float(rank_lookup[method]) for method in methods],
+                ci_upper=[float(rank_lookup[method]) for method in methods],
+            ),
+            trace=ExecutionTrace(
+                command="fake",
+                stdout="",
+                stderr="",
+                exit_code=0,
+                duration_seconds=0.01,
+                timestamp="2026-02-19T00:00:00Z",
+            ),
+        )
+
+    monkeypatch.setattr("tools.generate_visualizations.RScriptExecutor.run", fake_executor_run)
+
+    output = generate_visualizations(
+        results=results,
+        viz_types=["normalized_ranking_over_indicator", "indicator_rankings_heatmap"],
+        artifact_dir=str(artifact_dir),
+        csv_path=str(csv_path),
+        indicator_col="phenotype",
+        selected_indicator_values=["p1", "p2"],
+        selected_items=["A", "B", "C", "D"],
+        bigbetter=1,
+        ranking_mode="deep",
+        bootstrap_iterations=400,
+        seed=42,
+    )
+
+    assert output.errors == []
+    assert [plot.type for plot in output.plots] == ["indicator_rankings_combined"]
+    combined = output.plots[0]
+    assert combined.data["item_order"] == ["A", "B", "C", "D"]
+    assert combined.data["phenotype_order"] == ["p1", "p2"]
+    assert combined.data["rank_rows"] == [[1, 2, 3, None], [1, 2, 3, None]]
 
 
 def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path: Path):
@@ -197,6 +262,58 @@ def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path
     assert "| Phenotype | A | B | C |" in report.markdown
     assert "| p1 | 1 | 2 | 3 |" in report.markdown
     assert "| p2 | 2 | 1 | 3 |" in report.markdown
+
+
+def test_generate_visualizations_deep_mode_marks_na_on_known_r_failure(tmp_path: Path, monkeypatch):
+    results = _sample_results()
+    artifact_dir = tmp_path / "artifacts"
+    csv_path = tmp_path / "phenotype.csv"
+    csv_path.write_text(
+        (
+            "phenotype,A,B,C\n"
+            "p1,0.9,0.6,0.2\n"
+            "p2,0.7,0.4,0.6\n"
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_executor_run(self, config, session_work_dir):  # noqa: ANN001
+        return ExecutionResult(
+            success=False,
+            error="R execution failed",
+            trace=ExecutionTrace(
+                command="fake",
+                stdout="",
+                stderr="Error: missing values and NaN's not allowed if 'na.rm' is FALSE",
+                exit_code=1,
+                duration_seconds=0.01,
+                timestamp="2026-02-19T00:00:00Z",
+            ),
+        )
+
+    monkeypatch.setattr("tools.generate_visualizations.RScriptExecutor.run", fake_executor_run)
+
+    output = generate_visualizations(
+        results=results,
+        viz_types=["normalized_ranking_over_indicator", "indicator_rankings_heatmap"],
+        artifact_dir=str(artifact_dir),
+        csv_path=str(csv_path),
+        indicator_col="phenotype",
+        selected_indicator_values=["p1", "p2"],
+        selected_items=["A", "B", "C"],
+        bigbetter=1,
+        ranking_mode="deep",
+        bootstrap_iterations=400,
+        seed=42,
+    )
+
+    assert output.errors == []
+    assert [plot.type for plot in output.plots] == ["indicator_rankings_combined"]
+    combined = output.plots[0]
+    assert combined.data["phenotype_order"] == ["p1", "p2"]
+    assert combined.data["item_order"] == ["A", "B", "C"]
+    assert combined.data["rank_rows"] == [[None, None, None], [None, None, None]]
+    assert combined.config["source"] == "r_spectral"
 
 
 def test_answer_question_without_quotes():

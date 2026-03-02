@@ -196,11 +196,25 @@ def preprocess_data(
             ranking_items.append(item)
         elif item in renamed:
             ranking_items.append(renamed[item])
+    ranking_items = list(dict.fromkeys(ranking_items))
 
     # If schema items were inferred from pairwise/multiway values, keep all numeric item columns.
     if len(ranking_items) < 2:
         numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
         ranking_items = [col for col in numeric_cols if col not in {"B", "seed"} and not is_meta_column(col)]
+
+    no_signal_cols: list[str] = []
+    for col in ranking_items:
+        converted = safe_numeric(df[col])
+        if int(converted.notna().sum()) == 0:
+            no_signal_cols.append(col)
+
+    if no_signal_cols and len(ranking_items) - len(no_signal_cols) >= 2:
+        df = df.drop(columns=no_signal_cols, errors="ignore")
+        ranking_items = [col for col in ranking_items if col not in set(no_signal_cols)]
+        transformation_log.append(
+            "Dropped ranking columns with no numeric signal: " + ", ".join(no_signal_cols[:10])
+        )
 
     # Convert ranking columns to numeric.
     for col in ranking_items:

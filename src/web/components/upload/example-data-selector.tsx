@@ -87,11 +87,10 @@ const cardDetailsByExampleId: Record<string, ExampleCardDetails> = {
     bestFor: "Complete ranking data within each event",
   },
   multiway_phenotype: {
-    summary:
-      "PRS method count matrix stratified by phenotype. Each row is one trait with method counts (GWAS per method).",
-    eachRow: "One phenotype (trait)",
-    values: "Count per method (higher is better)",
-    bestFor: "Overall and phenotype-wise PRS ranking; forest plots, heatmap",
+    summary: "Side-by-side AUC comparisons across PRS methods on the same phenotype-study.",
+    eachRow: "One phenotype-study with all methods",
+    values: "AUC 0–1 (higher is better)",
+    bestFor: "Forest plots, heatmaps, phenotype-wise ranking",
   },
 };
 
@@ -103,7 +102,7 @@ const shortDescriptions: Record<string, string> = {
   multiway_latency: "System latency benchmarks across realistic workload scenarios",
   multiway_rank_columns: "Tournament outcomes in rank_1 through rank_6 format",
   multiway: "Horses ranked by finish position across multiple races",
-  multiway_phenotype: "14 PRS methods count matrix across 33 phenotypes",
+  multiway_phenotype: "PRS methods evaluated by AUC across phenotypes and studies",
 };
 
 export function ExampleDataSelector({

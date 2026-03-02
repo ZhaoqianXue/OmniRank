@@ -130,8 +130,13 @@ def _item_rank_matrix_from_csv(
     csv_path: str,
     indicator_col: str,
     bigbetter: int,
+    pre_ranked: bool = False,
 ) -> tuple[list[str], list[str], list[list[float | None]]]:
-    """Build indicator x item rank matrix using the same row-wise ranking logic as plot script."""
+    """Build indicator x item rank matrix from CSV.
+
+    When ``pre_ranked=True``, values are treated as already-ranked values and are
+    not re-ranked in Python.
+    """
     df = pd.read_csv(csv_path)
     if df.empty:
         return [], [], []
@@ -142,13 +147,16 @@ def _item_rank_matrix_from_csv(
         return [], [], []
 
     numeric = df[item_order].apply(pd.to_numeric, errors="coerce")
-    ascending = int(bigbetter) != 1
-    ranked = numeric.rank(
-        axis=1,
-        method="average",
-        na_option="keep",
-        ascending=ascending,
-    )
+    if pre_ranked:
+        ranked = numeric
+    else:
+        ascending = int(bigbetter) != 1
+        ranked = numeric.rank(
+            axis=1,
+            method="average",
+            na_option="keep",
+            ascending=ascending,
+        )
     phenotype_order = df[indicator_key].astype(str).tolist()
     rank_rows: list[list[float | None]] = [
         [None if pd.isna(value) else float(value) for value in row]
@@ -223,32 +231,38 @@ def _normalized_ranking_over_indicator_py(
     artifact_dir: Path,
     indicator_col: str = "phenotype",
     bigbetter: int = 0,
+    pre_ranked: bool = False,
+    source: str = "python",
 ) -> PlotSpec:
     """Generate Normalized Ranking Over Individual [Indicators] using Python plot script."""
-    source = Path(csv_path).resolve()
-    if not source.exists():
-        raise FileNotFoundError(f"Data file not found: {source}")
+    csv_source = Path(csv_path).resolve()
+    if not csv_source.exists():
+        raise FileNotFoundError(f"Data file not found: {csv_source}")
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
     py_script = _phenotype_plot_py_script(project_root)
 
     block_id = _stable_block_id(
         "figure-normalized-ranking-over-indicator",
-        f"{source}|bigbetter={int(bigbetter)}",
+        f"{csv_source}|bigbetter={int(bigbetter)}",
     )
     png_path = artifact_dir / f"{block_id}.png"
 
+    command = [
+        sys.executable,
+        str(py_script),
+        "--csv",
+        str(csv_source),
+        "--out",
+        str(png_path),
+        "--bigbetter",
+        str(int(bigbetter)),
+    ]
+    if pre_ranked:
+        command.extend(["--pre-ranked", "1"])
+
     result = subprocess.run(  # noqa: S603
-        [
-            sys.executable,
-            str(py_script),
-            "--csv",
-            str(source),
-            "--out",
-            str(png_path),
-            "--bigbetter",
-            str(int(bigbetter)),
-        ],
+        command,
         cwd=str(project_root),
         capture_output=True,
         text=True,
@@ -269,8 +283,9 @@ def _normalized_ranking_over_indicator_py(
         config={
             "x_label": "method",
             "y_label": "normalized_rank",
-            "source": "python",
+            "source": source,
             "bigbetter": int(bigbetter),
+            "pre_ranked": bool(pre_ranked),
         },
         svg_path=str(png_path),
         block_id=block_id,
@@ -291,7 +306,7 @@ def _write_deep_matrix_csv(deep: _DeepRankingData, out_path: Path) -> None:
         for method in deep.method_order:
             row[method] = deep.matrix.get(indicator, {}).get(method)
         rows.append(row)
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows, columns=[deep.indicator_col, *deep.method_order])
     df.to_csv(out_path, index=False)
 
 
@@ -300,32 +315,38 @@ def _indicator_rankings_heatmap_py(
     artifact_dir: Path,
     indicator_col: str = "phenotype",
     bigbetter: int = 0,
+    pre_ranked: bool = False,
+    source: str = "python",
 ) -> PlotSpec:
     """Generate [Indicator] Rankings heatmap using Python plot script."""
-    source = Path(csv_path).resolve()
-    if not source.exists():
-        raise FileNotFoundError(f"Data file not found: {source}")
+    csv_source = Path(csv_path).resolve()
+    if not csv_source.exists():
+        raise FileNotFoundError(f"Data file not found: {csv_source}")
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
     py_script = _phenotype_plot_py_script(project_root)
 
     block_id = _stable_block_id(
         "figure-indicator-rankings-heatmap",
-        f"{source}|bigbetter={int(bigbetter)}",
+        f"{csv_source}|bigbetter={int(bigbetter)}",
     )
     png_path = artifact_dir / f"{block_id}.png"
 
+    command = [
+        sys.executable,
+        str(py_script),
+        "--csv",
+        str(csv_source),
+        "--heatmap-out",
+        str(png_path),
+        "--bigbetter",
+        str(int(bigbetter)),
+    ]
+    if pre_ranked:
+        command.extend(["--pre-ranked", "1"])
+
     result = subprocess.run(  # noqa: S603
-        [
-            sys.executable,
-            str(py_script),
-            "--csv",
-            str(source),
-            "--heatmap-out",
-            str(png_path),
-            "--bigbetter",
-            str(int(bigbetter)),
-        ],
+        command,
         cwd=str(project_root),
         capture_output=True,
         text=True,
@@ -343,7 +364,7 @@ def _indicator_rankings_heatmap_py(
     return PlotSpec(
         type="indicator_rankings_heatmap",
         data={"indicator_col": indicator_col},
-        config={"source": "python", "bigbetter": int(bigbetter)},
+        config={"source": source, "bigbetter": int(bigbetter), "pre_ranked": bool(pre_ranked)},
         svg_path=str(png_path),
         block_id=block_id,
         caption_plain=caption,
@@ -360,22 +381,25 @@ def _indicator_rankings_combined_py(
     artifact_dir: Path,
     indicator_col: str = "phenotype",
     bigbetter: int = 0,
+    pre_ranked: bool = False,
+    source: str = "python",
+    table_rank_rows: list[list[float | int | None]] | None = None,
 ) -> PlotSpec:
     """Generate a single 2-panel figure for normalized ranks and heatmap."""
     from PIL import Image, ImageDraw, ImageFont
 
     style_version = "v6-leftalign-b-and-tablefit"
 
-    source = Path(csv_path).resolve()
-    if not source.exists():
-        raise FileNotFoundError(f"Data file not found: {source}")
+    csv_source = Path(csv_path).resolve()
+    if not csv_source.exists():
+        raise FileNotFoundError(f"Data file not found: {csv_source}")
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
     py_script = _phenotype_plot_py_script(project_root)
 
     block_id = _stable_block_id(
         "figure-indicator-rankings-combined",
-        f"{source}|bigbetter={int(bigbetter)}|style={style_version}",
+        f"{csv_source}|bigbetter={int(bigbetter)}|style={style_version}",
     )
     png_path = artifact_dir / f"{block_id}.png"
 
@@ -383,18 +407,21 @@ def _indicator_rankings_combined_py(
         panel_a_path = Path(tmp_dir) / "panel_a.png"
         panel_b_path = Path(tmp_dir) / "panel_b.png"
         result = subprocess.run(  # noqa: S603
-            [
-                sys.executable,
-                str(py_script),
-                "--csv",
-                str(source),
-                "--out",
-                str(panel_a_path),
-                "--heatmap-out",
-                str(panel_b_path),
-                "--bigbetter",
-                str(int(bigbetter)),
-            ],
+            (
+                [
+                    sys.executable,
+                    str(py_script),
+                    "--csv",
+                    str(csv_source),
+                    "--out",
+                    str(panel_a_path),
+                    "--heatmap-out",
+                    str(panel_b_path),
+                    "--bigbetter",
+                    str(int(bigbetter)),
+                ]
+                + (["--pre-ranked", "1"] if pre_ranked else [])
+            ),
             cwd=str(project_root),
             capture_output=True,
             text=True,
@@ -416,8 +443,8 @@ def _indicator_rankings_combined_py(
     panel_b_w, panel_b_h = panel_b_img.size
 
     tc, plural = _indicator_label(indicator_col)
-    panel_a_title = f"(A) Normalized Ranking Over Individual {plural}"
-    panel_b_title = f"(B) {tc}-specific rankings"
+    panel_a_title = f"(A) Distribution of {tc}-Specific Ranks across {plural}"
+    panel_b_title = f"(B) Items' Ranks by {tc}"
 
     # Keep panel A unchanged. Upscale panel B for better readability in the stacked layout.
     target_b_w = max(panel_b_w, int(panel_a_w * 0.82))
@@ -499,10 +526,20 @@ def _indicator_rankings_combined_py(
     combined.save(png_path, format="PNG")
 
     item_order, phenotype_order, rank_rows = _item_rank_matrix_from_csv(
-        str(source),
+        str(csv_source),
         indicator_col=indicator_col,
         bigbetter=bigbetter,
+        pre_ranked=pre_ranked,
     )
+    if table_rank_rows is not None and len(table_rank_rows) == len(phenotype_order):
+        coerced_rows: list[list[float | int | None]] = []
+        for row in table_rank_rows:
+            padded = list(row[: len(item_order)])
+            if len(padded) < len(item_order):
+                padded.extend([None] * (len(item_order) - len(padded)))
+            coerced_rows.append(padded)
+        rank_rows = coerced_rows
+
     caption = f"{panel_a_title}; {panel_b_title}"
     return PlotSpec(
         type="indicator_rankings_combined",
@@ -512,7 +549,7 @@ def _indicator_rankings_combined_py(
             "phenotype_order": phenotype_order,
             "rank_rows": rank_rows,
         },
-        config={"source": "python", "bigbetter": int(bigbetter)},
+        config={"source": source, "bigbetter": int(bigbetter), "pre_ranked": bool(pre_ranked)},
         svg_path=str(png_path),
         block_id=block_id,
         caption_plain=caption,
@@ -693,6 +730,7 @@ class _DeepRankingData:
     method_order: list[str]
     indicator_order: list[str]
     matrix: dict[str, dict[str, float]]
+    raw_rank_matrix: dict[str, dict[str, int]]
     rank_min: float
     rank_max: float
 
@@ -769,6 +807,30 @@ def _is_multiway_phenotype_format(csv_path: str, indicator_col: str) -> bool:
     return median_non_na > 2
 
 
+def _is_known_na_rm_failure(error_text: str | None, stderr_text: str | None, stdout_text: str | None) -> bool:
+    needle = "missing values and nan's not allowed if 'na.rm' is false"
+    merged = "\n".join([error_text or "", stderr_text or "", stdout_text or ""]).lower()
+    return needle in merged
+
+
+def _normalize_rank_to_global_scale(rank: float, global_method_count: int, local_n: int) -> float:
+    # normalized_rank = 1 + (rank - 1) * (global_method_count - 1) / (local_n - 1)
+    return 1.0 + (float(rank) - 1.0) * (float(global_method_count) - 1.0) / (float(local_n) - 1.0)
+
+
+def _matrix_rows_from_deep(
+    deep: _DeepRankingData,
+    *,
+    use_raw_rank: bool,
+) -> list[list[float | int | None]]:
+    source = deep.raw_rank_matrix if use_raw_rank else deep.matrix
+    rows: list[list[float | int | None]] = []
+    for indicator in deep.indicator_order:
+        row_map = source.get(indicator, {})
+        rows.append([row_map.get(method) for method in deep.method_order])
+    return rows
+
+
 def _compute_deep_ranking_data(
     *,
     csv_path: str,
@@ -812,12 +874,15 @@ def _compute_deep_ranking_data(
     deep_bootstrap = max(100, min(500, int(bootstrap_iterations // 4) if bootstrap_iterations > 0 else 250))
     global_method_count = len(method_order)
     matrix: dict[str, dict[str, float]] = {}
+    raw_rank_matrix: dict[str, dict[str, int]] = {}
     executor = RScriptExecutor(timeout_seconds=180)
 
     for idx, indicator_value in enumerate(indicator_order):
         subset = df[df[indicator_col].astype(str) == indicator_value]
         local_methods = [method for method in method_order if subset[method].notna().any()]
         if len(local_methods) < 2:
+            matrix[indicator_value] = {}
+            raw_rank_matrix[indicator_value] = {}
             continue
 
         local_frame = subset[local_methods].copy()
@@ -839,26 +904,51 @@ def _compute_deep_ranking_data(
             execution = executor.run(config=config, session_work_dir=tmp_path)
 
         if not execution.success or not execution.results:
+            if _is_known_na_rm_failure(
+                execution.error,
+                execution.trace.stderr if execution.trace else "",
+                execution.trace.stdout if execution.trace else "",
+            ):
+                matrix[indicator_value] = {}
+                raw_rank_matrix[indicator_value] = {}
             continue
 
         local_n = len(execution.results.items)
         if local_n < 2:
+            matrix[indicator_value] = {}
+            raw_rank_matrix[indicator_value] = {}
             continue
 
         row: dict[str, float] = {}
+        raw_row: dict[str, int] = {}
         for method_name, rank in zip(execution.results.items, execution.results.ranks, strict=True):
-            normalized_rank = 1.0 + (float(rank) - 1.0) * (global_method_count - 1.0) / (local_n - 1.0)
+            normalized_rank = _normalize_rank_to_global_scale(
+                rank=float(rank),
+                global_method_count=global_method_count,
+                local_n=local_n,
+            )
             row[method_name] = normalized_rank
+            raw_row[method_name] = int(round(float(rank)))
         matrix[indicator_value] = row
+        raw_rank_matrix[indicator_value] = raw_row
 
     if not matrix:
-        raise ValueError("No valid indicator groups for deep ranking.")
+        return _DeepRankingData(
+            indicator_col=indicator_col,
+            method_order=method_order,
+            indicator_order=[],
+            matrix={},
+            raw_rank_matrix={},
+            rank_min=1.0,
+            rank_max=float(max(1, global_method_count)),
+        )
 
     return _DeepRankingData(
         indicator_col=indicator_col,
         method_order=method_order,
         indicator_order=[value for value in indicator_order if value in matrix],
         matrix=matrix,
+        raw_rank_matrix=raw_rank_matrix,
         rank_min=1.0,
         rank_max=float(global_method_count),
     )
@@ -1239,31 +1329,24 @@ def generate_visualizations(
                 errors.append(f"Skipped {viz_type}: csv_path is missing.")
                 continue
 
-            # Multiway phenotype: CSV is phenotype x method with raw scores; plot script ranks
-            # within each row. Pairwise: each row has ~2 values; we must run spectral
-            # ranking per indicator and pass the rank matrix.
-            is_multiway = _is_multiway_phenotype_format(csv_path, indicator_col)
-            if is_multiway:
-                plot_csv = csv_path
-                # Multiway phenotype CSV contains raw method scores/counts; follow Ranking Preview direction.
-                plot_bigbetter = int(bigbetter)
-            else:
-                if deep_cache is None:
-                    deep_cache = _compute_deep_ranking_data(
-                        csv_path=csv_path,
-                        indicator_col=indicator_col,
-                        selected_indicator_values=selected_indicator_values,
-                        selected_items=selected_items,
-                        bigbetter=bigbetter,
-                        bootstrap_iterations=bootstrap_iterations,
-                        seed=seed,
-                        r_script_path=r_script_path,
-                    )
-                matrix_csv = output_dir / "_plot_matrix.csv"
-                _write_deep_matrix_csv(deep_cache, matrix_csv)
-                plot_csv = str(matrix_csv)
-                # Pairwise-deep path writes normalized ranks (1 is best), so lower is always better.
-                plot_bigbetter = 0
+            if deep_cache is None:
+                deep_cache = _compute_deep_ranking_data(
+                    csv_path=csv_path,
+                    indicator_col=indicator_col,
+                    selected_indicator_values=selected_indicator_values,
+                    selected_items=selected_items,
+                    bigbetter=bigbetter,
+                    bootstrap_iterations=bootstrap_iterations,
+                    seed=seed,
+                    r_script_path=r_script_path,
+                )
+            matrix_csv = output_dir / "_plot_matrix.csv"
+            _write_deep_matrix_csv(deep_cache, matrix_csv)
+            plot_csv = str(matrix_csv)
+            # Deep mode plots consume pre-computed per-indicator ranks from R output.
+            plot_bigbetter = 0
+            plot_pre_ranked = True
+            plot_source = "r_spectral"
 
             if combine_indicator_plots:
                 if combined_indicator_generated:
@@ -1274,6 +1357,9 @@ def generate_visualizations(
                         output_dir,
                         indicator_col,
                         bigbetter=plot_bigbetter,
+                        pre_ranked=plot_pre_ranked,
+                        source=plot_source,
+                        table_rank_rows=_matrix_rows_from_deep(deep_cache, use_raw_rank=True),
                     )
                 )
                 combined_indicator_generated = True
@@ -1286,6 +1372,8 @@ def generate_visualizations(
                         output_dir,
                         indicator_col,
                         bigbetter=plot_bigbetter,
+                        pre_ranked=plot_pre_ranked,
+                        source=plot_source,
                     )
                 )
             elif viz_type == "indicator_rankings_heatmap":
@@ -1295,6 +1383,8 @@ def generate_visualizations(
                         output_dir,
                         indicator_col,
                         bigbetter=plot_bigbetter,
+                        pre_ranked=plot_pre_ranked,
+                        source=plot_source,
                     )
                 )
         except Exception as exc:  # noqa: BLE001
