@@ -37,11 +37,11 @@ const workflowSteps: WorkflowStep[] = [
   },
   {
     title: "Confirm Parameters",
-    description: "Check the detected settings and adjust if needed.",
+    description: "Review the detected settings and adjust them if needed.",
   },
   {
     title: "View Report",
-    description: "Review rankings, charts, and key results.",
+    description: "Review the generated rankings, charts, and key insights.",
   },
 ];
 
@@ -49,25 +49,25 @@ const keyFeatures: KeyFeature[] = [
   {
     title: "An Agentic Ranking Copilot",
     description:
-      "OmniRank is an AI copilot for ranking analysis. You describe your objective in plain language, and the system plans the statistical workflow from data interpretation to final report generation.",
+      "OmniRank is an AI copilot for ranking analysis. You describe your objective in plain language, and the system plans the statistical workflow—from data interpretation to final report generation.",
     icon: MessageSquareText,
   },
   {
-    title: "From Raw Columns to Ranking Design",
+    title: "Automated Comparison Structure Identification",
     description:
-      "It infers comparison semantics automatically: which columns define items, which direction means better performance, and which fields should be used for stratified analysis.",
+      "The system automatically infers the comparison structure from raw data, identifying the compared items, the winner, and the variables used for stratified analysis.",
     icon: Brain,
   },
   {
-    title: "Research-Grade Inference Engine",
+    title: "Principled Ranking Analysis Engine",
     description:
-      "At its core, OmniRank runs spectral ranking estimation with built-in diagnostics and uncertainty quantification, producing confidence intervals so decisions are based on signal, not noise.",
+      "At its core, OmniRank performs ranking estimation using spectral methods with built-in diagnostics and uncertainty quantification, ensuring that decisions are based on reliable signals.",
     icon: BarChart3,
   },
   {
     title: "Decision-Ready Outputs",
     description:
-      "The output is a complete analysis artifact: interpretable rankings, uncertainty summaries, and exportable visuals that teams can review, share, and reuse in publications or product decisions.",
+      "The system generates a complete analysis artifact, including interpretable rankings, uncertainty summaries, and exportable visuals that teams can review, share, and reuse in publications or product decisions.",
     icon: FileSpreadsheet,
   },
 ];
@@ -215,7 +215,7 @@ export default function LandingPage() {
             >
               <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">What is OmniRank</h2>
               <p className="mx-auto mb-8 max-w-2xl text-center text-muted-foreground md:mb-10">
-                OmniRank is an end-to-end agentic AI platform for spectral ranking analysis, designed to convert messy comparison data into statistically grounded, decision-ready ranking reports.
+                OmniRank is an end-to-end agentic AI platform for ranking analysis, designed to convert diverse comparison data into statistically grounded, decision-ready ranking reports.
               </p>
             </motion.div>
 
