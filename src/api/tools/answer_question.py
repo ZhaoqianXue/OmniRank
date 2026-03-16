@@ -427,7 +427,8 @@ def _top_summary(results: RankingResults) -> str:
     idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
     return (
         f"Top-ranked item is {results.items[idx]} with rank {results.ranks[idx]} "
-        f"and theta_hat={results.theta_hat[idx]:.4f}; treat this as the best current estimate."
+        f"and 95% CI [{_to_int(results.ci_lower[idx])}, {_to_int(results.ci_upper[idx])}]; "
+        "treat this as the best current estimate."
     )
 
 

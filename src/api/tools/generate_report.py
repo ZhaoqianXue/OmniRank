@@ -108,6 +108,69 @@ def _integerize_ci_text(text: str) -> str:
     return normalized
 
 
+def _mentions_item(text: str, item: str) -> bool:
+    return item.lower() in text.lower()
+
+
+def _has_top_claim(text: str, item: str) -> bool:
+    escaped = re.escape(item)
+    patterns = (
+        rf"\*\*{escaped}\*\*\s+ranks?\s+#?1",
+        rf"\*\*{escaped}\*\*\s+is\s+ranked\s+#?1",
+        rf"\*\*{escaped}\*\*\s+ranks?\s+highest",
+        rf"\*\*Top result\*\*:\s+\*\*{escaped}\*\*",
+        rf"Top-ranked item[^.\n]*{escaped}",
+        rf"{escaped}\s+is\s+top-ranked",
+    )
+    return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
+
+
+def _validate_llm_narrative(
+    narrative: dict[str, str],
+    results: RankingResults,
+    analysis: dict[str, Any],
+) -> list[str]:
+    top_item, _, _ = _top_item(results)
+    summary = narrative.get("summary", "")
+    results_narrative = narrative.get("results_narrative", "")
+    combined = f"{summary}\n{results_narrative}"
+    issues: list[str] = []
+
+    if "key takeaways" not in summary.lower():
+        issues.append("Summary must include a '**Key Takeaways:**' header.")
+    if not _mentions_item(summary, top_item):
+        issues.append(f"Summary must explicitly name **{top_item}** as the top-ranked item.")
+
+    for item in results.items:
+        if item == top_item:
+            continue
+        if _has_top_claim(summary, item):
+            issues.append(
+                f"Summary incorrectly presents **{item}** as top-ranked; the actual top item is **{top_item}**."
+            )
+            break
+
+    widest_ci_item = str(analysis.get("widest_ci_item") or "").strip()
+    if widest_ci_item and not _mentions_item(combined, widest_ci_item):
+        issues.append(
+            f"Key takeaways should mention **{widest_ci_item}** as the item with the widest interval."
+        )
+
+    largest_gap = analysis.get("largest_gap")
+    if isinstance(largest_gap, dict):
+        gap_from = str(largest_gap.get("from") or "").strip()
+        gap_to = str(largest_gap.get("to") or "").strip()
+        if gap_from and gap_to and not (_mentions_item(combined, gap_from) and _mentions_item(combined, gap_to)):
+            issues.append(
+                f"Narrative should mention the largest estimated-score gap between **{gap_from}** and **{gap_to}**."
+            )
+
+    if re.search(r"\btier(s)?\b", combined, re.IGNORECASE):
+        issues.append("Avoid 'tier' language; use groups or overlapping-interval clusters instead.")
+
+    return issues
+
+
 # ---------------------------------------------------------------------------
 # Analysis helpers
 # ---------------------------------------------------------------------------
@@ -188,7 +251,7 @@ def _render_ranking_table(results: RankingResults) -> str:
     order = sorted(range(len(results.ranks)), key=lambda i: results.ranks[i])
 
     lines = [
-        "| Rank | Item | Confidence Interval | Score (θ̂) |",
+        "| Rank | Item | Confidence Interval | Estimated Score |",
         "|---:|---|---|---:|",
     ]
     for idx in order:
@@ -262,7 +325,7 @@ def _build_llm_narrative(
     The returned dict values may contain markdown formatting (bold, bullets,
     inline code) but no raw HTML.
     """
-    top_item, top_score, top_rank = _top_item(results)
+    top_item, _, _ = _top_item(results)
     analysis = _analyze_ranking(results)
     order = analysis["order"]
 
@@ -272,72 +335,94 @@ def _build_llm_narrative(
     top_ci_pair = _ci_pair(top_ci_lo, top_ci_hi)
     near_ties = analysis["near_ties_with_top"]
     clusters = analysis["clusters"]
+    runner_up_idx = order[1] if len(order) > 1 else None
+    runner_up_item = results.items[runner_up_idx] if runner_up_idx is not None else None
 
     # ── Executive Summary ────────────────────────────────────────────────
     if near_ties:
+        tied_items = ", ".join(f"**{item}**" for item in near_ties)
         uncertainty = (
-            f"However, the 95% bootstrap confidence intervals for **{top_item}** "
-            f"overlap with {', '.join(f'**{t}**' for t in near_ties)}, "
-            "indicating uncertainty in the exact top position."
+            f"**{top_item}** currently leads, but its rank interval overlaps with "
+            f"{tied_items}, so the exact ordering at the top remains uncertain."
+        )
+    elif runner_up_item is not None:
+        uncertainty = (
+            f"**{top_item}** is separated from **{runner_up_item}** by non-overlapping "
+            "rank intervals, suggesting a clearer lead in this run."
         )
     else:
-        uncertainty = (
-            f"The confidence interval for **{top_item}** does not overlap with "
-            "the next-ranked item, suggesting clear separation at the top."
-        )
+        uncertainty = f"Only **{top_item}** is present, so no head-to-head uncertainty applies."
 
     bullets: list[str] = [
-        f"**{top_item}** ranks #1 with score {top_score:.4f} "
-        f"(95% CI: {top_ci_pair})",
+        f"**Top result**: **{top_item}** is ranked #1 (95% CI: {top_ci_pair}).",
     ]
+    if near_ties:
+        bullets.append(
+            f"**Close competition**: {', '.join(f'**{item}**' for item in near_ties)} "
+            "still overlap with the leader."
+        )
+    elif runner_up_item is not None:
+        bullets.append(
+            f"**Top separation**: **{top_item}** is cleanly separated from **{runner_up_item}** "
+            "by the reported rank intervals."
+        )
+    bullets.append(
+        f"**Most uncertainty**: **{analysis['widest_ci_item']}** has the widest interval, "
+        "so its rank is estimated less precisely."
+    )
     if analysis["largest_gap"]:
         lg = analysis["largest_gap"]
         bullets.append(
-            f"Largest score gap ({lg['gap']:.4f}) between "
-            f"**{lg['from']}** and **{lg['to']}**"
+            f"**Largest score gap**: estimated scores drop most sharply between "
+            f"**{lg['from']}** and **{lg['to']}**."
         )
-    bullets.append(
-        f"CI widths range from {analysis['narrowest_ci']:.4f} "
-        f"(**{analysis['narrowest_ci_item']}**) to "
-        f"{analysis['widest_ci']:.4f} (**{analysis['widest_ci_item']}**)"
-    )
 
     summary = (
-        f"**{top_item}** ranks highest with an estimated preference score "
-        f"(theta\\_hat) of **{top_score:.4f}** (Rank #{top_rank}). "
-        f"{uncertainty}\n\n"
-        "**Key Findings:**\n\n"
+        f"**{top_item}** ranks #1 in this run, meaning it has the strongest estimated score "
+        "among the compared items. "
+        f"{uncertainty} "
+        "The intervals shown are 95% bootstrap confidence intervals, so overlap should be read "
+        "as ranking uncertainty rather than as a formal significance claim.\n\n"
+        "**Key Takeaways:**\n\n"
         + "\n".join(f"- {b}" for b in bullets)
     )
 
     # ── Results Narrative ────────────────────────────────────────────────
     parts: list[str] = [
-        f"The spectral ranking analysis evaluated **{len(results.items)} items** "
-        "from the provided comparison data."
+        f"The analysis compares **{len(results.items)} items** and orders them by estimated score."
     ]
-    for tier_i, cluster in enumerate(clusters):
-        if tier_i == 0:
-            label = "Top Tier"
-        elif tier_i == len(clusters) - 1:
-            label = "Bottom Tier"
-        else:
-            label = f"Tier {tier_i + 1}"
+    if len(clusters) > 1:
+        parts.append(
+            f"Grouping items by overlapping rank intervals yields **{len(clusters)} CI-overlap groups**, "
+            "which helps separate clearer gaps from crowded parts of the ranking."
+        )
+    else:
+        parts.append(
+            "Most items fall into a single CI-overlap group, so much of the table remains tightly packed."
+        )
+    for cluster_i, cluster in enumerate(clusters, start=1):
+        label = f"Group {cluster_i}"
 
         items_md = ", ".join(f"**{it}**" for it in cluster)
         if len(cluster) == 1:
             ci = results.items.index(cluster[0])
             parts.append(
                 f"**{label}**: {items_md} "
-                f"(theta\\_hat = {results.theta_hat[ci]:.4f}, "
-                f"CI: {_ci_pair(results.ci_lower[ci], results.ci_upper[ci])})."
+                f"(estimated score {results.theta_hat[ci]:.4f}, "
+                f"rank CI {_ci_pair(results.ci_lower[ci], results.ci_upper[ci])})."
             )
         else:
             scores = [results.theta_hat[results.items.index(it)] for it in cluster]
             parts.append(
                 f"**{label}**: {items_md} "
                 f"(scores range {min(scores):.4f} -- {max(scores):.4f}, "
-                "overlapping CIs indicate comparable performance within this tier)."
+                "with overlapping rank intervals inside this group)."
             )
+    if analysis["largest_gap"]:
+        lg = analysis["largest_gap"]
+        parts.append(
+            f"The largest drop in estimated score occurs between **{lg['from']}** and **{lg['to']}**."
+        )
     results_narrative = " ".join(parts)
 
     # ── Methods ──────────────────────────────────────────────────────────
@@ -346,8 +431,8 @@ def _build_llm_narrative(
     input_path = _sanitize_inline_text(str(session_meta.get("current_file_path") or "N/A"))
     methods = (
         "### Estimation Procedure\n"
-        "- **Spectral estimator**: Build a comparison graph, construct a Markov chain, and estimate latent preference scores from its stationary distribution.\n"
-        "- **Ranking rule**: Sort items by **theta\\_hat** (higher score first when `bigbetter=1`).\n"
+        "- **Estimator**: Convert the comparison data into a spectral ranking model and estimate an overall score for each item.\n"
+        "- **Ranking rule**: Sort items by estimated score, with higher values ranked first when `bigbetter=1`.\n"
         f"- **Analysis scope**: **{len(results.items)} items** included in this run.\n\n"
         "### Uncertainty Quantification\n"
         "- **Interval type**: 95% bootstrap confidence intervals for rank uncertainty.\n"
@@ -362,12 +447,11 @@ def _build_llm_narrative(
 
     # ── Limitations ──────────────────────────────────────────────────────
     limitations = (
-        "- CI overlap is **not** a formal hypothesis test; "
-        "overlapping CIs indicate uncertainty, not equivalence.\n"
+        "- CI overlap is **not** a formal hypothesis test; use overlap as uncertainty context, not proof of equivalence.\n"
         "- Sparse comparison data can widen intervals and reduce rank precision.\n"
         "- Results assume strong connectivity of the comparison graph "
         "(required for a unique stationary distribution).\n"
-        "- Ranks are derived from theta\\_hat ordering; CI overlap affects "
+        "- Ranks are derived from estimated-score ordering; CI overlap affects "
         "rank certainty."
     )
 
@@ -406,18 +490,24 @@ def _build_llm_narrative(
         },
     }
     try:
-        llm_output = client.generate_json(
-            "generate_report", payload=payload, max_completion_tokens=4000
-        )
-        llm_narrative = {
-            k: str(llm_output.get(k) or fallback[k])
-            for k in fallback
-        }
-        # Keep Methodology deterministic and clean for consistent report quality.
-        llm_narrative["methods"] = methods
-        return {k: _integerize_ci_text(v) for k, v in llm_narrative.items()}
-    except (LLMCallError, ValueError, TypeError, KeyError) as exc:
-        raise LLMCallError(f"LLM report generation failed: {exc}") from exc
+        validation_feedback: list[str] = []
+        for _ in range(3):
+            attempt_payload = dict(payload)
+            if validation_feedback:
+                attempt_payload["validation_feedback"] = validation_feedback
+            llm_output = client.generate_json(
+                "generate_report", payload=attempt_payload, max_completion_tokens=4000
+            )
+            llm_narrative = {k: str(llm_output.get(k) or fallback[k]) for k in fallback}
+            # Keep Methodology deterministic and clean for consistent report quality.
+            llm_narrative["methods"] = methods
+            issues = _validate_llm_narrative(llm_narrative, results, analysis)
+            if not issues:
+                return {k: _integerize_ci_text(v) for k, v in llm_narrative.items()}
+            validation_feedback = issues
+        return fallback
+    except (LLMCallError, ValueError, TypeError, KeyError):
+        return fallback
 
 
 # ---------------------------------------------------------------------------
@@ -427,36 +517,34 @@ def _build_llm_narrative(
 _HINTS: list[HintSpec] = [
     HintSpec(
         hint_id="hint-theta-hat",
-        title="theta_hat (Estimated Preference Score)",
+        title="Estimated Score",
         body=(
-            "The estimated latent preference score from spectral ranking, "
-            "representing the stationary distribution of a Markov chain "
-            "constructed from comparison data. Higher values indicate "
-            "stronger preference (when bigbetter=1)."
+            "Score inferred from the spectral ranking model. Higher values indicate "
+            "stronger estimated preference when `bigbetter=1`, but rank and confidence intervals "
+            "are usually easier to interpret directly."
         ),
         kind=HintKind.DEFINITION,
         sources=[],
     ),
     HintSpec(
         hint_id="hint-ci",
-        title="95% Bootstrap Confidence Interval",
+        title="95% Confidence Interval",
         body=(
-            "Computed via Gaussian multiplier bootstrap "
+            "Computed with Gaussian multiplier bootstrap "
             "(Spectral Ranking Inferences based on General Multiway Comparisons, "
-            "https://arxiv.org/html/2308.02918). "
-            "The interval width reflects estimation precision; wider "
-            "intervals suggest greater uncertainty."
+            "https://arxiv.org/html/2308.02918). Narrower intervals mean more precise estimates; "
+            "wider intervals mean more uncertainty."
         ),
         kind=HintKind.DEFINITION,
         sources=[],
     ),
     HintSpec(
         hint_id="hint-ci-overlap",
-        title="CI Overlap Caveat",
+        title="How to Read Overlapping Intervals",
         body=(
-            "Overlapping CIs indicate uncertainty in relative ranking, not "
-            "formal equivalence. Non-overlapping intervals suggest measurable "
-            "separation, but overlap does not prove items are equivalent."
+            "If two intervals overlap, the ordering between those items is still uncertain. "
+            "If they do not overlap, the separation is more clearly measurable, but overlap does "
+            "not prove the items are equivalent."
         ),
         kind=HintKind.CAVEAT,
         sources=[],
@@ -542,20 +630,19 @@ def generate_report(
         cap_plain = plot.caption_plain or plot.type
         cap_acad = plot.caption_academic or plot.type
         if plot.type == "ci_forest":
-            figure_title = "Ranking Confidence Interval Plot"
+            figure_title = "Ranking Confidence Intervals"
         elif plot.type == "indicator_rankings_combined":
             ind = (plot.data or {}).get("indicator_col") or "phenotype"
             tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
-            figure_title = f"{tc} Ranking Overview"
+            figure_title = f"Rankings by {tc}"
         elif plot.type == "normalized_ranking_over_indicator":
             ind = (plot.data or {}).get("indicator_col") or "phenotype"
             tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
-            plural = tc + ("es" if tc.endswith("s") else "s")
-            figure_title = f"Normalized Ranking Over Individual {plural}"
+            figure_title = f"Normalized Ranks by {tc}"
         elif plot.type == "indicator_rankings_heatmap":
             ind = (plot.data or {}).get("indicator_col") or "phenotype"
             tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
-            figure_title = f"{tc} Rankings"
+            figure_title = f"Rank Heatmap by {tc}"
         else:
             figure_title = cap_plain
 

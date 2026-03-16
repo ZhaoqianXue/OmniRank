@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from core.schemas import ExecutionResult, ExecutionTrace, PlotSpec, QuotePayload, RankingResults
+from core.llm_client import LLMCallError
 from tools.answer_question import answer_question
 from tools.generate_report import generate_report
 from tools.generate_visualizations import generate_visualizations
@@ -224,12 +225,83 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
     assert "### Limitations and Assumptions" not in report.markdown
     assert "CI Width" not in report.markdown
     assert "Gap to #1" not in report.markdown
-    assert report.markdown.find("## Ranking Results") < report.markdown.find("| Rank | Item | Confidence Interval | Score (θ̂) |")
-    assert report.markdown.find("| Rank | Item | Confidence Interval | Score (θ̂) |") < report.markdown.find("## Executive Summary")
+    assert report.markdown.find("## Ranking Results") < report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |")
+    assert report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |") < report.markdown.find("## Executive Summary")
     assert "| 1 | A | [1, 2] | 0.6000 |" in report.markdown
+    assert "**A** ranks #1 in this run" in report.markdown
     assert len(report.citation_blocks) > 0
     assert len(report.hints) > 0
     assert all(hint.title != "Rank Interpretation" for hint in report.hints)
+
+
+def test_generate_report_retries_llm_when_summary_is_wrong(tmp_path: Path, monkeypatch):
+    results = _sample_results()
+    calls = {"count": 0}
+
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "generate_report"
+            calls["count"] += 1
+            if calls["count"] == 1:
+                return {
+                    "summary": "**B** is top-ranked here with a clear lead.",
+                    "results_narrative": "Incorrect narrative.",
+                    "methods": "Incorrect methods.",
+                    "limitations": "- Incorrect limitation.",
+                }
+            assert "validation_feedback" in payload
+            return {
+                "summary": (
+                    "**A** leads the ranking in this run. "
+                    "The ordering near the top still depends on the reported rank intervals.\n\n"
+                    "**Key Takeaways:**\n\n"
+                    "- **Top result**: **A** is ranked #1.\n"
+                    "- **Most uncertainty**: **B** has the widest interval.\n"
+                    "- **Largest score gap**: the clearest drop is between **B** and **C**."
+                ),
+                "results_narrative": (
+                    "**Group 1**: **A**, **B** remain close at the top. "
+                    "The largest estimated-score gap occurs between **B** and **C**."
+                ),
+                "methods": "Incorrect methods.",
+                "limitations": "- Incorrect limitation.",
+            }
+
+    monkeypatch.setattr("tools.generate_report.get_llm_client", lambda: _FakeClient())
+
+    report = generate_report(
+        results=results,
+        session_meta={"B": 2000, "seed": 42, "current_file_path": "/tmp/input.csv"},
+        plots=[],
+    )
+
+    assert calls["count"] == 2
+    assert "**A** leads the ranking in this run." in report.markdown
+    assert "**B** is top-ranked here" not in report.markdown
+
+
+def test_generate_report_falls_back_when_llm_report_generation_fails(tmp_path: Path, monkeypatch):
+    results = _sample_results()
+
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            raise LLMCallError("synthetic failure")
+
+    monkeypatch.setattr("tools.generate_report.get_llm_client", lambda: _FakeClient())
+
+    report = generate_report(
+        results=results,
+        session_meta={"B": 2000, "seed": 42, "current_file_path": "/tmp/input.csv"},
+        plots=[],
+    )
+
+    assert "**A** ranks #1 in this run" in report.markdown
 
 
 def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path: Path):
@@ -257,7 +329,7 @@ def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path
         plots=[plot],
     )
 
-    assert "## Phenotype Ranking Overview" in report.markdown
+    assert "## Rankings by Phenotype" in report.markdown
     assert "### Phenotype Ranking Table" in report.markdown
     assert "| Phenotype | A | B | C |" in report.markdown
     assert "| p1 | 1 | 2 | 3 |" in report.markdown

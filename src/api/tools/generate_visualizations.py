@@ -220,7 +220,7 @@ def _ci_forest_py(results: RankingResults, artifact_dir: Path) -> PlotSpec:
         config={"x_label": "rank", "point": "rank", "interval": "rank_ci", "source": "python"},
         svg_path=str(png_path),
         block_id=block_id,
-        caption_plain="Ranking Confidence Interval Plot",
+        caption_plain="Ranking Confidence Intervals",
         caption_academic="Forest plot of 95% rank confidence intervals with rank point estimates.",
         hint_ids=["hint-ci"],
     )
@@ -592,7 +592,7 @@ def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
             config={"x_label": "rank", "point": "rank", "interval": "rank_ci"},
             svg_path=str(svg_path),
             block_id=block_id,
-            caption_plain="Lines show rank uncertainty intervals; points show inferred rank.",
+            caption_plain="Ranking Confidence Intervals",
             caption_academic="Forest plot of 95% rank confidence intervals with rank point estimates.",
             hint_ids=["hint-ci"],
         )
@@ -718,7 +718,7 @@ def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
         config={"x_label": "rank", "point": "rank", "interval": "rank_ci"},
         svg_path=str(svg_path),
         block_id=block_id,
-        caption_plain="Horizontal lines show 95% rank confidence intervals; dots show point ranks.",
+        caption_plain="Ranking Confidence Intervals",
         caption_academic="Forest plot of rank confidence intervals with rank point estimates for each item.",
         hint_ids=["hint-ci"],
     )

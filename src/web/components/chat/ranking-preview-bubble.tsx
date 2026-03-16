@@ -357,12 +357,12 @@ export function RankingPreviewBubble({
                           size="lg"
                         >
                           <Play className="h-4 w-4 mr-2" />
-                          Flash Ranking
+                          Standard Ranking
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
                         <p className="leading-relaxed">
-                          Uses the existing workflow and report plots only.
+                          Runs the overall ranking and the standard report plots only.
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -376,12 +376,12 @@ export function RankingPreviewBubble({
                           size="lg"
                         >
                           <Play className="h-4 w-4 mr-2" />
-                          Deep Ranking
+                          Grouped Ranking
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
                         <p className="leading-relaxed">
-                          Adds normalized ranking over indicator groups and an indicator-level ranking heatmap.
+                          Adds per-group ranking views and a heatmap across the selected indicator values.
                         </p>
                       </TooltipContent>
                     </Tooltip>

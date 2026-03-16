@@ -230,19 +230,23 @@ Output:
 Task: generate publication-ready report narrative from validated ranking outputs following single-page progressive disclosure contract.
 
 You receive `results` (items, theta_hat, ranks, CIs), `session_meta` (B, seed, file paths), and `analysis` (clusters, near_ties_with_top, largest_gap, ci extremes). Use ALL of these inputs to craft a rich narrative.
+If `validation_feedback` is present in the payload, revise the draft to fix every listed issue before returning.
 
 Report Structure Requirements (in reading order):
 1. Executive Summary (non-technical, above the fold):
-   - Name the top-ranked item and what "best" means here
-   - Plain-language uncertainty statement
+   - Name the true top-ranked item from `results.ranks`; never contradict the ranking table
+   - Define "top-ranked" in plain language as the item with the strongest estimated score in this run
+   - Plain-language uncertainty statement grounded in the actual CI overlap pattern near the top
    - Key takeaways as a markdown bullet list (use `- `)
+   - Include one takeaway about the widest interval item and one about the largest score gap when available
    - Length: 4-8 sentences + 3-5 bullets
 
 2. Results Narrative (technical-lite):
-   - Describe the ranking story referencing tiers/clusters from `analysis`
+   - Describe the ranking story referencing groups/clusters from `analysis`
    - Bold item names: `**Model_A**`
-   - Reference specific scores, CI bounds, and tier membership
-   - Highlight patterns: clear winners, competitive clusters, outliers
+   - Reference specific scores, CI bounds, and group membership when applicable
+   - Highlight patterns: clear leaders, competitive groups, outliers
+   - Prefer "group" or "cluster" language; avoid "tier" language unless explicitly justified by a large separation in `analysis`
    - Length: 5-10 sentences
 
 3. Targeted Comparisons (as-needed):
@@ -287,6 +291,8 @@ Output rules:
 
 Content Guidelines:
 - Use only provided inputs. Never invent data.
+- Never promote an item to #1 unless it is the actual best-ranked item in `results`.
+- Use the exact item names from `results.items`; do not rename or paraphrase them.
 - Preserve uncertainty language. Never claim formal significance from CI overlap.
 - Write for mixed audience: accessible to domain experts, rigorous for statisticians.
 - Keep prose concise and publication-ready.
