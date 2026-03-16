@@ -788,7 +788,7 @@ export default function Home() {
                 </ScrollArea>
                 {!isLoggedIn && (
                   <p className="mt-2 px-2 text-[10px] leading-relaxed text-muted-foreground">
-                    Sign in to unlock full history management. Before login, only the current chat is shown.
+                    Sign in to save chat history
                   </p>
                 )}
               </>
@@ -890,11 +890,13 @@ export default function Home() {
               </Button>
             )}
 
-            {isSidebarExpanded && !isGoogleConfigured && (
-              <p className="mt-2 text-[10px] leading-relaxed text-[#FFD700]">
-                Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google login.
-              </p>
-            )}
+            {isSidebarExpanded &&
+              process.env.NODE_ENV === "development" &&
+              !isGoogleConfigured && (
+                <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">
+                  Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google login.
+                </p>
+              )}
 
             {isSidebarExpanded && visibleGoogleAuthError && (
               <p className="mt-2 text-[10px] leading-relaxed text-red-400">{visibleGoogleAuthError}</p>
@@ -935,6 +937,9 @@ export default function Home() {
                   {isIdle && !hasData && (
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                       <div className="space-y-4 pb-4">
+                        <p className="text-sm text-muted-foreground text-center">
+                          Upload a CSV or choose an example to get started
+                        </p>
                         <FileUpload
                           onUpload={handleUpload}
                           mode="dropzone"
@@ -1033,7 +1038,9 @@ export default function Home() {
                   <ChatInput
                     onSend={handleSendMessage}
                     disabled={false}
-                    placeholder="Type your message..."
+                    placeholder={
+                      showResults ? "Ask about your results..." : "Type your message..."
+                    }
                     quoteDrafts={quoteDrafts}
                     onQuoteDraftsChange={setQuoteDrafts}
                     recentMessages={state.messages
