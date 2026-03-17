@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import subprocess
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -211,6 +212,36 @@ def _verify_phenotype_r_succeeds(
             Path(f.name).unlink(missing_ok=True)
 
 
+def _run_r_for_seed(
+    csv_path: str,
+    seed: int,
+    r_script_path: Path,
+    cwd: str,
+) -> tuple[int, bool]:
+    """Run R script for one seed; return (seed, success)."""
+    result = subprocess.run(
+        [
+            "Rscript",
+            str(r_script_path),
+            "--csv",
+            csv_path,
+            "--bigbetter",
+            "1",
+            "--B",
+            "500",
+            "--seed",
+            str(seed),
+            "--out",
+            str(Path(csv_path).parent / "out"),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        cwd=cwd,
+    )
+    return (seed, result.returncode == 0)
+
+
 def _find_passing_seeds(
     df: pd.DataFrame,
     phenotype: str,
@@ -219,6 +250,7 @@ def _find_passing_seeds(
     min_non_na: int,
     min_rows: int,
     seed_range: tuple[int, int] = (42, 62),
+    max_workers: int = 8,
 ) -> set[int]:
     """Return set of seeds for which R spectral ranking succeeds."""
     sub = df[df["Phenotype"] == phenotype][method_cols]
@@ -231,32 +263,20 @@ def _find_passing_seeds(
         return set()
     sub = sub[local_methods]
     passing: set[int] = set()
+    cwd = str(r_script_path.parent.parent.parent)
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
         sub.to_csv(f.name, index=False)
         try:
-            for seed in range(seed_range[0], seed_range[1]):
-                result = subprocess.run(
-                    [
-                        "Rscript",
-                        str(r_script_path),
-                        "--csv",
-                        f.name,
-                        "--bigbetter",
-                        "1",
-                        "--B",
-                        "500",
-                        "--seed",
-                        str(seed),
-                        "--out",
-                        str(Path(f.name).parent / "out"),
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                    cwd=str(r_script_path.parent.parent.parent),
-                )
-                if result.returncode == 0:
-                    passing.add(seed)
+            seeds_to_check = list(range(seed_range[0], seed_range[1]))
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                futures = {
+                    ex.submit(_run_r_for_seed, f.name, s, r_script_path, cwd): s
+                    for s in seeds_to_check
+                }
+                for future in as_completed(futures):
+                    seed, ok = future.result()
+                    if ok:
+                        passing.add(seed)
         finally:
             Path(f.name).unlink(missing_ok=True)
     return passing
@@ -287,8 +307,9 @@ METHOD_COLS = PREFERRED_METHOD_ORDER
 
 # Quality thresholds: phenotypes need sufficient dense rows for R spectral ranking.
 # Rows with too few non-NA values can cause degenerate comparison matrices.
-MIN_NON_NA_PER_ROW = 4
-MIN_ROWS_PER_PHENOTYPE = 4
+# min_rows=2 allows Glaucoma, Hypothyroidism, AS, BFP, BW, FEV (2 dense rows) to pass R.
+MIN_NON_NA_PER_ROW = 3
+MIN_ROWS_PER_PHENOTYPE = 2
 MIN_PHENOTYPES = 20
 
 
@@ -328,10 +349,12 @@ def main() -> None:
         missing = set(METHOD_COLS) - set(method_cols)
         raise ValueError(f"Missing method columns: {missing}")
 
-    # Use RAW phenotype names as candidates. Try min 3 non-NA to include more (e.g. Asthma).
+    # Use RAW phenotype names as candidates. min_rows=3 includes Osteoporosis etc.
     for col in method_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-    filtered = _quality_filter(df, method_cols, min_non_na=3, min_rows=4)
+    filtered = _quality_filter(
+        df, method_cols, min_non_na=MIN_NON_NA_PER_ROW, min_rows=MIN_ROWS_PER_PHENOTYPE
+    )
 
     # Seed-assignment: find which seeds each phenotype passes with, assign to positions 0..19.
     pheno_to_seeds: dict[str, set[int]] = {}
@@ -339,28 +362,45 @@ def main() -> None:
     print("  Scanning phenotype-seed compatibility...")
     for pheno in candidates:
         passing = _find_passing_seeds(
-            filtered, pheno, method_cols, r_script_path,
-            min_non_na=3, min_rows=4, seed_range=(42, 62),
+            filtered,
+            pheno,
+            method_cols,
+            r_script_path,
+            min_non_na=MIN_NON_NA_PER_ROW,
+            min_rows=MIN_ROWS_PER_PHENOTYPE,
+            seed_range=(42, 62),
         )
         if passing:
             pheno_to_seeds[pheno] = passing
 
-    # Greedy assignment: for each position 0..19, pick a phenotype that passes with 42+pos
-    assigned_order: list[str] = []
-    used: set[str] = set()
+    # Build position -> phenotypes map (position i needs seed 42+i)
+    pos_to_candidates: dict[int, list[str]] = {}
     for pos in range(MIN_PHENOTYPES):
-        required_seed = 42 + pos
+        need_seed = 42 + pos
+        pos_to_candidates[pos] = [
+            p for p, seeds in pheno_to_seeds.items() if need_seed in seeds
+        ]
+
+    # Greedy assignment: fill positions with fewest options first (hardest-first)
+    positions_by_hardness = sorted(
+        range(MIN_PHENOTYPES),
+        key=lambda pos: len(pos_to_candidates[pos]),
+    )
+    assigned_order: list[str] = []
+    pos_to_pheno: dict[int, str] = {}
+    used: set[str] = set()
+    for pos in positions_by_hardness:
         chosen = None
-        for pheno, seeds in pheno_to_seeds.items():
+        for pheno in pos_to_candidates[pos]:
             if pheno in used:
                 continue
-            if required_seed in seeds:
-                chosen = pheno
-                break
+            chosen = pheno
+            break
         if chosen is None:
             break
-        assigned_order.append(chosen)
+        pos_to_pheno[pos] = chosen
         used.add(chosen)
+    assigned_order = [pos_to_pheno[i] for i in range(MIN_PHENOTYPES) if i in pos_to_pheno]
 
     if len(assigned_order) < MIN_PHENOTYPES:
         print(f"  Only {len(assigned_order)} phenotypes could be assigned (target {MIN_PHENOTYPES})")
