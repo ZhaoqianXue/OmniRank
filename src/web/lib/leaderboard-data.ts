@@ -75,19 +75,22 @@ const ARENA_COMBINATIONS_DIR = path.join(
   "all_combinations",
 );
 
-const ARENA_MATRIX_FILE = path.join(
-  LEADERBOARD_DATA_ROOT,
-  "arena",
-  "data_processing",
-  "arena_elo_full.csv",
-);
+const ARENA_SINGLE_CATEGORY_FIELDS = [
+  "creative_writing",
+  "math",
+  "instruction_following",
+  "coding",
+  "hard_prompt",
+  "longer_query",
+  "multi_turn",
+] as const;
 
 const EXAMPLE_ARENA_FILE = path.join(REPO_ROOT, "data", "examples", "example_data_pairwise.csv");
 
 let cachedHfBaseMethods: SpectralMethod[] | null = null;
 let cachedArenaBaseMethods: SpectralMethod[] | null = null;
 let cachedHfMatrix: BenchmarkMatrix | null = null;
-let cachedArenaMatrix: BenchmarkMatrix | null = null;
+let cachedArenaSpectralRanks: Map<string, Map<string, number>> | null = null;
 let cachedExampleArenaPreview: ExampleArenaPreview | null = null;
 
 function detectRepoRoot(): string {
@@ -293,37 +296,37 @@ function loadHfMatrix(): BenchmarkMatrix {
   return cachedHfMatrix;
 }
 
-function loadArenaMatrix(): BenchmarkMatrix {
-  if (cachedArenaMatrix) {
-    return cachedArenaMatrix;
+/**
+ * Load spectral ranks for each single-category benchmark from ranking_cli.R results.
+ * Returns Map<fieldKey, Map<modelName, rank>>.
+ */
+function loadArenaSpectralRanks(): Map<string, Map<string, number>> {
+  if (cachedArenaSpectralRanks) {
+    return cachedArenaSpectralRanks;
   }
 
-  const rows = readCsvRows(ARENA_MATRIX_FILE);
-  if (rows.length < 2) {
-    throw new Error("Arena benchmark matrix is empty.");
-  }
+  const ranksByField = new Map<string, Map<string, number>>();
 
-  const header = rows[0] ?? [];
-  const modelNames = header.slice(1);
-
-  const benchmarkKeys: string[] = [];
-  const values: number[][] = modelNames.map(() => []);
-
-  for (const row of rows.slice(1)) {
-    const benchmarkKey = (row[0] ?? "").trim();
-    if (!benchmarkKey) {
+  for (const field of ARENA_SINGLE_CATEGORY_FIELDS) {
+    const filePath = path.join(ARENA_COMBINATIONS_DIR, field, "ranking_results.json");
+    if (!fs.existsSync(filePath)) {
       continue;
     }
 
-    benchmarkKeys.push(benchmarkKey);
-    for (let modelIndex = 0; modelIndex < modelNames.length; modelIndex += 1) {
-      const value = toNumber(row[modelIndex + 1], 0);
-      values[modelIndex]?.push(value);
+    const rawMethods = readJsonFile<RawArenaMethod[]>(filePath);
+    if (!Array.isArray(rawMethods)) {
+      continue;
     }
+
+    const modelToRank = new Map<string, number>();
+    for (const item of rawMethods) {
+      modelToRank.set(item.model, Math.max(1, Math.round(toNumber(item.rank, 1))));
+    }
+    ranksByField.set(field, modelToRank);
   }
 
-  cachedArenaMatrix = { benchmarkKeys, modelNames, values };
-  return cachedArenaMatrix;
+  cachedArenaSpectralRanks = ranksByField;
+  return cachedArenaSpectralRanks;
 }
 
 function normalizeHfMethod(item: Record<string, unknown>): SpectralMethod {
@@ -415,36 +418,51 @@ function attachHfBenchmarkScores(
   });
 }
 
+function findSpectralRank(modelName: string, modelToRank: Map<string, number>): number | undefined {
+  const exact = modelToRank.get(modelName);
+  if (exact !== undefined) {
+    return exact;
+  }
+
+  const allNames = [...modelToRank.keys()];
+  const idx = fuzzyFindModelIndex(modelName, allNames);
+  if (idx >= 0) {
+    return modelToRank.get(allNames[idx]);
+  }
+  return undefined;
+}
+
 function attachArenaBenchmarkScores(methods: SpectralMethod[], selectedVirtualKeys: string[]): SpectralMethod[] {
-  const matrix = loadArenaMatrix();
-  const benchmarkIndex = new Map(matrix.benchmarkKeys.map((key, idx) => [key, idx]));
-  const selectedIndices = selectedVirtualKeys
-    .map((key) => benchmarkIndex.get(key))
-    .filter((value): value is number => value !== undefined);
+  const ranksByField = loadArenaSpectralRanks();
+  const selectedFields = selectedVirtualKeys
+    .map((key) => ARENA_VIRTUAL_TO_FIELD[key])
+    .filter((value): value is string => Boolean(value));
 
   return methods.map((method) => {
     const next = cloneMethod(method);
-    const modelIndex = fuzzyFindModelIndex(next.name, matrix.modelNames);
+    const scores: Record<string, number> = {};
 
-    if (modelIndex >= 0) {
-      const scores: Record<string, number> = {};
-
-      for (const [virtualKey, fieldKey] of Object.entries(ARENA_VIRTUAL_TO_FIELD)) {
-        const keyIndex = benchmarkIndex.get(virtualKey);
-        if (keyIndex !== undefined) {
-          scores[fieldKey] = matrix.values[modelIndex]?.[keyIndex] ?? 0;
-        }
+    for (const [virtualKey, fieldKey] of Object.entries(ARENA_VIRTUAL_TO_FIELD)) {
+      const modelToRank = ranksByField.get(fieldKey);
+      if (!modelToRank) {
+        continue;
       }
 
-      const selectedValues = selectedIndices
-        .map((index) => matrix.values[modelIndex]?.[index])
-        .filter((value): value is number => Number.isFinite(value));
+      const rank = findSpectralRank(next.name, modelToRank);
+      if (rank !== undefined) {
+        scores[fieldKey] = 1 / rank;
+      }
+    }
 
-      const average = selectedValues.length > 0
-        ? selectedValues.reduce((sum, value) => sum + value, 0) / selectedValues.length
-        : 0;
+    const selectedValues = selectedFields
+      .map((field) => scores[field])
+      .filter((value): value is number => Number.isFinite(value) && value > 0);
 
-      scores.average_score = average;
+    scores.average_score = selectedValues.length > 0
+      ? selectedValues.reduce((sum, value) => sum + value, 0) / selectedValues.length
+      : 0;
+
+    if (Object.keys(scores).length > 0) {
       next.benchmark_scores = scores;
     }
 
