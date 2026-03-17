@@ -1,7 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo } from "react";
-import { Info, Table2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+  Info,
+  Table2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ArrowUpRight,
+  Trophy,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -123,6 +133,38 @@ export function DataPreviewComponent({
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {exampleInfo.previewCta && (
+                        <div className="space-y-2 rounded-lg border border-primary/20 bg-background/75 p-3">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="inline-flex items-center gap-1.5 text-primary">
+                                <Trophy className="h-3.5 w-3.5" />
+                                <p className="text-sm font-semibold text-foreground">
+                                  {exampleInfo.previewCta.title}
+                                </p>
+                              </div>
+                              <Button
+                                asChild
+                                variant="outline"
+                                size="xs"
+                                className="border-primary/30 bg-background/80 text-primary hover:bg-primary/10 hover:text-primary"
+                              >
+                                <Link
+                                  href={exampleInfo.previewCta.href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {exampleInfo.previewCta.label}
+                                  <ArrowUpRight className="h-3 w-3" />
+                                </Link>
+                              </Button>
+                            </div>
+                            <p className="leading-relaxed text-foreground/80">
+                              {exampleInfo.previewCta.description}
+                            </p>
+                          </div>
+                        </div>
                       )}
                     </>
                   );

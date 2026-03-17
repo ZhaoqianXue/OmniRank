@@ -280,6 +280,33 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
     assert all(hint.title != "Rank Interpretation" for hint in report.hints)
 
 
+def test_generate_report_ranking_table_uses_rank_order():
+    results = RankingResults(
+        items=["LDpred2-inf", "C+T", "PRS-CS-auto", "LDpred", "lassosum"],
+        theta_hat=[0.1, 0.6, 0.2, 0.5, 0.4],
+        ranks=[5, 1, 4, 2, 3],
+        ci_lower=[4.0, 1.0, 3.0, 2.0, 3.0],
+        ci_upper=[5.0, 2.0, 5.0, 3.0, 4.0],
+        indicator_value=None,
+    )
+
+    report = generate_report(
+        results=results,
+        session_meta={"B": 2000, "seed": 42, "current_file_path": "/tmp/input.csv"},
+        plots=[],
+    )
+
+    table_start = report.markdown.index("| Rank | Item | Confidence Interval | Estimated Score |")
+    table_end = report.markdown.index("\n\n## Executive Summary", table_start)
+    ranking_table = report.markdown[table_start:table_end]
+
+    assert "| 1 | C+T | [1, 2] | 0.6000 |" in ranking_table
+    assert "| 2 | LDpred | [2, 3] | 0.5000 |" in ranking_table
+    assert "| 3 | lassosum | [3, 4] | 0.4000 |" in ranking_table
+    assert "| 4 | PRS-CS-auto | [3, 5] | 0.2000 |" in ranking_table
+    assert "| 5 | LDpred2-inf | [4, 5] | 0.1000 |" in ranking_table
+
+
 def test_generate_report_retries_llm_when_summary_is_wrong(tmp_path: Path, monkeypatch):
     results = _sample_results()
     calls = {"count": 0}

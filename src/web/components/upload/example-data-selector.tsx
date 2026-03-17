@@ -51,58 +51,58 @@ type ExampleCardDetails = {
 
 const cardDetailsByExampleId: Record<string, ExampleCardDetails> = {
   pairwise: {
-    summary: "Head-to-head battles between two models on the same prompt.",
-    eachRow: "Model A vs Model B",
-    values: "Winner/loser (1/0)",
-    bestFor: "Head-to-head tests and preference battles",
+    summary: "Direct win-loss comparisons between two models on the same evaluation task.",
+    eachRow: "One comparison between two models",
+    values: "Winner/loser outcome (1/0)",
+    bestFor: "Pairwise evaluations and preference-based ranking",
   },
   multiway_scores: {
-    summary: "Side-by-side performance comparisons across all models on the same sample.",
-    eachRow: "One sample with all models",
+    summary: "Per-sample performance scores for multiple models evaluated on the same input.",
+    eachRow: "One sample with scores for all models",
     values: "Metric from 0 to 1 (higher is better)",
-    bestFor: "Sample-level benchmark metrics",
+    bestFor: "Sample-level benchmark comparisons",
   },
   pairwise_human_logs: {
-    summary: "Raw human preference logs where each comparison is recorded as two item/value rows.",
-    eachRow: "One assistant outcome in a comparison",
+    summary: "Raw human preference logs with one row per assistant in each comparison.",
+    eachRow: "One assistant outcome within a comparison",
     values: "value = 1 (winner), 0 (loser)",
-    bestFor: "Raw annotation exports requiring automatic pivot",
+    bestFor: "Long-format annotation logs that need auto-conversion",
   },
   multiway_latency: {
-    summary: "Latency comparisons across all systems on the same workload.",
-    eachRow: "One workload with all systems",
+    summary: "Latency measurements for multiple systems under the same workload scenario.",
+    eachRow: "One workload with latency for all systems",
     values: "Latency in ms (lower is better)",
-    bestFor: "System speed and infrastructure benchmarks",
+    bestFor: "Speed and systems benchmarking",
   },
   multiway_rank_columns: {
-    summary: "Complete rank-order outcomes recorded as rank_1 to rank_6.",
-    eachRow: "One match with full ordering",
+    summary: "Full ranking outcomes stored explicitly in rank_1 through rank_6 columns.",
+    eachRow: "One event with a complete rank order",
     values: "Rank positions by candidate name",
-    bestFor: "Tournament-style full ranking outcomes",
+    bestFor: "Full-order rankings and tournament results",
   },
   multiway: {
-    summary: "Relative finish-order comparisons across all horses in the same race.",
-    eachRow: "One race with all horses",
+    summary: "Finish-order results for all competitors within the same race.",
+    eachRow: "One race with all competitors",
     values: "Finish positions (1 = best, lower is better)",
-    bestFor: "Complete ranking data within each event",
+    bestFor: "Event-level ranking data",
   },
   multiway_phenotype: {
-    summary: "Side-by-side AUC comparisons across PRS methods on the same phenotype-study.",
-    eachRow: "One phenotype-study with all methods",
-    values: "AUC 0–1 (higher is better)",
-    bestFor: "Forest plots, heatmaps, phenotype-wise ranking",
+    summary: "AUC comparisons for multiple PRS methods across phenotype cohorts.",
+    eachRow: "One phenotype cohort with all methods",
+    values: "AUC from 0 to 1 (higher is better)",
+    bestFor: "Method comparison, heatmaps, and phenotype-wise ranking",
   },
 };
 
 // Short descriptions for each example
 const shortDescriptions: Record<string, string> = {
-  pairwise: "AI chatbots competing head-to-head on coding, math, and writing tasks",
-  pairwise_human_logs: "Raw pairwise logs auto-converted to ranking-ready matrix",
-  multiway_scores: "ML models evaluated side by side on each sample",
-  multiway_latency: "System latency benchmarks across realistic workload scenarios",
-  multiway_rank_columns: "Tournament outcomes in rank_1 through rank_6 format",
-  multiway: "Horses ranked by finish position across multiple races",
-  multiway_phenotype: "PRS methods evaluated by AUC across phenotypes and studies",
+  pairwise: "Direct win-loss comparisons between two models on the same task",
+  pairwise_human_logs: "Raw human preference logs with one row per assistant outcome",
+  multiway_scores: "Per-sample performance scores for multiple models",
+  multiway_latency: "Latency measurements for multiple systems under shared workloads",
+  multiway_rank_columns: "Full ranking outcomes stored in rank_1 through rank_6 columns",
+  multiway: "Finish-order results for all competitors within each race",
+  multiway_phenotype: "AUC comparisons for PRS methods across phenotype records",
 };
 
 export function ExampleDataSelector({

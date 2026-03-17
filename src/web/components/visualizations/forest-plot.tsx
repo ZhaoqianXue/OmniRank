@@ -24,6 +24,34 @@ const CHART_BG = "#132841";
 const CHART_BG_LIGHT = "#ffffff";
 const AXIS_COLOR = "#e2e8f0";
 const AXIS_COLOR_LIGHT = "#0f172a";
+const PREFERRED_PRS_METHOD_ORDER = [
+  "C+T",
+  "LDpred",
+  "lassosum",
+  "PRS-CS",
+  "PRS-CS-auto",
+  "SBayesR",
+  "SCT",
+  "DBSLMM",
+  "LDpred2",
+  "LDpred2-auto",
+  "LDpred2-inf",
+  "LDpred-funct",
+  "lassosum2",
+];
+const PREFERRED_PRS_METHOD_SET = new Set(PREFERRED_PRS_METHOD_ORDER);
+
+function applyPreferredPrsMethodOrder<T extends { name: string }>(items: T[]): T[] {
+  const indexByName = new Map(items.map((item, index) => [item.name, index]));
+  const preferredIndices = PREFERRED_PRS_METHOD_ORDER
+    .map((name) => indexByName.get(name))
+    .filter((index): index is number => index !== undefined);
+  if (preferredIndices.length < 2) return items;
+  return [
+    ...preferredIndices.map((index) => items[index]),
+    ...items.filter((item) => !PREFERRED_PRS_METHOD_SET.has(item.name)),
+  ];
+}
 
 // Custom tooltip component for Forest Plot
 const CustomTooltip = ({
@@ -94,8 +122,7 @@ export function ForestPlot({ items, className, theme = "dark" }: ForestPlotProps
 
   // Prepare data for the forest plot - sort by rank
   const chartData: ForestPlotDataItem[] = useMemo(() => {
-    return [...items]
-      .sort((a, b) => a.rank - b.rank)
+    return applyPreferredPrsMethodOrder([...items].sort((a, b) => a.rank - b.rank))
       .map((item) => {
         const ciLower = Math.round(item.ci_two_sided[0]);
         const ciUpper = Math.round(item.ci_two_sided[1]);
