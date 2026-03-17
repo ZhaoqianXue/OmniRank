@@ -240,10 +240,10 @@ export function RankingPreviewBubble({
             </div>
             <button
               onClick={handleOpenDialog}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="p-2 -m-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
               title="Configure analysis"
             >
-              <Settings2 className="h-4 w-4" />
+              <Settings2 className="h-6 w-6" />
             </button>
           </div>
 
@@ -302,16 +302,13 @@ export function RankingPreviewBubble({
                 )}
               </Section>
             )}
-
-            {/* Ranking Parameters */}
-            <Section title="Ranking Parameters">
-              <DisplayRow label="Bootstrap">{bootstrapIterations}</DisplayRow>
-              <DisplayRow label="Seed">{randomSeed}</DisplayRow>
-            </Section>
           </div>
 
           {/* Action Button - changes based on state */}
           <div className="px-4 pb-4">
+            <p className="text-xs text-muted-foreground text-center -mt-2 mb-3">
+              Click the settings in the top-right corner to adjust parameters.
+            </p>
             {isCompleted ? (
               // After ranking is completed: Show/Hide Report toggle
               <Button
@@ -357,12 +354,12 @@ export function RankingPreviewBubble({
                           size="lg"
                         >
                           <Play className="h-4 w-4 mr-2" />
-                          Standard Ranking
+                          Overall Ranking
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
                         <p className="leading-relaxed">
-                          Runs the overall ranking and the standard report plots only.
+                          Ranks all items in one aggregated view. Output: rank table, confidence intervals, and score distribution.
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -376,12 +373,12 @@ export function RankingPreviewBubble({
                           size="lg"
                         >
                           <Play className="h-4 w-4 mr-2" />
-                          Grouped Ranking
+                          Specify Ranking
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
                         <p className="leading-relaxed">
-                          Adds per-group ranking views and a heatmap across the selected indicator values.
+                          Ranks items separately for each indicator group. Output: per-group rankings, normalized ranking chart, and heatmap.
                         </p>
                       </TooltipContent>
                     </Tooltip>

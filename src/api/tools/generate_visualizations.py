@@ -18,6 +18,24 @@ from core.r_executor import RScriptExecutor
 from core.schemas import EngineConfig, PlotSpec, RankingMode, RankingResults, VisualizationOutput
 
 
+PREFERRED_PRS_METHOD_ORDER = [
+    "C+T",
+    "LDpred",
+    "lassosum",
+    "PRS-CS",
+    "PRS-CS-auto",
+    "SBayesR",
+    "SCT",
+    "DBSLMM",
+    "LDpred2",
+    "LDpred2-auto",
+    "LDpred2-inf",
+    "LDpred-funct",
+    "lassosum2",
+]
+_PREFERRED_PRS_METHOD_SET = set(PREFERRED_PRS_METHOD_ORDER)
+
+
 def _stable_block_id(prefix: str, payload: str) -> str:
     digest = hashlib.sha1(payload.encode("utf-8"), usedforsecurity=False).hexdigest()[:12]
     return f"{prefix}-{digest}"
@@ -45,6 +63,22 @@ def _fmt_rank_bound(value: float) -> str:
     if abs(value - rounded) < 1e-9:
         return str(rounded)
     return _fmt_number(value, digits=2)
+
+
+def _preferred_method_reorder_indices(methods: list[str]) -> list[int]:
+    if not methods:
+        return []
+
+    index_by_method = {method: idx for idx, method in enumerate(methods)}
+    preferred_indices = [index_by_method[method] for method in PREFERRED_PRS_METHOD_ORDER if method in index_by_method]
+    if len(preferred_indices) < 2:
+        return list(range(len(methods)))
+    return preferred_indices + [idx for idx, method in enumerate(methods) if method not in _PREFERRED_PRS_METHOD_SET]
+
+
+def _apply_preferred_method_order(methods: list[str]) -> list[str]:
+    reorder = _preferred_method_reorder_indices(methods)
+    return [methods[idx] for idx in reorder]
 
 
 def _ordered_indices(results: RankingResults) -> list[int]:
@@ -145,6 +179,7 @@ def _item_rank_matrix_from_csv(
     item_order = [col for col in df.columns if col != indicator_key]
     if not item_order:
         return [], [], []
+    item_order = _apply_preferred_method_order(item_order)
 
     numeric = df[item_order].apply(pd.to_numeric, errors="coerce")
     if pre_ranked:
@@ -167,12 +202,19 @@ def _item_rank_matrix_from_csv(
 
 def _ci_forest_py(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     """Generate Ranking Confidence Interval Plot using Python plot script."""
+    order = _preferred_method_reorder_indices([str(item) for item in results.items])
+    names = [results.items[i] for i in order]
+    theta_hat = [results.theta_hat[i] for i in order]
+    ranks = [results.ranks[i] for i in order]
+    lower = [results.ci_lower[i] for i in order]
+    upper = [results.ci_upper[i] for i in order]
+
     payload = (
-        "|".join(results.items)
+        "|".join(names)
         + ":"
-        + "|".join(f"{r:.6f}" for r in results.ranks)
+        + "|".join(f"{r:.6f}" for r in ranks)
         + ":"
-        + "|".join(f"{lo:.6f}-{hi:.6f}" for lo, hi in zip(results.ci_lower, results.ci_upper, strict=True))
+        + "|".join(f"{lo:.6f}-{hi:.6f}" for lo, hi in zip(lower, upper, strict=True))
     )
     block_id = _stable_block_id("figure-ci-forest", payload)
     png_path = artifact_dir / f"{block_id}.png"
@@ -181,11 +223,11 @@ def _ci_forest_py(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     py_script = _phenotype_plot_py_script(project_root)
 
     ci_data = {
-        "items": results.items,
-        "theta_hat": results.theta_hat,
-        "ranks": results.ranks,
-        "ci_lower": results.ci_lower,
-        "ci_upper": results.ci_upper,
+        "items": names,
+        "theta_hat": theta_hat,
+        "ranks": ranks,
+        "ci_lower": lower,
+        "ci_upper": upper,
     }
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(ci_data, f, indent=None)
@@ -211,11 +253,11 @@ def _ci_forest_py(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     return PlotSpec(
         type="ci_forest",
         data={
-            "names": results.items,
-            "rank_point": results.ranks,
-            "theta_hat": results.theta_hat,
-            "ci_lower": results.ci_lower,
-            "ci_upper": results.ci_upper,
+            "names": names,
+            "rank_point": ranks,
+            "theta_hat": theta_hat,
+            "ci_lower": lower,
+            "ci_upper": upper,
         },
         config={"x_label": "rank", "point": "rank", "interval": "rank_ci", "source": "python"},
         svg_path=str(png_path),
@@ -568,6 +610,12 @@ def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     ranks = [results.ranks[i] for i in order]
     lower = [results.ci_lower[i] for i in order]
     upper = [results.ci_upper[i] for i in order]
+    preferred_order = _preferred_method_reorder_indices([str(name) for name in names])
+    names = [names[i] for i in preferred_order]
+    scores = [scores[i] for i in preferred_order]
+    ranks = [ranks[i] for i in preferred_order]
+    lower = [lower[i] for i in preferred_order]
+    upper = [upper[i] for i in preferred_order]
 
     payload = (
         "|".join(names)
@@ -857,6 +905,7 @@ def _compute_deep_ranking_data(
         method_order = [item for item in selected_items if item in df.columns and pd.api.types.is_numeric_dtype(df[item])]
     else:
         method_order = [col for col in df.columns if col != indicator_col and pd.api.types.is_numeric_dtype(df[col])]
+    method_order = _apply_preferred_method_order(method_order)
 
     if len(method_order) < 2:
         raise ValueError("Deep ranking needs at least 2 numeric method columns.")

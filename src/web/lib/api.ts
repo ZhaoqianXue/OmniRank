@@ -185,19 +185,6 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     format: "pairwise",
   },
   {
-    id: "multiway_phenotype",
-    filename: "example_data_multiway_phenotype.csv",
-    title: "PRS Phenotype Matrix",
-    description:
-      "Trait-stratified count matrix for PRS methods. " +
-      "Each row is one phenotype with method counts (number of GWAS per method). " +
-      "• Items to rank: C+T, SCT, LDpred, LDpred2, LDpred2-auto, LDpred2-inf, LDpred-funct, AnnoPred, lassosum, lassosum2, PRS-CS, PRS-CS-auto, SBayesR, DBSLMM " +
-      "• Indicator: phenotype (33 traits) " +
-      "• 33 rows " +
-      "• Supports Flash ranking (overall) and Deep ranking (phenotype-wise)",
-    format: "multiway",
-  },
-  {
     id: "multiway_scores",
     filename: "example_data_multiway_scores.csv",
     title: "Model Performance Matrix",
@@ -208,6 +195,19 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
       "• 164 test samples " +
       "• Values: Per-sample evaluation metrics from 0 to 1 " +
       "• Goal: Find which model performs best overall",
+    format: "multiway",
+  },
+  {
+    id: "multiway_phenotype",
+    filename: "example_data_multiway_phenotype.csv",
+    title: "PRS Phenotype Matrix",
+    description:
+      "Trait-stratified count matrix for PRS methods. " +
+      "Each row is one phenotype with method counts (number of GWAS per method). " +
+      "• Items to rank: C+T, SCT, LDpred, LDpred2, LDpred2-auto, LDpred2-inf, LDpred-funct, AnnoPred, lassosum, lassosum2, PRS-CS, PRS-CS-auto, SBayesR, DBSLMM " +
+      "• Indicator: phenotype (33 traits) " +
+      "• 33 rows " +
+      "• Supports Flash ranking (overall) and Deep ranking (phenotype-wise)",
     format: "multiway",
   },
   {

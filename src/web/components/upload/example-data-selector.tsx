@@ -29,17 +29,17 @@ const formatLabels: Record<string, string> = {
   multiway: "Multiway",
 };
 
-const primaryExampleOrder = ["pairwise", "multiway_scores"] as const;
+const primaryExampleOrder = ["pairwise", "multiway_phenotype"] as const;
 type PrimaryExampleId = (typeof primaryExampleOrder)[number];
 
 const primaryIconMap: Record<PrimaryExampleId, React.ComponentType<{ className?: string }>> = {
   pairwise: ArrowLeftRight,
-  multiway_scores: Gauge,
+  multiway_phenotype: Gauge,
 };
 
 const primaryDisplayTitles: Record<PrimaryExampleId, string> = {
   pairwise: "LLM Comparison",
-  multiway_scores: "Model Performance Matrix",
+  multiway_phenotype: "PRS Phenotype Matrix",
 };
 
 type ExampleCardDetails = {

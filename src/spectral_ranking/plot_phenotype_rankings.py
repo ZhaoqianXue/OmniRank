@@ -31,6 +31,23 @@ matplotlib.rcParams.update(
     }
 )
 
+PREFERRED_PRS_METHOD_ORDER = [
+    "C+T",
+    "LDpred",
+    "lassosum",
+    "PRS-CS",
+    "PRS-CS-auto",
+    "SBayesR",
+    "SCT",
+    "DBSLMM",
+    "LDpred2",
+    "LDpred2-auto",
+    "LDpred2-inf",
+    "LDpred-funct",
+    "lassosum2",
+]
+_PREFERRED_PRS_METHOD_SET = set(PREFERRED_PRS_METHOD_ORDER)
+
 
 def _mm_to_pt(mm: float) -> float:
     """ggplot size/linewidth values are in mm; Matplotlib uses points."""
@@ -93,6 +110,26 @@ def _ensure_parent(path: str | Path) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
 
+def _preferred_method_reorder_indices(methods: list[str]) -> list[int]:
+    if not methods:
+        return []
+
+    index_by_method = {method: idx for idx, method in enumerate(methods)}
+    preferred_indices = [index_by_method[method] for method in PREFERRED_PRS_METHOD_ORDER if method in index_by_method]
+    if len(preferred_indices) < 2:
+        return list(range(len(methods)))
+    return preferred_indices + [idx for idx, method in enumerate(methods) if method not in _PREFERRED_PRS_METHOD_SET]
+
+
+def _apply_preferred_method_order(methods: list[str]) -> list[str]:
+    reorder = _preferred_method_reorder_indices(methods)
+    return [methods[idx] for idx in reorder]
+
+
+def _reorder_aligned(values: list[Any], order: list[int]) -> list[Any]:
+    return [values[idx] for idx in order]
+
+
 def _read_phenotype_csv(data_path: str) -> tuple[pd.DataFrame, list[str]]:
     df_wide = pd.read_csv(data_path)
     if df_wide.shape[1] < 2:
@@ -101,7 +138,8 @@ def _read_phenotype_csv(data_path: str) -> tuple[pd.DataFrame, list[str]]:
     cols = list(df_wide.columns)
     cols[0] = "Traits"
     df_wide.columns = cols
-    method_cols = [c for c in df_wide.columns if c != "Traits"]
+    method_cols = _apply_preferred_method_order([c for c in df_wide.columns if c != "Traits"])
+    df_wide = df_wide[["Traits", *method_cols]]
     return df_wide, method_cols
 
 
@@ -342,12 +380,12 @@ def _draw_half_violin(ax: plt.Axes, values: np.ndarray, pos: float, color: Any) 
     if values.size == 0:
         return
     if values.size < 2 or np.allclose(values, values[0]):
-        ax.plot([pos, pos + 0.35], [values[0], values[0]], color=color, alpha=0.25, linewidth=3, zorder=1)
+        ax.plot([pos, pos + 0.33], [values[0], values[0]], color=color, alpha=0.25, linewidth=3, zorder=1)
         return
     parts = ax.violinplot(
         [values],
         positions=[pos + 0.15],
-        widths=0.75,
+        widths=0.70,
         points=256,
         bw_method=lambda kde: float(kde.scotts_factor()) * 2.0,
         showmeans=False,
@@ -620,11 +658,25 @@ def _ci_from_json(ci_plot_path: str, ci_out_path: str) -> None:
 
     # Align lengths defensively to avoid malformed JSON crashes.
     n = min(len(items), len(theta_hat), len(ranks), len(ci_lower), len(ci_upper))
-    _plot_ci_forest(items[:n], ranks[:n], theta_hat[:n], ci_lower[:n], ci_upper[:n], ci_out_path)
+    items = items[:n]
+    theta_hat = theta_hat[:n]
+    ranks = ranks[:n]
+    ci_lower = ci_lower[:n]
+    ci_upper = ci_upper[:n]
+    reorder = _preferred_method_reorder_indices(items)
+    _plot_ci_forest(
+        _reorder_aligned(items, reorder),
+        _reorder_aligned(ranks, reorder),
+        _reorder_aligned(theta_hat, reorder),
+        _reorder_aligned(ci_lower, reorder),
+        _reorder_aligned(ci_upper, reorder),
+        ci_out_path,
+    )
     print(f"Saved CI forest plot to {ci_out_path}")
 
 
 def _ci_standalone_from_table(table: pd.DataFrame, method_cols: list[str], out_path: str) -> None:
+    ordered_methods = _apply_preferred_method_order(method_cols)
     rank_summary = (
         table.groupby("Method", as_index=False)["Ranking"]
         .mean()
@@ -633,7 +685,7 @@ def _ci_standalone_from_table(table: pd.DataFrame, method_cols: list[str], out_p
     rank_summary["rank"] = rank_summary["mean_rank"].rank(method="average", ascending=True)
 
     # Use original data order like the R script.
-    order_map = {name: i for i, name in enumerate(method_cols)}
+    order_map = {name: i for i, name in enumerate(ordered_methods)}
     rank_summary = rank_summary[rank_summary["Method"].isin(order_map)].copy()
     rank_summary["_ord"] = rank_summary["Method"].map(order_map)
     rank_summary = rank_summary.sort_values("_ord").drop(columns="_ord")
@@ -650,7 +702,7 @@ def _ci_standalone_from_table(table: pd.DataFrame, method_cols: list[str], out_p
         ci_lower_ci.tolist(),
         ci_upper_ci.tolist(),
         out_path,
-        all_methods=method_cols,
+        all_methods=ordered_methods,
     )
     print(f"Saved CI forest plot to {out_path}")
 

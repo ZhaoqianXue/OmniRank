@@ -8,7 +8,7 @@ from core.schemas import ExecutionResult, ExecutionTrace, PlotSpec, QuotePayload
 from core.llm_client import LLMCallError
 from tools.answer_question import answer_question
 from tools.generate_report import generate_report
-from tools.generate_visualizations import generate_visualizations
+from tools.generate_visualizations import _item_rank_matrix_from_csv, generate_visualizations
 
 
 def _sample_results() -> RankingResults:
@@ -50,6 +50,52 @@ def test_generate_visualizations_deterministic_svg(tmp_path: Path):
     assert ci_forest.data["rank_point"] == [1, 2, 3]
     assert ci_forest.data["ci_lower"] == [1.0, 1.0, 2.0]
     assert ci_forest.data["ci_upper"] == [2.0, 3.0, 3.0]
+
+
+def test_generate_visualizations_ci_forest_uses_preferred_prs_method_order(tmp_path: Path):
+    results = RankingResults(
+        items=["PRS-CS-auto", "LDpred", "AnnoPred", "C+T", "DBSLMM"],
+        theta_hat=[0.1, 0.4, 0.0, 0.6, 0.2],
+        ranks=[4, 2, 5, 1, 3],
+        ci_lower=[3.0, 2.0, 5.0, 1.0, 3.0],
+        ci_upper=[5.0, 3.0, 5.0, 2.0, 4.0],
+        indicator_value=None,
+    )
+
+    artifact_dir = tmp_path / "artifacts"
+    output = generate_visualizations(results=results, viz_types=["ci_forest"], artifact_dir=str(artifact_dir))
+
+    assert output.errors == []
+    assert [plot.type for plot in output.plots] == ["ci_forest"]
+    ci_forest = output.plots[0]
+    assert ci_forest.data["names"] == ["C+T", "LDpred", "PRS-CS-auto", "DBSLMM", "AnnoPred"]
+    assert ci_forest.data["rank_point"] == [1, 2, 4, 3, 5]
+    assert ci_forest.data["theta_hat"] == [0.6, 0.4, 0.1, 0.2, 0.0]
+    assert ci_forest.data["ci_lower"] == [1.0, 2.0, 3.0, 3.0, 5.0]
+    assert ci_forest.data["ci_upper"] == [2.0, 3.0, 5.0, 4.0, 5.0]
+
+
+def test_item_rank_matrix_from_csv_uses_preferred_prs_method_order(tmp_path: Path):
+    csv_path = tmp_path / "phenotype_pre_ranked.csv"
+    csv_path.write_text(
+        (
+            "phenotype,LDpred2-auto,lassosum,C+T,AnnoPred,LDpred\n"
+            "p1,4,3,1,5,2\n"
+            "p2,5,2,1,4,3\n"
+        ),
+        encoding="utf-8",
+    )
+
+    item_order, phenotype_order, rank_rows = _item_rank_matrix_from_csv(
+        str(csv_path),
+        indicator_col="phenotype",
+        bigbetter=0,
+        pre_ranked=True,
+    )
+
+    assert item_order == ["C+T", "LDpred", "lassosum", "LDpred2-auto", "AnnoPred"]
+    assert phenotype_order == ["p1", "p2"]
+    assert rank_rows == [[1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 3.0, 2.0, 5.0, 4.0]]
 
 
 def test_generate_visualizations_deep_mode_generates_indicator_plots(tmp_path: Path, monkeypatch):
