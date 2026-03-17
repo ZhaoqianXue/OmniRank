@@ -79,6 +79,25 @@ _METHOD_DEPTH_KEYWORDS = (
 )
 _METHOD_REFERENCE_TRIGGERS = ("reference", "paper", "citation", "arxiv", "source", "literature")
 
+_CLUSTERING_KEYWORDS = (
+    "clustering",
+    "cluster",
+    "ci-overlap",
+    "ci overlap",
+    "practically tied",
+    "practically tied",
+    "which items are grouped",
+    "grouped together",
+    "confidence-interval overlap",
+)
+
+
+def _is_clustering_question(question: str) -> bool:
+    """Detect if the question asks about item clustering by CI overlap."""
+    lower_q = question.lower()
+    return any(kw in lower_q for kw in _CLUSTERING_KEYWORDS)
+
+
 _DEFAULT_LITERATURE_REFERENCES: list[dict[str, str]] = [
     {
         "title": METHOD_REFERENCE_TITLE,
@@ -122,6 +141,22 @@ def _wants_one_sentence(question: str) -> bool:
     return any(keyword in lower_q for keyword in _ONE_SENTENCE_KEYWORDS)
 
 
+_CLUSTERING_KEYWORDS = (
+    "cluster",
+    "clustering",
+    "ci-overlap group",
+    "practically tied",
+    "which items are grouped",
+    "confidence-interval overlap",
+    "explain what it means",
+)
+
+
+def _is_clustering_question(question: str) -> bool:
+    lower_q = question.lower()
+    return any(kw in lower_q for kw in _CLUSTERING_KEYWORDS)
+
+
 def _is_data_capability_question(question: str) -> bool:
     lower_q = question.lower()
     if any(phrase in lower_q for phrase in _DATA_CAPABILITY_DIRECT_PHRASES):
@@ -129,6 +164,24 @@ def _is_data_capability_question(question: str) -> bool:
     has_format_signal = any(token in lower_q for token in _DATA_CAPABILITY_FORMAT_TOKENS)
     has_intent_signal = any(token in lower_q for token in _DATA_CAPABILITY_INTENT_TOKENS)
     return has_format_signal and has_intent_signal
+
+
+_CLUSTERING_KEYWORDS = (
+    "clustering",
+    "cluster",
+    "ci-overlap",
+    "ci overlap",
+    "practically tied",
+    "tied",
+    "which items are grouped",
+    "explain what it means",
+)
+
+
+def _is_clustering_question(question: str) -> bool:
+    """Detect questions asking about item clustering by confidence-interval overlap."""
+    lower_q = question.lower()
+    return any(kw in lower_q for kw in _CLUSTERING_KEYWORDS)
 
 
 def _sanitize_text_field(text: str) -> str:
@@ -611,6 +664,48 @@ def _fallback_without_results(
     return AnswerOutput(answer=answer_text, supporting_evidence=evidence, used_citation_block_ids=used_ids)
 
 
+def _fallback_clustering_answer(
+    *,
+    cluster_items: list[list[str]],
+    n_clusters: int,
+    quote_context: str | None,
+    used_ids: list[str],
+    near_ties_with_top: list[str] | None = None,
+) -> AnswerOutput:
+    """Format deterministic answer for clustering questions using key_findings."""
+    evidence: list[str] = []
+    groups_str = "; ".join(
+        f"Group {i + 1}: {', '.join(c)}" for i, c in enumerate(cluster_items)
+    )
+    if groups_str:
+        evidence.append(groups_str)
+    if near_ties_with_top:
+        ties_str = ", ".join(near_ties_with_top)
+        evidence.append(f"Near-ties with top: {ties_str}. Use caution when relying on the rank-1 leader.")
+
+    conclusion = (
+        f"Items fall into {n_clusters} CI-overlap group{'s' if n_clusters != 1 else ''}; "
+        "within each group the ordering is uncertain."
+    )
+    note = (
+        "Clustering groups items whose 95% confidence intervals overlap; "
+        "treat items in the same group as statistically tied when making decisions."
+    )
+    answer_text = _format_structured_answer(
+        conclusion=conclusion,
+        evidence=evidence[:4],
+        references=[],
+        note=note,
+        quote_context=quote_context,
+        max_evidence=4,
+    )
+    return AnswerOutput(
+        answer=answer_text,
+        supporting_evidence=evidence[:4],
+        used_citation_block_ids=used_ids,
+    )
+
+
 def _fallback_with_results(
     *,
     question: str,
@@ -618,11 +713,27 @@ def _fallback_with_results(
     quote_context: str | None,
     used_ids: list[str],
     literature_context: dict[str, Any],
+    session_context: dict[str, Any] | None = None,
 ) -> AnswerOutput:
     supporting_evidence: list[str] = []
 
     lower_q = question.lower()
     note: str | None = None
+
+    # Handle clustering questions when key_findings is available
+    if _is_clustering_question(question) and session_context:
+        kf = session_context.get("key_findings") or {}
+        cluster_items = kf.get("cluster_items")
+        n_clusters = kf.get("n_clusters", 0)
+        if cluster_items and n_clusters and isinstance(cluster_items, list):
+            return _fallback_clustering_answer(
+                cluster_items=cluster_items,
+                n_clusters=n_clusters,
+                quote_context=quote_context,
+                used_ids=used_ids,
+                near_ties_with_top=kf.get("near_ties_with_top"),
+            )
+
     if "top" in lower_q or "best" in lower_q:
         conclusion = _top_summary(results)
         top_idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
@@ -711,6 +822,7 @@ def _fallback_answer(
         quote_context=quote_context,
         used_ids=used_ids,
         literature_context=literature_context,
+        session_context=session_context,
     )
 
 

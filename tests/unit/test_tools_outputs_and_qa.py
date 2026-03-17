@@ -487,6 +487,53 @@ def test_answer_question_works_before_analysis_results_are_ready():
     assert "Session status: uploaded." in answer.answer
 
 
+def test_fallback_clustering_answer_when_llm_unavailable():
+    """When LLM is unavailable, clustering questions with key_findings use deterministic fallback."""
+    results = _sample_results()
+    session_context = {
+        "status": "completed",
+        "key_findings": {
+            "cluster_items": [["A", "B"], ["C"]],
+            "n_clusters": 2,
+        },
+    }
+    answer = answer_question(
+        question="Show me the clustering of items by confidence-interval overlap and explain what it means.",
+        results=results,
+        citation_blocks={},
+        quotes=[],
+        session_context=session_context,
+    )
+    lower = answer.answer.lower()
+    assert "ci-overlap" in lower or "group" in lower
+    assert "a" in lower and "b" in lower and "c" in lower
+    assert "uncertain" in lower or "tied" in lower
+    assert "2" in answer.answer  # n_clusters
+
+
+def test_fallback_clustering_includes_near_ties_when_present():
+    """Fallback clustering answer includes near_ties_with_top when present."""
+    results = _sample_results()
+    session_context = {
+        "status": "completed",
+        "key_findings": {
+            "cluster_items": [["A", "B"], ["C"]],
+            "n_clusters": 2,
+            "near_ties_with_top": ["B"],
+        },
+    }
+    answer = answer_question(
+        question="Show me the clustering of items by confidence-interval overlap and explain what it means.",
+        results=results,
+        citation_blocks={},
+        quotes=[],
+        session_context=session_context,
+    )
+    lower = answer.answer.lower()
+    assert "near-ties" in lower or "rank-1" in lower
+    assert "b" in lower
+
+
 def test_answer_question_capability_question_calls_llm(monkeypatch):
     calls = {"count": 0}
 

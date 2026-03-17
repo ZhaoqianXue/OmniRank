@@ -254,6 +254,42 @@ def test_sq_post_analysis_clear_vs_tied():
     print(f"\n[post-analysis] Clear vs tied?\n>>> {answer.answer}")
 
 
+@pytest.mark.integration
+@pytest.mark.online_llm
+def test_sq_post_analysis_clustering_question():
+    """Online test for the suggested question: Show me the clustering of items by
+    confidence-interval overlap and explain what it means.
+    Validates that the LLM returns groups and interprets them."""
+    _require_api_key()
+    results = _sample_results()
+    key_findings = {
+        "cluster_items": [["Model_A", "Model_B"], ["Model_C"]],
+        "n_clusters": 2,
+    }
+    answer = answer_question(
+        question="Show me the clustering of items by confidence-interval overlap and explain what it means.",
+        results=results,
+        citation_blocks={},
+        quotes=[],
+        session_context={
+            "status": "completed",
+            "key_findings": key_findings,
+        },
+    )
+    _assert_answer_quality(answer.answer)
+    lower = answer.answer.lower()
+    assert "group" in lower or "cluster" in lower, (
+        f"Clustering answer should mention groups/clusters: {answer.answer!r}"
+    )
+    assert "model_a" in lower or "model_b" in lower or "model_c" in lower, (
+        f"Clustering answer should mention item names: {answer.answer!r}"
+    )
+    assert "uncertain" in lower or "tied" in lower or "overlap" in lower or "interval" in lower, (
+        f"Clustering answer should explain meaning (uncertainty/tied/overlap): {answer.answer!r}"
+    )
+    print(f"\n[post-analysis] Clustering?\n>>> {answer.answer}")
+
+
 # ---------------------------------------------------------------------------
 # Method intent
 # ---------------------------------------------------------------------------

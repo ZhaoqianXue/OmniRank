@@ -511,7 +511,7 @@ export function useOmniRank() {
             suggestedQuestions: [
               `Why is ${topItem} ranked first?`,
               `Is ${topItem} really better than ${runnerUpItem}, or is it too close to tell?`,
-              "Which items are practically tied?",
+              "Show me the clustering of items by confidence-interval overlap and explain what it means.",
               "What should I do based on these results?",
             ],
           },

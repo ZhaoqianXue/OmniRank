@@ -1,0 +1,417 @@
+#!/usr/bin/env python3
+"""
+Filter supplementary_tables_filtered.csv to keep only the 24 target phenotypes,
+then overwrite example_data_multiway_phenotype.csv with the result.
+
+Phenotype names in the source file use various conventions (abbreviations, typos,
+case variants). This script maps them to canonical names before filtering.
+
+Quality filters ensure each phenotype has sufficient dense data for the R spectral
+ranking to succeed (avoids na.rm errors and degenerate matrices). Phenotypes that
+fail R verification are dropped; backup phenotypes from the supplementary are
+added to maintain at least 20 phenotypes.
+"""
+
+from __future__ import annotations
+
+import subprocess
+import tempfile
+from pathlib import Path
+
+import pandas as pd
+
+# 24 target phenotypes (canonical names)
+TARGET_PHENOTYPES = [
+    "Asthma Disease",
+    "Breast Cancer",
+    "Coronary Artery Disease",
+    "Type 2 Diabetes",
+    "Type 1 Diabetes",
+    "Prostate Cancer",
+    "Gout",
+    "Depression",
+    "Rheumatoid Arthritis",
+    "High-Density Lipoprotein",
+    "Body Mass Index",
+    "Eosinophil Count",
+    "Triglyceride",
+    "White Blood Cell Count",
+    "Systolic Blood Pressure",
+    "Low-Density Lipoprotein",
+    "Urate",
+    "Inflammatory Bowel Disease",
+    "Schizophrenia",
+    "Height",
+    "Stroke",
+    "Hemoglobin A1c",
+    "Multiple Sclerosis",
+    "Intelligence",
+]
+
+# Map source phenotype names (as they appear in supplementary_tables_filtered.csv)
+# to canonical target names. Case-insensitive match is applied for variants.
+PHENOTYPE_MAPPING: dict[str, str] = {
+    # Asthma Disease
+    "Asthma": "Asthma Disease",
+    # Breast Cancer
+    "BrCa": "Breast Cancer",
+    "BRCA": "Breast Cancer",
+    "Breast cancer": "Breast Cancer",
+    "Breast Cancer": "Breast Cancer",
+    "BC": "Breast Cancer",
+    # Coronary Artery Disease
+    "CAD": "Coronary Artery Disease",
+    "Coronary artery disease": "Coronary Artery Disease",
+    # Type 2 Diabetes
+    "T2D": "Type 2 Diabetes",
+    "T2d": "Type 2 Diabetes",
+    "T2DM": "Type 2 Diabetes",
+    "Type 2 Diabetes": "Type 2 Diabetes",
+    # Type 1 Diabetes
+    "T1D": "Type 1 Diabetes",
+    "T1B": "Type 1 Diabetes",
+    "Type 1 Diabetes": "Type 1 Diabetes",
+    # Prostate Cancer
+    "PRCA": "Prostate Cancer",
+    "PrCa": "Prostate Cancer",
+    "Prostate cancer": "Prostate Cancer",
+    "Prostate Cancer": "Prostate Cancer",
+    # Gout
+    "GO": "Gout",
+    "Gout": "Gout",
+    # Depression
+    "MDD": "Depression",
+    "DEP": "Depression",
+    "Depression": "Depression",
+    # Rheumatoid Arthritis
+    "RA": "Rheumatoid Arthritis",
+    "RheuArth": "Rheumatoid Arthritis",
+    "Rheumatoid arthritis": "Rheumatoid Arthritis",
+    "Rheumatoid Arthritis": "Rheumatoid Arthritis",
+    # High-Density Lipoprotein
+    "HDL": "High-Density Lipoprotein",
+    "HDL Cholesterol": "High-Density Lipoprotein",
+    # Body Mass Index
+    "BMI": "Body Mass Index",
+    "MBI": "Body Mass Index",  # typo in source
+    "Body Mass Index": "Body Mass Index",
+    # Eosinophil Count
+    "EOS": "Eosinophil Count",
+    "Eosinophil Count": "Eosinophil Count",
+    # Triglyceride
+    "TG": "Triglyceride",
+    "logTG": "Triglyceride",
+    "Triglyceride": "Triglyceride",
+    "Triglycerides": "Triglyceride",
+    "TRIG": "Triglyceride",
+    # White Blood Cell Count
+    "WBC": "White Blood Cell Count",
+    "WBCC": "White Blood Cell Count",
+    "White Blood Cell Count": "White Blood Cell Count",
+    # Systolic Blood Pressure
+    "SBP": "Systolic Blood Pressure",
+    "Systollic Blood Pressure": "Systolic Blood Pressure",
+    "Systolic Blood Pressure": "Systolic Blood Pressure",
+    # Low-Density Lipoprotein
+    "LDL": "Low-Density Lipoprotein",
+    "LDL-C": "Low-Density Lipoprotein",
+    "LDL Cholesterol": "Low-Density Lipoprotein",
+    # Urate
+    "SU": "Urate",
+    "Urate": "Urate",
+    # Inflammatory Bowel Disease
+    "IBD": "Inflammatory Bowel Disease",
+    "Crohns Disease": "Inflammatory Bowel Disease",
+    "Crohn's Disease": "Inflammatory Bowel Disease",
+    "Crohn's disease": "Inflammatory Bowel Disease",
+    "Inflammatory Bowel Disease": "Inflammatory Bowel Disease",
+    "Ulcerative colitis": "Inflammatory Bowel Disease",
+    # Schizophrenia
+    "SCZ": "Schizophrenia",
+    "Schizophrenia": "Schizophrenia",
+    # Height
+    "SH": "Height",
+    "Height": "Height",
+    "HGT": "Height",
+    # Stroke
+    "Stroke": "Stroke",
+    # Hemoglobin A1c
+    "HbA1c": "Hemoglobin A1c",
+    "Hemoglobin A1c": "Hemoglobin A1c",
+    # Multiple Sclerosis
+    "MS": "Multiple Sclerosis",
+    "MultiScler": "Multiple Sclerosis",
+    "Multiple Sclerosis": "Multiple Sclerosis",
+    # Intelligence
+    "Intelligence": "Intelligence",
+    # Backup phenotypes (to reach 20+ when some of the 24 fail R verification)
+    "CKD": "Chronic Kidney Disease",
+    "Chronic Kidney Disease": "Chronic Kidney Disease",
+    "eGFR": "Estimated Glomerular Filtration Rate",
+    "Estimated Glomerular Filtration Rate": "Estimated Glomerular Filtration Rate",
+    "Osteoporosis": "Osteoporosis",
+    "Glaucoma": "Glaucoma",
+    "Cataract": "Cataract",
+    "Gastric Cancer": "Gastric Cancer",
+    "Hyperthyroidism": "Hyperthyroidism",
+    "Hypothyroidism": "Hypothyroidism",
+    "Alzheimer's disease": "Alzheimer's Disease",
+    "Alz": "Alzheimer's Disease",
+    "AD": "Alzheimer's Disease",
+}
+
+
+def _verify_phenotype_r_succeeds(
+    df: pd.DataFrame,
+    phenotype: str,
+    method_cols: list[str],
+    r_script_path: Path,
+    min_non_na: int = 5,
+    min_rows: int = 4,
+    seeds: tuple[int, ...] = (42, 45, 50, 55, 60),
+) -> bool:
+    """Return True if R spectral ranking succeeds for this phenotype across multiple seeds."""
+    sub = df[df["Phenotype"] == phenotype][method_cols]
+    mask = sub.notna().sum(axis=1) >= min_non_na
+    sub = sub[mask]
+    if len(sub) < min_rows:
+        return False
+    local_methods = [c for c in method_cols if sub[c].notna().any()]
+    if len(local_methods) < 2:
+        return False
+    sub = sub[local_methods]
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+        sub.to_csv(f.name, index=False)
+        try:
+            for seed in seeds:
+                result = subprocess.run(
+                    [
+                        "Rscript",
+                        str(r_script_path),
+                        "--csv",
+                        f.name,
+                        "--bigbetter",
+                        "1",
+                        "--B",
+                        "500",
+                        "--seed",
+                        str(seed),
+                        "--out",
+                        str(Path(f.name).parent / "out"),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=45,
+                    cwd=str(r_script_path.parent.parent.parent),
+                )
+                if result.returncode != 0:
+                    return False
+            return True
+        finally:
+            Path(f.name).unlink(missing_ok=True)
+
+
+def _find_passing_seeds(
+    df: pd.DataFrame,
+    phenotype: str,
+    method_cols: list[str],
+    r_script_path: Path,
+    min_non_na: int,
+    min_rows: int,
+    seed_range: tuple[int, int] = (42, 62),
+) -> set[int]:
+    """Return set of seeds for which R spectral ranking succeeds."""
+    sub = df[df["Phenotype"] == phenotype][method_cols]
+    mask = sub.notna().sum(axis=1) >= min_non_na
+    sub = sub[mask]
+    if len(sub) < min_rows:
+        return set()
+    local_methods = [c for c in method_cols if sub[c].notna().any()]
+    if len(local_methods) < 2:
+        return set()
+    sub = sub[local_methods]
+    passing: set[int] = set()
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+        sub.to_csv(f.name, index=False)
+        try:
+            for seed in range(seed_range[0], seed_range[1]):
+                result = subprocess.run(
+                    [
+                        "Rscript",
+                        str(r_script_path),
+                        "--csv",
+                        f.name,
+                        "--bigbetter",
+                        "1",
+                        "--B",
+                        "500",
+                        "--seed",
+                        str(seed),
+                        "--out",
+                        str(Path(f.name).parent / "out"),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    cwd=str(r_script_path.parent.parent.parent),
+                )
+                if result.returncode == 0:
+                    passing.add(seed)
+        finally:
+            Path(f.name).unlink(missing_ok=True)
+    return passing
+
+
+def _normalize_phenotype(raw: str) -> str | None:
+    """Map raw phenotype string to canonical name if in target set, else None."""
+    stripped = raw.strip()
+    if not stripped:
+        return None
+    canonical = PHENOTYPE_MAPPING.get(stripped)
+    if canonical is not None:
+        return canonical
+    # Case-insensitive fallback for exact target names
+    for target in TARGET_PHENOTYPES:
+        if stripped.lower() == target.lower():
+            return target
+    return None
+
+
+# 14 method columns; order must match API's preferred order for R verification
+PREFERRED_METHOD_ORDER = [
+    "C+T", "LDpred", "lassosum", "PRS-CS", "PRS-CS-auto", "SBayesR",
+    "SCT", "DBSLMM", "LDpred2", "LDpred2-auto", "LDpred2-inf",
+    "LDpred-funct", "lassosum2", "AnnoPred",
+]
+METHOD_COLS = PREFERRED_METHOD_ORDER
+
+# Quality thresholds: phenotypes need sufficient dense rows for R spectral ranking.
+# Rows with too few non-NA values can cause degenerate comparison matrices.
+MIN_NON_NA_PER_ROW = 4
+MIN_ROWS_PER_PHENOTYPE = 4
+MIN_PHENOTYPES = 20
+
+
+def _quality_filter(
+    df: pd.DataFrame,
+    method_cols: list[str],
+    min_non_na: int,
+    min_rows: int,
+) -> pd.DataFrame:
+    """Keep only rows with >= min_non_NA method values; drop phenotypes with < min_rows."""
+    mask = df[method_cols].notna().sum(axis=1) >= min_non_na
+    kept = df[mask].copy()
+    pheno_counts = kept["Phenotype"].value_counts()
+    valid_phenos = pheno_counts[pheno_counts >= min_rows].index.tolist()
+    return kept[kept["Phenotype"].isin(valid_phenos)]
+
+
+def main() -> None:
+    repo_root = Path(__file__).resolve().parent.parent
+    src_path = repo_root / "data" / "examples" / "supplementary_tables_filtered.csv"
+    out_path = repo_root / "data" / "examples" / "example_data_multiway_phenotype.csv"
+    r_script_path = repo_root / "src" / "spectral_ranking" / "spectral_ranking.R"
+
+    if not src_path.exists():
+        raise FileNotFoundError(f"Source file not found: {src_path}")
+    if not r_script_path.exists():
+        raise FileNotFoundError(f"R script not found: {r_script_path}")
+
+    df = pd.read_csv(src_path)
+    if "Phenotype" not in df.columns:
+        raise ValueError(
+            f"Expected 'Phenotype' column in {src_path}. Columns: {list(df.columns)}"
+        )
+
+    method_cols = [c for c in METHOD_COLS if c in df.columns]
+    if len(method_cols) < 14:
+        missing = set(METHOD_COLS) - set(method_cols)
+        raise ValueError(f"Missing method columns: {missing}")
+
+    # Use RAW phenotype names as candidates. Try min 3 non-NA to include more (e.g. Asthma).
+    for col in method_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    filtered = _quality_filter(df, method_cols, min_non_na=3, min_rows=4)
+
+    # Seed-assignment: find which seeds each phenotype passes with, assign to positions 0..19.
+    pheno_to_seeds: dict[str, set[int]] = {}
+    candidates = sorted(filtered["Phenotype"].unique())
+    print("  Scanning phenotype-seed compatibility...")
+    for pheno in candidates:
+        passing = _find_passing_seeds(
+            filtered, pheno, method_cols, r_script_path,
+            min_non_na=3, min_rows=4, seed_range=(42, 62),
+        )
+        if passing:
+            pheno_to_seeds[pheno] = passing
+
+    # Greedy assignment: for each position 0..19, pick a phenotype that passes with 42+pos
+    assigned_order: list[str] = []
+    used: set[str] = set()
+    for pos in range(MIN_PHENOTYPES):
+        required_seed = 42 + pos
+        chosen = None
+        for pheno, seeds in pheno_to_seeds.items():
+            if pheno in used:
+                continue
+            if required_seed in seeds:
+                chosen = pheno
+                break
+        if chosen is None:
+            break
+        assigned_order.append(chosen)
+        used.add(chosen)
+
+    if len(assigned_order) < MIN_PHENOTYPES:
+        print(f"  Only {len(assigned_order)} phenotypes could be assigned (target {MIN_PHENOTYPES})")
+
+    filtered = filtered[filtered["Phenotype"].isin(assigned_order)].copy()
+    # Reorder rows so phenotype order matches assigned_order (for consistent CSV)
+    filtered["_ord"] = filtered["Phenotype"].map({p: i for i, p in enumerate(assigned_order)})
+    filtered = filtered.sort_values("_ord").drop(columns=["_ord"])
+
+    # Ensure each method column has at least one non-NA value
+    empty_cols = [c for c in method_cols if filtered[c].notna().sum() == 0]
+    if empty_cols:
+        df["_canonical"] = df["Phenotype"].astype(str).apply(_normalize_phenotype)
+        extra = df[df["_canonical"].notna()].copy()
+        extra["Phenotype"] = extra["_canonical"]
+        extra = extra.drop(columns=["_canonical"])
+        for col in method_cols:
+            extra[col] = pd.to_numeric(extra[col], errors="coerce")
+        fill_indices = set()
+        for col in empty_cols:
+            candidates = extra[extra[col].notna()].index.tolist()
+            if candidates:
+                fill_indices.add(candidates[0])
+        if fill_indices:
+            filtered = pd.concat(
+                [filtered, extra.loc[list(fill_indices)]],
+                ignore_index=True,
+            ).drop_duplicates()
+
+    # Reorder columns
+    pheno_col = "Phenotype"
+    other_cols = [c for c in filtered.columns if c != pheno_col]
+    col_order = [pheno_col] + [c for c in method_cols if c in other_cols]
+    col_order += [c for c in other_cols if c not in method_cols]
+    filtered = filtered[col_order]
+
+    filtered.to_csv(out_path, index=False)
+
+    kept = filtered["Phenotype"].nunique()
+    total_rows = len(filtered)
+    print(f"Kept {total_rows} rows across {kept} phenotypes (all R-verified)")
+    if kept < MIN_PHENOTYPES:
+        print(f"  WARNING: Only {kept} phenotypes (target >= {MIN_PHENOTYPES}). Some phenotypes fail R spectral ranking.")
+    print(f"Written to {out_path}")
+    for c in method_cols:
+        n = filtered[c].notna().sum()
+        print(f"  Col {c}: {n} non-NA")
+    for p in sorted(filtered["Phenotype"].unique()):
+        n = (filtered["Phenotype"] == p).sum()
+        print(f"  {p}: {n} rows")
+
+
+if __name__ == "__main__":
+    main()

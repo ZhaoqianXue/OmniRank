@@ -403,6 +403,10 @@ class OmniRankAgent:
             context["top_items"] = [session.current_results.items[idx] for idx in order[:3]]
         else:
             context["has_results"] = False
+
+        if session.report_output is not None and session.report_output.key_findings:
+            context["key_findings"] = session.report_output.key_findings
+
         return context
 
     def answer(self, session: SessionMemory, question: str, quotes: list[QuotePayload] | None = None) -> AnswerOutput:

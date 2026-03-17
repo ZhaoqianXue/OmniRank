@@ -69,7 +69,7 @@ The agent orchestrates these tools through a fixed three-phase pipeline: (1) dat
 
 [Figure: OmniRank system architecture] illustrates the system architecture. The agent receives user requests, selects appropriate tools based on the current pipeline phase, and synthesizes tool outputs into coherent responses. Algorithm 1 formalizes this process.
 
-**[Figure: OmniRank system architecture]** OmniRank comprises a single LLM agent and a fixed registry of ten tools. The agent orchestrates a three-phase pipeline: data processing (five data tools), computation (one engine tool with an explicit user confirmation step), and output generation (three analysis tools). All orchestration occurs within a single context window; numerical computation is delegated to deterministic tools.
+**[Figure: OmniRank system architecture]** OmniRank comprises a single LLM agent and a fixed registry of ten tools. The agent orchestrates a three-phase pipeline: data processing (five data tools), computation (one engine tool with an explicit user confirmation step), and output generation (three analysis tools). All orchestration occurs within a single context window; numerical computation is delegated to deterministic tools. (Figure generation prompt: `.agent/blueprints/figure_omnirank_architecture_prompt.md`)
 
 **Algorithm 1** OmniRank Pipeline
 

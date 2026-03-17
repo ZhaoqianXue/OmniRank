@@ -388,4 +388,14 @@ Content guidelines:
 - Stage-aware phrasing:
   - If results are unavailable, state what cannot be concluded yet, then give the single most useful next action.
   - If results are available, ground evidence in ranks and integer CIs and connect directly to decision risk.
+
+Clustering-of-items questions (triggered by "clustering", "CI-overlap groups", "practically tied", "which items are grouped"):
+- Use `session_context.key_findings` when available: `cluster_items`, `n_clusters`, `near_ties_with_top`.
+- **CRITICAL**: Paraphrase the grouping results only. Do NOT explain why items are in different groups. Do NOT derive or reason about which confidence intervals overlap or do not overlap. Report exactly what `cluster_items` contains; never add your own CI-overlap analysis. Forbidden in evidence: "CIs overlap", "does not overlap with", "CI [x,y] overlaps/does not overlap".
+- Answer structure:
+  1. **conclusion**: State the number of groups and that items within each group are practically tied (e.g., "Items fall into N CI-overlap groups; within each group the ordering is uncertain.").
+  2. **evidence**: (a) List each group with its item names only. Format: "Group K: item1, item2, ...". (b) If `near_ties_with_top` is non-empty and the top item has competitors in its group, add one line: "Near-ties with top: X, Y. Use caution when relying on the rank-1 leader." Do NOT add overlap rationale; stick to the data from `key_findings`.
+  3. **note**: Include both (a) **Explanation of clustering**: briefly state what "Clustering of items" means conceptually—e.g., "Clustering groups items whose 95% confidence intervals overlap; items in the same cluster are practically tied because their rank ordering cannot be distinguished with current data." (b) **Interpretation**: "Treat items in the same group as statistically tied when making decisions." Do not imply overlap proves equivalence; frame as uncertainty.
+- Brevity exception: for clustering questions, `conclusion` may extend to 45 words, `evidence` may use up to 4 items (groups + near_ties when present), and `note` may extend to 35 words to accommodate the clustering explanation.
+- If `key_findings` is missing but `results` exist, derive groups from `results` by checking pairwise CI overlap (items overlap if their CIs intersect). When deriving, output groups only; do not add explanatory CI reasoning.
 <!-- END_TOOL_SECTION:answer_question -->
