@@ -217,11 +217,8 @@ def _run_r_for_seed(
     seed: int,
     r_script_path: Path,
     cwd: str,
-) -> tuple[int, bool, float | None]:
-    """Run R script for one seed; return (seed, success, mean_ci_width)."""
-    import json
-
-    out_dir = Path(csv_path).parent / f"out_{seed}"
+) -> tuple[int, bool]:
+    """Run R script for one seed; return (seed, success)."""
     result = subprocess.run(
         [
             "Rscript",
@@ -235,26 +232,17 @@ def _run_r_for_seed(
             "--seed",
             str(seed),
             "--out",
-            str(out_dir),
+            str(Path(csv_path).parent / "out"),
         ],
         capture_output=True,
         text=True,
         timeout=30,
         cwd=cwd,
     )
-    success = result.returncode == 0
-    mean_ci_width = None
-    if success:
-        try:
-            with open(out_dir / "ranking_results.json") as f:
-                data = json.load(f)
-                mean_ci_width = data.get("metadata", {}).get("mean_ci_width_top_5")
-        except Exception:
-            pass
-    return (seed, success, mean_ci_width)
+    return (seed, result.returncode == 0)
 
 
-def _find_passing_seeds_with_ci(
+def _find_passing_seeds(
     df: pd.DataFrame,
     phenotype: str,
     method_cols: list[str],
@@ -263,53 +251,35 @@ def _find_passing_seeds_with_ci(
     min_rows: int,
     seed_range: tuple[int, int] = (42, 62),
     max_workers: int = 8,
-) -> tuple[set[int], float]:
-    """Return (passing_seeds, mean_ci_width_avg).
-    
-    mean_ci_width_avg is the average of mean_ci_width_top_5 across all passing seeds.
-    Lower CI width indicates more stable ranking (tighter confidence intervals).
-    """
-    import json
-    import shutil
-
+) -> set[int]:
+    """Return set of seeds for which R spectral ranking succeeds."""
     sub = df[df["Phenotype"] == phenotype][method_cols]
     mask = sub.notna().sum(axis=1) >= min_non_na
     sub = sub[mask]
     if len(sub) < min_rows:
-        return (set(), float("inf"))
+        return set()
     local_methods = [c for c in method_cols if sub[c].notna().any()]
     if len(local_methods) < 2:
-        return (set(), float("inf"))
+        return set()
     sub = sub[local_methods]
     passing: set[int] = set()
-    ci_widths: list[float] = []
     cwd = str(r_script_path.parent.parent.parent)
-    
-    with tempfile.TemporaryDirectory() as tmpdir:
-        csv_path = Path(tmpdir) / "data.csv"
-        sub.to_csv(csv_path, index=False)
-        
-        seeds_to_check = list(range(seed_range[0], seed_range[1]))
-        with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            futures = {
-                ex.submit(_run_r_for_seed, str(csv_path), s, r_script_path, cwd): s
-                for s in seeds_to_check
-            }
-            for future in as_completed(futures):
-                seed, ok, ci_width = future.result()
-                if ok:
-                    passing.add(seed)
-                    if ci_width is not None:
-                        ci_widths.append(ci_width)
-        
-        # Cleanup out directories
-        for s in seeds_to_check:
-            out_dir = Path(tmpdir) / f"out_{s}"
-            if out_dir.exists():
-                shutil.rmtree(out_dir, ignore_errors=True)
-    
-    avg_ci_width = sum(ci_widths) / len(ci_widths) if ci_widths else float("inf")
-    return (passing, avg_ci_width)
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+        sub.to_csv(f.name, index=False)
+        try:
+            seeds_to_check = list(range(seed_range[0], seed_range[1]))
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                futures = {
+                    ex.submit(_run_r_for_seed, f.name, s, r_script_path, cwd): s
+                    for s in seeds_to_check
+                }
+                for future in as_completed(futures):
+                    seed, ok = future.result()
+                    if ok:
+                        passing.add(seed)
+        finally:
+            Path(f.name).unlink(missing_ok=True)
+    return passing
 
 
 def _normalize_phenotype(raw: str) -> str | None:
@@ -335,12 +305,12 @@ PREFERRED_METHOD_ORDER = [
 ]
 METHOD_COLS = PREFERRED_METHOD_ORDER
 
-# Quality thresholds for TIGHTER Confidence Intervals:
-# - min_non_na=3 ensures reasonable completeness per sample
-# - min_rows=2 maintains 20+ candidates
-# - Prioritize phenotypes with TIGHTER CI (lower mean_ci_width_top_5)
-# CI width is inversely related to data quality and sample size.
-MIN_NON_NA_PER_ROW = 3
+# Quality thresholds: phenotypes need sufficient dense rows for R spectral ranking.
+# Rows with too few non-NA values can cause degenerate comparison matrices.
+# Three-tier for tighter CI: 5 >= 4 >= 3 non-NA per row.
+MIN_NON_NA_TIER1 = 5  # Densest: >=5 non-NA per row (tightest CI)
+MIN_NON_NA_TIER2 = 4  # Medium: >=4 non-NA per row
+MIN_NON_NA_TIER3 = 3  # Fallback: >=3 non-NA per row
 MIN_ROWS_PER_PHENOTYPE = 2
 MIN_PHENOTYPES = 20
 
@@ -381,35 +351,86 @@ def main() -> None:
         missing = set(METHOD_COLS) - set(method_cols)
         raise ValueError(f"Missing method columns: {missing}")
 
-    # Use RAW phenotype names as candidates.
     for col in method_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-    filtered = _quality_filter(
-        df, method_cols, min_non_na=MIN_NON_NA_PER_ROW, min_rows=MIN_ROWS_PER_PHENOTYPE
+
+    # Tier 1: Densest (min_non_na=5) for tightest CI
+    filtered_t1 = _quality_filter(
+        df, method_cols, min_non_na=MIN_NON_NA_TIER1, min_rows=MIN_ROWS_PER_PHENOTYPE
     )
-
-    # Count rows per phenotype for prioritization
-    pheno_row_counts = filtered["Phenotype"].value_counts().to_dict()
-
-    # Seed-assignment: find which seeds each phenotype passes with + CI width info.
-    pheno_to_seeds: dict[str, set[int]] = {}
-    pheno_to_ci_width: dict[str, float] = {}
-    candidates = sorted(filtered["Phenotype"].unique())
-    print("  Scanning phenotype-seed compatibility and CI widths...")
-    for pheno in candidates:
-        passing, avg_ci_width = _find_passing_seeds_with_ci(
-            filtered,
-            pheno,
-            method_cols,
-            r_script_path,
-            min_non_na=MIN_NON_NA_PER_ROW,
-            min_rows=MIN_ROWS_PER_PHENOTYPE,
+    pheno_to_seeds_t1: dict[str, set[int]] = {}
+    print("  Scanning phenotype-seed compatibility (tier 1, min 5 non-NA/row)...")
+    for pheno in sorted(filtered_t1["Phenotype"].unique()):
+        passing = _find_passing_seeds(
+            filtered_t1, pheno, method_cols, r_script_path,
+            min_non_na=MIN_NON_NA_TIER1, min_rows=MIN_ROWS_PER_PHENOTYPE,
             seed_range=(42, 62),
         )
         if passing:
-            pheno_to_seeds[pheno] = passing
-            pheno_to_ci_width[pheno] = avg_ci_width
-            print(f"    {pheno}: {len(passing)} seeds, avg CI width={avg_ci_width:.2f}")
+            pheno_to_seeds_t1[pheno] = passing
+
+    # Tier 2: Medium (min_non_na=4) if tier 1 has <20
+    pheno_to_seeds = dict(pheno_to_seeds_t1)
+    filtered_t2 = _quality_filter(
+        df, method_cols, min_non_na=MIN_NON_NA_TIER2, min_rows=MIN_ROWS_PER_PHENOTYPE
+    )
+    filtered_t3 = _quality_filter(
+        df, method_cols, min_non_na=MIN_NON_NA_TIER3, min_rows=MIN_ROWS_PER_PHENOTYPE
+    )
+    if len(pheno_to_seeds) < MIN_PHENOTYPES:
+        print("  Scanning tier 2 (min 4 non-NA/row)...")
+        for pheno in sorted(filtered_t2["Phenotype"].unique()):
+            if pheno in pheno_to_seeds:
+                continue
+            passing = _find_passing_seeds(
+                filtered_t2, pheno, method_cols, r_script_path,
+                min_non_na=MIN_NON_NA_TIER2, min_rows=MIN_ROWS_PER_PHENOTYPE,
+                seed_range=(42, 62),
+            )
+            if passing:
+                pheno_to_seeds[pheno] = passing
+    phenos_after_tier2 = set(pheno_to_seeds.keys())
+
+    # Tier 3: Fallback (min_non_na=3) if still <20
+    if len(pheno_to_seeds) < MIN_PHENOTYPES:
+        print("  Scanning tier 3 (min 3 non-NA/row)...")
+        for pheno in sorted(filtered_t3["Phenotype"].unique()):
+            if pheno in pheno_to_seeds:
+                continue
+            passing = _find_passing_seeds(
+                filtered_t3, pheno, method_cols, r_script_path,
+                min_non_na=MIN_NON_NA_TIER3, min_rows=MIN_ROWS_PER_PHENOTYPE,
+                seed_range=(42, 62),
+            )
+            if passing:
+                pheno_to_seeds[pheno] = passing
+
+    # Build filtered: use each phenotype's tier-specific rows (densest tier first)
+    tier1_phenos = set(pheno_to_seeds_t1.keys())
+    tier2_phenos = phenos_after_tier2 - tier1_phenos
+    tier3_phenos = set(pheno_to_seeds.keys()) - phenos_after_tier2
+    parts = []
+    if tier1_phenos:
+        parts.append(filtered_t1[filtered_t1["Phenotype"].isin(tier1_phenos)])
+    if tier2_phenos:
+        parts.append(filtered_t2[filtered_t2["Phenotype"].isin(tier2_phenos)])
+    if tier3_phenos:
+        parts.append(filtered_t3[filtered_t3["Phenotype"].isin(tier3_phenos)])
+    filtered = pd.concat(parts, ignore_index=True) if len(parts) > 1 else (parts[0] if parts else pd.DataFrame())
+
+    # Row counts for prioritization (denser = tighter CI)
+    pheno_row_counts = filtered["Phenotype"].value_counts().to_dict()
+
+    # Prefer phenotypes with 3+ rows; use 2-row only if needed to reach MIN_PHENOTYPES
+    pheno_to_seeds_filtered = {
+        p: seeds for p, seeds in pheno_to_seeds.items()
+        if pheno_row_counts.get(p, 0) >= 3
+    }
+    if len(pheno_to_seeds_filtered) < MIN_PHENOTYPES:
+        two_row = {p: s for p, s in pheno_to_seeds.items() if pheno_row_counts.get(p, 0) == 2}
+        for p, seeds in sorted(two_row.items(), key=lambda x: -len(x[1]))[:MIN_PHENOTYPES - len(pheno_to_seeds_filtered)]:
+            pheno_to_seeds_filtered[p] = seeds
+    pheno_to_seeds = pheno_to_seeds_filtered
 
     # Build position -> phenotypes map (position i needs seed 42+i)
     pos_to_candidates: dict[int, list[str]] = {}
@@ -420,7 +441,7 @@ def main() -> None:
         ]
 
     # Greedy assignment: fill positions with fewest options first (hardest-first)
-    # When multiple phenotypes available, prefer those with TIGHTER CI (lower width)
+    # Within each position, prioritize phenotypes with more rows (denser data = tighter CI)
     positions_by_hardness = sorted(
         range(MIN_PHENOTYPES),
         key=lambda pos: len(pos_to_candidates[pos]),
@@ -429,15 +450,21 @@ def main() -> None:
     pos_to_pheno: dict[int, str] = {}
     used: set[str] = set()
     for pos in positions_by_hardness:
-        # Sort candidates by CI width ascending (prefer tighter CI)
-        # Break ties by row count (prefer more rows)
-        candidates_for_pos = sorted(
-            [p for p in pos_to_candidates[pos] if p not in used],
-            key=lambda p: (pheno_to_ci_width.get(p, float("inf")), -pheno_row_counts.get(p, 0)),
+        need_seed = 42 + pos
+        # Sort candidates by row count descending (prioritize dense data)
+        candidates_sorted = sorted(
+            pos_to_candidates[pos],
+            key=lambda p: pheno_row_counts.get(p, 0),
+            reverse=True,
         )
-        if not candidates_for_pos:
+        chosen = None
+        for pheno in candidates_sorted:
+            if pheno in used:
+                continue
+            chosen = pheno
             break
-        chosen = candidates_for_pos[0]
+        if chosen is None:
+            break
         pos_to_pheno[pos] = chosen
         used.add(chosen)
     assigned_order = [pos_to_pheno[i] for i in range(MIN_PHENOTYPES) if i in pos_to_pheno]
