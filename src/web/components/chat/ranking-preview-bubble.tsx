@@ -373,7 +373,7 @@ export function RankingPreviewBubble({
                           size="lg"
                         >
                           <Play className="h-4 w-4 mr-2" />
-                          Specify Ranking
+                          Stratified Ranking
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
