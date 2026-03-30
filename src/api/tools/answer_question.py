@@ -184,6 +184,21 @@ def _is_clustering_question(question: str) -> bool:
     return any(kw in lower_q for kw in _CLUSTERING_KEYWORDS)
 
 
+_ACTION_ADVICE_KEYWORDS = (
+    "what should i do",
+    "what do you recommend",
+    "next steps",
+    "based on these results",
+    "what action",
+    "how should i proceed",
+)
+
+
+def _is_action_advice_question(lower_q: str) -> bool:
+    """Detect action-advice questions like 'What should I do based on these results?'."""
+    return any(kw in lower_q for kw in _ACTION_ADVICE_KEYWORDS)
+
+
 def _sanitize_text_field(text: str) -> str:
     cleaned = _NON_ANSWER_LINE_PATTERN.sub("", text or "")
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
@@ -476,16 +491,29 @@ def _stage_guidance(status: str) -> tuple[str, str]:
     )
 
 
-def _top_summary(results: RankingResults) -> str:
+def _top_summary(results: RankingResults, near_ties: list[str] | None = None) -> str:
     idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
+    ci_lo = _to_int(results.ci_lower[idx])
+    ci_hi = _to_int(results.ci_upper[idx])
+    item = results.items[idx]
+    if near_ties:
+        return (
+            f"{item} is ranked first because it has the highest estimated score. "
+            f"Its 95% confidence interval [{ci_lo}, {ci_hi}] places it above most competitors, "
+            "although near-ties remain."
+        )
     return (
-        f"Top-ranked item is {results.items[idx]} with rank {results.ranks[idx]} "
-        f"and 95% CI [{_to_int(results.ci_lower[idx])}, {_to_int(results.ci_upper[idx])}]; "
-        "treat this as the best current estimate."
+        f"{item} is ranked first because it has the highest estimated score. "
+        f"Its 95% confidence interval [{ci_lo}, {ci_hi}] places it clearly above all competitors."
     )
 
 
-def _comparison_sentence(results: RankingResults, item_a: str, item_b: str) -> str:
+def _comparison_sentence(
+    results: RankingResults,
+    item_a: str,
+    item_b: str,
+    near_ties: list[str] | None = None,
+) -> str:
     lookup = {name.lower(): i for i, name in enumerate(results.items)}
     a_idx = lookup.get(item_a.lower())
     b_idx = lookup.get(item_b.lower())
@@ -497,21 +525,17 @@ def _comparison_sentence(results: RankingResults, item_a: str, item_b: str) -> s
     a_ci = (results.ci_lower[a_idx], results.ci_upper[a_idx])
     b_ci = (results.ci_lower[b_idx], results.ci_upper[b_idx])
     overlap = not (a_ci[1] < b_ci[0] or b_ci[1] < a_ci[0])
-    lead = item_a if a_rank < b_rank else item_b
-    relation = (
-        f"{item_a} is currently ranked ahead, but confidence intervals overlap so separation is uncertain"
-        if overlap and a_rank < b_rank
-        else (
-            f"{item_b} is currently ranked ahead, but confidence intervals overlap so separation is uncertain"
-            if overlap
-            else f"{lead} appears stronger with non-overlapping confidence intervals"
+    leader = item_a if a_rank < b_rank else item_b
+    trailer = item_b if a_rank < b_rank else item_a
+
+    if overlap:
+        return (
+            f"{leader} is ranked above {trailer}, but the lead is uncertain "
+            "due to overlapping confidence intervals, so the ordering is too close to call."
         )
-    )
-    caveat = f" {CI_CAVEAT}" if overlap else ""
     return (
-        f"{item_a} rank={a_rank}, CI=[{_to_int(a_ci[0])}, {_to_int(a_ci[1])}]; "
-        f"{item_b} rank={b_rank}, CI=[{_to_int(b_ci[0])}, {_to_int(b_ci[1])}]. "
-        f"Interpretation: {relation}.{caveat}"
+        f"{leader} is ranked above {trailer} with non-overlapping confidence intervals, "
+        "indicating a clear separation."
     )
 
 
@@ -674,34 +698,34 @@ def _fallback_clustering_answer(
 ) -> AnswerOutput:
     """Format deterministic answer for clustering questions using key_findings."""
     evidence: list[str] = []
-    groups_str = "; ".join(
-        f"Group {i + 1}: {', '.join(c)}" for i, c in enumerate(cluster_items)
-    )
-    if groups_str:
-        evidence.append(groups_str)
+    for i, cluster in enumerate(cluster_items):
+        evidence.append(f"Group {i + 1}: {', '.join(cluster)}.")
     if near_ties_with_top:
         ties_str = ", ".join(near_ties_with_top)
-        evidence.append(f"Near-ties with top: {ties_str}. Use caution when relying on the rank-1 leader.")
+        evidence.append(
+            f"Near-ties with top: {ties_str}. "
+            "The rank-1 position is not definitive among these items."
+        )
 
     conclusion = (
-        f"Items fall into {n_clusters} CI-overlap group{'s' if n_clusters != 1 else ''}; "
-        "within each group the ordering is uncertain."
+        f"Items fall into {n_clusters} CI-overlap group{'s' if n_clusters != 1 else ''}. "
+        "Items within the same group have overlapping confidence intervals, "
+        "meaning their relative ordering cannot be reliably distinguished."
     )
     note = (
-        "Clustering groups items whose 95% confidence intervals overlap; "
-        "treat items in the same group as statistically tied when making decisions."
+        "Treat items in the same group as practically tied when making decisions."
     )
     answer_text = _format_structured_answer(
         conclusion=conclusion,
-        evidence=evidence[:4],
+        evidence=evidence,
         references=[],
         note=note,
         quote_context=quote_context,
-        max_evidence=4,
+        max_evidence=len(evidence),
     )
     return AnswerOutput(
         answer=answer_text,
-        supporting_evidence=evidence[:4],
+        supporting_evidence=evidence,
         used_citation_block_ids=used_ids,
     )
 
@@ -734,41 +758,117 @@ def _fallback_with_results(
                 near_ties_with_top=kf.get("near_ties_with_top"),
             )
 
-    if "top" in lower_q or "best" in lower_q:
-        conclusion = _top_summary(results)
+    is_top_question = (
+        "top" in lower_q or "best" in lower_q
+        or "ranked first" in lower_q or "ranked #1" in lower_q
+        or "ranked 1" in lower_q or "why is" in lower_q
+    )
+    if is_top_question:
+        kf = (session_context or {}).get("key_findings") or {}
+        near_ties: list[str] = kf.get("near_ties_with_top") or []
+        conclusion = _top_summary(results, near_ties=near_ties)
         top_idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
+        top_name = results.items[top_idx]
+        # Evidence 1: Reported rank
         supporting_evidence.append(
-            f"{results.items[top_idx]}: rank={results.ranks[top_idx]}, "
-            f"theta_hat={results.theta_hat[top_idx]:.4f}, "
-            f"CI=[{_to_int(results.ci_lower[top_idx])}, {_to_int(results.ci_upper[top_idx])}]"
+            f"Reported rank: {top_name} is ranked {results.ranks[top_idx]} "
+            f"with 95% CI [{_to_int(results.ci_lower[top_idx])}, {_to_int(results.ci_upper[top_idx])}]."
         )
+        # Evidence 2: Near-ties
+        if near_ties:
+            near_ties_str = ", ".join(near_ties)
+            supporting_evidence.append(
+                f"Near-ties: {near_ties_str} {'is' if len(near_ties) == 1 else 'are'} "
+                f"near-tied with {top_name}."
+            )
+        else:
+            supporting_evidence.append(
+                f"Near-ties: No item is near-tied with {top_name}."
+            )
+    elif _is_action_advice_question(lower_q):
+        kf = (session_context or {}).get("key_findings") or {}
+        near_ties_adv: list[str] = kf.get("near_ties_with_top") or []
+        top_idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
+        top_name = results.items[top_idx]
+        top_ci_lo = _to_int(results.ci_lower[top_idx])
+        top_ci_hi = _to_int(results.ci_upper[top_idx])
+
+        if near_ties_adv:
+            conclusion = (
+                f"{top_name} is ranked first with a 95% confidence interval "
+                f"[{top_ci_lo}, {top_ci_hi}], but its lead is uncertain because "
+                "nearby competitors have overlapping intervals."
+            )
+        else:
+            conclusion = (
+                f"{top_name} is ranked first with a 95% confidence interval "
+                f"[{top_ci_lo}, {top_ci_hi}] and a clear lead over all competitors."
+            )
+
+        # Evidence 1: Top item rank + CI
+        supporting_evidence.append(
+            f"{top_name} is ranked {results.ranks[top_idx]} "
+            f"with 95% CI [{top_ci_lo}, {top_ci_hi}]."
+        )
+
+        # Evidence 2: Comparison with runner-up
+        order = sorted(range(len(results.ranks)), key=lambda i: results.ranks[i])
+        if len(order) > 1:
+            runner_idx = order[1]
+            runner_name = results.items[runner_idx]
+            runner_ci_lo = _to_int(results.ci_lower[runner_idx])
+            runner_ci_hi = _to_int(results.ci_upper[runner_idx])
+            overlap = not (
+                results.ci_upper[top_idx] < results.ci_lower[runner_idx]
+                or results.ci_upper[runner_idx] < results.ci_lower[top_idx]
+            )
+            if overlap:
+                supporting_evidence.append(
+                    f"{top_name} (CI [{top_ci_lo}, {top_ci_hi}]) and "
+                    f"{runner_name} (CI [{runner_ci_lo}, {runner_ci_hi}]) have overlapping "
+                    "intervals, so their ordering is too close to call."
+                )
+            else:
+                supporting_evidence.append(
+                    f"{top_name} (CI [{top_ci_lo}, {top_ci_hi}]) is clearly separated from "
+                    f"{runner_name} (CI [{runner_ci_lo}, {runner_ci_hi}])."
+                )
+
+        note = "Compare the top items in more detail or collect more data to narrow the confidence intervals."
     else:
         item_a, item_b = _extract_two_items(question, results.items)
         if item_a and item_b:
-            conclusion = _comparison_sentence(results, item_a, item_b)
+            kf = (session_context or {}).get("key_findings") or {}
+            near_ties_list: list[str] = kf.get("near_ties_with_top") or []
+            conclusion = _comparison_sentence(results, item_a, item_b, near_ties=near_ties_list)
             lookup = {name.lower(): i for i, name in enumerate(results.items)}
             a_idx = lookup.get(item_a.lower())
             b_idx = lookup.get(item_b.lower())
             if a_idx is not None and b_idx is not None:
+                # Evidence 1: Ranks
                 supporting_evidence.append(
-                    f"{item_a}: rank={results.ranks[a_idx]}, "
-                    f"theta_hat={results.theta_hat[a_idx]:.4f}, "
-                    f"CI=[{_to_int(results.ci_lower[a_idx])}, {_to_int(results.ci_upper[a_idx])}]"
+                    f"Ranks: {item_a} is ranked {results.ranks[a_idx]} "
+                    f"and {item_b} is ranked {results.ranks[b_idx]} in the results."
                 )
-                supporting_evidence.append(
-                    f"{item_b}: rank={results.ranks[b_idx]}, "
-                    f"theta_hat={results.theta_hat[b_idx]:.4f}, "
-                    f"CI=[{_to_int(results.ci_lower[b_idx])}, {_to_int(results.ci_upper[b_idx])}]"
-                )
+                # Evidence 2: Near-tie status
                 overlap = not (
                     results.ci_upper[a_idx] < results.ci_lower[b_idx]
                     or results.ci_upper[b_idx] < results.ci_lower[a_idx]
                 )
                 if overlap:
-                    note = CI_CAVEAT
+                    leader = item_a if results.ranks[a_idx] < results.ranks[b_idx] else item_b
+                    trailer = item_b if leader == item_a else item_a
+                    supporting_evidence.append(
+                        f"Near-tie: {trailer} is identified as a near-tie with {leader} "
+                        "due to confidence interval overlap."
+                    )
+                else:
+                    supporting_evidence.append(
+                        f"No near-tie: {item_a} and {item_b} have non-overlapping confidence intervals."
+                    )
         else:
             conclusion = (
-                _top_summary(results)
+                _top_summary(results, near_ties=None)
                 + " Name two specific items to compare them with confidence intervals."
             )
             top_idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
@@ -944,7 +1044,9 @@ def answer_question(
             evidence_raw = llm_output.get("supporting_evidence")
         supporting_evidence = [str(entry).strip() for entry in evidence_raw] if isinstance(evidence_raw, list) else []
         supporting_evidence = [_normalize_answer_english(entry) for entry in supporting_evidence]
-        supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=2)
+        is_clustering = _is_clustering_question(question)
+        clustering_evidence_limit = len(supporting_evidence) if is_clustering else 2
+        supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=clustering_evidence_limit)
         if not supporting_evidence:
             if results is None and not wants_one_sentence:
                 stage_evidence = _session_evidence(session_context)
@@ -982,18 +1084,26 @@ def answer_question(
         if wants_one_sentence:
             conclusion = _truncate_words(conclusion, 34)
         else:
-            conclusion_limit = 36 if results is None else 42
+            if is_clustering:
+                conclusion_limit = 45
+            elif results is None:
+                conclusion_limit = 36
+            else:
+                conclusion_limit = 42
             if needs_reference and not wants_concise:
                 conclusion_limit = 48
             conclusion = _truncate_words(conclusion, conclusion_limit)
             if results is None and conclusion.endswith("...") and len(conclusion.split()) < 10:
                 stage_msg, _ = _stage_guidance(str((session_context or {}).get("status") or "idle"))
                 conclusion = _normalize_answer_english(_first_sentence(stage_msg))
-            supporting_evidence = [_truncate_words(entry, 30) for entry in supporting_evidence]
-            supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=2)
+            evidence_word_limit = 30 if not is_clustering else 40
+            supporting_evidence = [_truncate_words(entry, evidence_word_limit) for entry in supporting_evidence]
+            clustering_trunc_limit = len(supporting_evidence) if is_clustering else 2
+            supporting_evidence = _dedupe_nonempty(supporting_evidence, max_items=clustering_trunc_limit)
             note_fingerprint = ""
             if note:
-                note = _truncate_words(note, 18 if (wants_concise or results is not None) else 24)
+                note_word_limit = 35 if is_clustering else (18 if (wants_concise or results is not None) else 24)
+                note = _truncate_words(note, note_word_limit)
                 note_fingerprint = _sanitize_text_field(note).lower()
             if note_fingerprint and any(
                 note_fingerprint == _sanitize_text_field(x).lower()
@@ -1016,7 +1126,7 @@ def answer_question(
             max_references = 0
         else:
             quote_context_local = None if wants_concise else quote_context
-            max_evidence = 2
+            max_evidence = len(supporting_evidence) if is_clustering else 2
             max_references = 1 if (wants_concise and references) else 2
 
         answer_text = _format_structured_answer(

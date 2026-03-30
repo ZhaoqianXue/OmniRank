@@ -340,7 +340,11 @@ def test_generate_report_retries_llm_when_summary_is_wrong(tmp_path: Path, monke
                     "**Key Takeaways**\n\n"
                     "**Top rank with uncertainty**: **A** ranks first with the highest estimated score, but overlap near the top means the ordering is not definitive.\n\n"
                     "**Top group**: Consistent with this, **A** and **B** form a near-tied top group based on the clustering results.\n\n"
-                    "**Interpretation of uncertainty**: When confidence intervals overlap, we cannot confidently distinguish relative performance. **B** has the widest confidence interval, indicating greater estimation uncertainty."
+                    "**Interpretation of uncertainty**: When confidence intervals overlap, we cannot confidently distinguish relative performance. **B** has the widest confidence interval, indicating greater estimation uncertainty.\n\n"
+                    "**Key Findings**\n\n"
+                    "**Reported rank**: **A** is ranked 1 with a 95% confidence interval [1, 2].\n\n"
+                    "**Near-ties**: **B** is near-tied with **A** based on overlapping confidence intervals.\n\n"
+                    "**Clustering**: Items form 2 CI-overlap groups. Group 1: **A**, **B**. Group 2: **C**."
                 ),
                 "results_narrative": (
                     "**Group 1**: **A**, **B** remain close at the top. "
@@ -481,7 +485,7 @@ def test_answer_question_without_quotes():
         quotes=[],
     )
 
-    assert "Top-ranked item is" in answer.answer
+    assert "is ranked first because it has the highest estimated score" in answer.answer
     assert len(answer.used_citation_block_ids) == 0
 
 

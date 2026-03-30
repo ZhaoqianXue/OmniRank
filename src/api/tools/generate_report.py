@@ -141,6 +141,8 @@ def _validate_llm_narrative(
     summary_lower = summary.lower()
     if "key takeaways" not in summary_lower:
         issues.append("Summary must include a '**Key Takeaways**' header.")
+    if "key findings" not in summary_lower:
+        issues.append("Summary must include a '**Key Findings**' header after Key Takeaways.")
     for required_label in (
         "top rank with uncertainty",
         "top group",
@@ -148,6 +150,13 @@ def _validate_llm_narrative(
     ):
         if required_label not in summary_lower:
             issues.append(f"Summary must include a '**{required_label.title()}**' takeaway.")
+    for required_kf_label in (
+        "reported rank",
+        "near-ties",
+        "clustering",
+    ):
+        if required_kf_label not in summary_lower:
+            issues.append(f"Key Findings must include a '**{required_kf_label.title()}**' entry.")
     if not _mentions_item(summary, top_item):
         issues.append(f"Summary must explicitly name **{top_item}** as the top-ranked item.")
 
@@ -332,7 +341,7 @@ def _build_llm_narrative(
     The returned dict values may contain markdown formatting (bold, bullets,
     inline code) but no raw HTML.
     """
-    top_item, _, _ = _top_item(results)
+    top_item, top_score, top_rank = _top_item(results)
     analysis = _analyze_ranking(results)
     order = analysis["order"]
 
@@ -340,6 +349,7 @@ def _build_llm_narrative(
     clusters = analysis["clusters"]
     runner_up_idx = order[1] if len(order) > 1 else None
     runner_up_item = results.items[runner_up_idx] if runner_up_idx is not None else None
+    top_idx = order[0]
 
     # ── Executive Summary ────────────────────────────────────────────────
     if near_ties:
@@ -374,6 +384,57 @@ def _build_llm_narrative(
         f"distinguish the relative performance of those items. **{analysis['widest_ci_item']}** has the widest confidence interval, indicating greater estimation uncertainty."
     )
 
+    # ── Key Findings subsection ────────────────────────────────────────
+    top_ci_lo = _ci_int(results.ci_lower[top_idx])
+    top_ci_hi = _ci_int(results.ci_upper[top_idx])
+
+    kf_reported_rank = (
+        f"**Reported rank**: **{top_item}** is ranked {top_rank} with the highest estimated score "
+        f"and a 95% confidence interval [{top_ci_lo}, {top_ci_hi}]."
+    )
+
+    if near_ties:
+        if len(near_ties) == 1:
+            near_ties_text = f"**{near_ties[0]}**"
+        elif len(near_ties) == 2:
+            near_ties_text = " and ".join(f"**{nt}**" for nt in near_ties)
+        else:
+            near_ties_text = ", ".join(f"**{nt}**" for nt in near_ties[:-1]) + f", and **{near_ties[-1]}**"
+        kf_near_ties = (
+            f"**Near-ties**: {near_ties_text} {'is' if len(near_ties) == 1 else 'are'} near-tied with "
+            f"**{top_item}** based on overlapping confidence intervals, so the ordering among them is uncertain."
+        )
+    else:
+        kf_near_ties = (
+            f"**Near-ties**: No item is near-tied with **{top_item}**; "
+            "its confidence interval does not overlap with any competitor."
+        )
+
+    # Clustering overview
+    if len(clusters) > 1:
+        cluster_summaries: list[str] = []
+        for ci, cluster in enumerate(clusters, start=1):
+            items_str = ", ".join(f"**{it}**" for it in cluster)
+            cluster_summaries.append(f"Group {ci}: {items_str}")
+        kf_clustering = (
+            f"**Clustering**: Items form {len(clusters)} CI-overlap groups, "
+            "where items within the same group are practically tied. "
+            + " ".join(cluster_summaries)
+            + "."
+        )
+    else:
+        all_items_str = ", ".join(f"**{it}**" for it in clusters[0]) if clusters else f"**{top_item}**"
+        kf_clustering = (
+            f"**Clustering**: All items ({all_items_str}) fall into a single CI-overlap group, "
+            "meaning the confidence intervals of all items overlap and no clear separation exists."
+        )
+
+    key_findings_section = (
+        f"{kf_reported_rank}\n\n"
+        f"{kf_near_ties}\n\n"
+        f"{kf_clustering}"
+    )
+
     summary = (
         f"**{top_item}** ranks first with the highest estimated score in this run. "
         f"{uncertainty} "
@@ -382,7 +443,9 @@ def _build_llm_narrative(
         "**Key Takeaways**\n\n"
         f"**Top rank with uncertainty**: **{top_item}** ranks first with the highest estimated score. {uncertainty}\n\n"
         f"{top_group_line}\n\n"
-        f"{interpretation_line}"
+        f"{interpretation_line}\n\n"
+        "**Key Findings**\n\n"
+        f"{key_findings_section}"
     )
 
     # ── Results Narrative ────────────────────────────────────────────────
