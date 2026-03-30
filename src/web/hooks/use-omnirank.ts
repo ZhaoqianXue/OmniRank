@@ -102,7 +102,7 @@ const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome-message",
   role: "assistant",
   content:
-    "Welcome to OmniRank. Upload data or select an example dataset, then confirm schema and run spectral ranking.",
+    "Welcome to OmniRank! Upload your data or choose an example dataset, confirm the schema, and start ranking analysis.",
   timestamp: 0,
   agent: "analyst",
 };
