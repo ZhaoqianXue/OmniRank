@@ -153,7 +153,7 @@ def _validate_llm_narrative(
     for required_kf_label in (
         "reported rank",
         "near-ties",
-        "clustering",
+        "ci-overlap groups",
     ):
         if required_kf_label not in summary_lower:
             issues.append(f"Key Findings must include a '**{required_kf_label.title()}**' entry.")
@@ -388,11 +388,20 @@ def _build_llm_narrative(
     top_ci_lo = _ci_int(results.ci_lower[top_idx])
     top_ci_hi = _ci_int(results.ci_upper[top_idx])
 
+    # Reported rank
     kf_reported_rank = (
-        f"**Reported rank**: **{top_item}** is ranked {top_rank} with the highest estimated score "
-        f"and a 95% confidence interval [{top_ci_lo}, {top_ci_hi}]."
+        f"**Reported rank**: **{top_item}** holds rank {top_rank} with a 95% confidence interval "
+        f"of [{top_ci_lo}, {top_ci_hi}], confirming it as the top-ranked item in this analysis."
     )
+    if top_ci_hi - top_ci_lo <= 1:
+        kf_reported_rank += " The narrow interval suggests relatively stable positioning at the top of the ranking."
+    else:
+        kf_reported_rank += (
+            f" The interval spans {top_ci_hi - top_ci_lo} rank positions, "
+            "reflecting some uncertainty in the precise placement."
+        )
 
+    # Near-ties
     if near_ties:
         if len(near_ties) == 1:
             near_ties_text = f"**{near_ties[0]}**"
@@ -402,50 +411,55 @@ def _build_llm_narrative(
             near_ties_text = ", ".join(f"**{nt}**" for nt in near_ties[:-1]) + f", and **{near_ties[-1]}**"
         kf_near_ties = (
             f"**Near-ties**: {near_ties_text} {'is' if len(near_ties) == 1 else 'are'} near-tied with "
-            f"**{top_item}** based on overlapping confidence intervals, so the ordering among them is uncertain."
+            f"**{top_item}**, as their confidence intervals overlap. "
+            "This means the difference between them is within uncertainty, "
+            "and the rank-1 position should not be treated as definitive without further data."
         )
     else:
         kf_near_ties = (
-            f"**Near-ties**: No item is near-tied with **{top_item}**; "
-            "its confidence interval does not overlap with any competitor."
+            f"**Near-ties**: No item is near-tied with **{top_item}**. "
+            "Its confidence interval does not overlap with any competitor, "
+            "providing stronger evidence that the top position is reliable."
         )
 
-    # Clustering overview
+    # CI-overlap groups
     if len(clusters) > 1:
-        cluster_summaries: list[str] = []
+        group_descriptions: list[str] = []
         for ci, cluster in enumerate(clusters, start=1):
             items_str = ", ".join(f"**{it}**" for it in cluster)
-            cluster_summaries.append(f"Group {ci}: {items_str}")
+            if len(cluster) == 1:
+                group_descriptions.append(f"Group {ci} ({items_str}) stands on its own")
+            else:
+                group_descriptions.append(f"Group {ci} contains {items_str}")
+        groups_sentence = "; ".join(group_descriptions) + "."
         kf_clustering = (
-            f"**Clustering**: Items form {len(clusters)} CI-overlap groups, "
-            "where items within the same group are practically tied. "
-            + " ".join(cluster_summaries)
-            + "."
+            f"**CI-overlap groups**: Items separate into {len(clusters)} groups based on confidence-interval overlap. "
+            f"{groups_sentence} "
+            "Items within the same group are practically tied — "
+            "their ranking order cannot be reliably distinguished from the current data."
         )
     else:
         all_items_str = ", ".join(f"**{it}**" for it in clusters[0]) if clusters else f"**{top_item}**"
         kf_clustering = (
-            f"**Clustering**: All items ({all_items_str}) fall into a single CI-overlap group, "
-            "meaning the confidence intervals of all items overlap and no clear separation exists."
+            f"**CI-overlap groups**: All items ({all_items_str}) fall into a single group, "
+            "as every item's confidence interval overlaps with at least one other. "
+            "No clear separation exists between any pair, so the entire ranking should be "
+            "interpreted with caution."
         )
 
-    key_findings_section = (
-        f"{kf_reported_rank}\n\n"
-        f"{kf_near_ties}\n\n"
-        f"{kf_clustering}"
-    )
-
     summary = (
+        "**Key Takeaways**\n\n"
         f"**{top_item}** ranks first with the highest estimated score in this run. "
         f"{uncertainty} "
         "The intervals shown are 95% bootstrap confidence intervals, so overlap should be read "
         "as ranking uncertainty rather than as a formal significance claim.\n\n"
-        "**Key Takeaways**\n\n"
         f"**Top rank with uncertainty**: **{top_item}** ranks first with the highest estimated score. {uncertainty}\n\n"
         f"{top_group_line}\n\n"
         f"{interpretation_line}\n\n"
         "**Key Findings**\n\n"
-        f"{key_findings_section}"
+        f"{kf_reported_rank}\n\n"
+        f"{kf_near_ties}\n\n"
+        f"{kf_clustering}"
     )
 
     # ── Results Narrative ────────────────────────────────────────────────

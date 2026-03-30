@@ -335,16 +335,16 @@ def test_generate_report_retries_llm_when_summary_is_wrong(tmp_path: Path, monke
             assert "validation_feedback" in payload
             return {
                 "summary": (
+                    "**Key Takeaways**\n\n"
                     "**A** leads the ranking in this run. "
                     "The ordering near the top still depends on the reported rank intervals.\n\n"
-                    "**Key Takeaways**\n\n"
                     "**Top rank with uncertainty**: **A** ranks first with the highest estimated score, but overlap near the top means the ordering is not definitive.\n\n"
                     "**Top group**: Consistent with this, **A** and **B** form a near-tied top group based on the clustering results.\n\n"
                     "**Interpretation of uncertainty**: When confidence intervals overlap, we cannot confidently distinguish relative performance. **B** has the widest confidence interval, indicating greater estimation uncertainty.\n\n"
                     "**Key Findings**\n\n"
-                    "**Reported rank**: **A** is ranked 1 with a 95% confidence interval [1, 2].\n\n"
-                    "**Near-ties**: **B** is near-tied with **A** based on overlapping confidence intervals.\n\n"
-                    "**Clustering**: Items form 2 CI-overlap groups. Group 1: **A**, **B**. Group 2: **C**."
+                    "**Reported rank**: **A** holds rank 1 with a 95% confidence interval of [1, 2], confirming it as the top-ranked item.\n\n"
+                    "**Near-ties**: **B** is near-tied with **A**, as their confidence intervals overlap. The rank-1 position should not be treated as definitive.\n\n"
+                    "**CI-overlap groups**: Items separate into 2 groups. Group 1 contains **A** and **B**; Group 2 contains **C**. Items within the same group are practically tied."
                 ),
                 "results_narrative": (
                     "**Group 1**: **A**, **B** remain close at the top. "
@@ -743,19 +743,21 @@ def test_answer_question_integerizes_ci_from_llm_output(monkeypatch):
         def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
             assert section_key == "answer_question"
             return {
-                "conclusion": "Model A is ahead with CI [1.0, 6.0].",
-                "evidence": ["Model A: CI=[1.0, 6.0]", "Model B: CI=[2.0, 7.0]"],
+                "conclusion": "The method produces CI [1.0, 6.0] for the leader.",
+                "evidence": ["Leader: CI=[1.0, 6.0]", "Runner-up: CI=[2.0, 7.0]"],
                 "used_citation_block_ids": [],
             }
 
     monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
 
-    results = _sample_results()
+    # Use results=None to ensure the LLM path is exercised (template
+    # questions bypass the LLM only when results are present).
     answer = answer_question(
-        question="Compare A and B",
-        results=results,
+        question="How does spectral method work?",
+        results=None,
         citation_blocks={},
         quotes=[],
+        session_context={"status": "idle", "has_results": False},
     )
 
     assert "[1, 6]" in answer.answer

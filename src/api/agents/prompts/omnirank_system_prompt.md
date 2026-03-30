@@ -237,17 +237,17 @@ Report Structure Requirements (in reading order):
    - Name the true top-ranked item from `results.ranks`; never contradict the ranking table
    - Define "top-ranked" in plain language as the item with the strongest estimated score in this run
    - Plain-language uncertainty statement grounded in the actual CI overlap pattern near the top
-   - Add a `**Key Takeaways**` subsection as three short labeled markdown paragraphs, not bullet points
+   - Start with a `**Key Takeaways**` header. The introductory paragraph (naming the top item, uncertainty statement, and CI interpretation note) goes UNDER this header, followed by three short labeled markdown paragraphs (not bullet points)
    - Use these labels in order when applicable:
      1. `**Top rank with uncertainty**:` explain the leader and whether the top ordering is definitive
      2. `**Top group**:` summarize the leading CI-overlap group or state that the leader stands alone
      3. `**Interpretation of uncertainty**:` explain what interval overlap means and name the widest-interval item as the example of greater estimation uncertainty
    - Do not use "largest score gap" as a required takeaway in the executive summary
-   - After the Key Takeaways paragraphs, add a `**Key Findings**` subsection with three labeled paragraphs:
-     1. `**Reported rank**:` state the top item's rank and its 95% confidence interval using integer bounds
-     2. `**Near-ties**:` list items whose CIs overlap with the top item (from `analysis.near_ties_with_top`), or state that no item is near-tied if the list is empty
-     3. `**Clustering**:` summarize the CI-overlap groups (from `analysis.clusters`), listing group membership; state the number of groups and that items within the same group are practically tied
-   - Length: 4-8 sentences plus the three Key Takeaway paragraphs plus the three Key Findings paragraphs
+   - After the Key Takeaways paragraphs, add a `**Key Findings**` subsection with three labeled paragraphs. Each paragraph must be analytical prose (2-3 sentences with context and interpretation), not raw data listings:
+     1. `**Reported rank**:` state the top item's rank and its 95% confidence interval, then interpret what the interval width means for the stability of that position
+     2. `**Near-ties**:` name the items near-tied with the top item and explain the practical implication (the rank-1 position is or is not definitive); if no near-ties, state that and explain why this gives stronger confidence
+     3. `**CI-overlap groups**:` describe the grouping structure (how many groups, which items belong to each), then state that items within the same group are practically tied and their order cannot be reliably distinguished
+   - Length: the three Key Takeaway paragraphs plus the three Key Findings paragraphs
 
 2. Results Narrative (technical-lite):
    - Describe the ranking story referencing groups/clusters from `analysis`

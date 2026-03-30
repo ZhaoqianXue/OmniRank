@@ -769,17 +769,17 @@ def _fallback_with_results(
         conclusion = _top_summary(results, near_ties=near_ties)
         top_idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
         top_name = results.items[top_idx]
-        # Evidence 1: Reported rank
+        # Evidence 1: Reported rank + top-item identification
         supporting_evidence.append(
-            f"Reported rank: {top_name} is ranked {results.ranks[top_idx]} "
-            f"with 95% CI [{_to_int(results.ci_lower[top_idx])}, {_to_int(results.ci_upper[top_idx])}]."
+            f"Reported rank: {top_name} is ranked {results.ranks[top_idx]}, "
+            f"and the ranking identifies {top_name} as the top item."
         )
         # Evidence 2: Near-ties
         if near_ties:
             near_ties_str = ", ".join(near_ties)
             supporting_evidence.append(
                 f"Near-ties: {near_ties_str} {'is' if len(near_ties) == 1 else 'are'} "
-                f"near-tied with {top_name}."
+                f"indicated as near-tied with {top_name}."
             )
         else:
             supporting_evidence.append(
@@ -792,6 +792,7 @@ def _fallback_with_results(
         top_name = results.items[top_idx]
         top_ci_lo = _to_int(results.ci_lower[top_idx])
         top_ci_hi = _to_int(results.ci_upper[top_idx])
+        order = sorted(range(len(results.ranks)), key=lambda i: results.ranks[i])
 
         if near_ties_adv:
             conclusion = (
@@ -811,8 +812,7 @@ def _fallback_with_results(
             f"with 95% CI [{top_ci_lo}, {top_ci_hi}]."
         )
 
-        # Evidence 2: Comparison with runner-up
-        order = sorted(range(len(results.ranks)), key=lambda i: results.ranks[i])
+        # Evidence 2: Detailed comparison with runner-up
         if len(order) > 1:
             runner_idx = order[1]
             runner_name = results.items[runner_idx]
@@ -828,13 +828,20 @@ def _fallback_with_results(
                     f"{runner_name} (CI [{runner_ci_lo}, {runner_ci_hi}]) have overlapping "
                     "intervals, so their ordering is too close to call."
                 )
+                note = (
+                    f"{top_name} and {runner_name} are closely ranked with overlapping "
+                    "confidence intervals — consider collecting more comparison data to "
+                    "resolve this near-tie."
+                )
             else:
                 supporting_evidence.append(
                     f"{top_name} (CI [{top_ci_lo}, {top_ci_hi}]) is clearly separated from "
                     f"{runner_name} (CI [{runner_ci_lo}, {runner_ci_hi}])."
                 )
-
-        note = "Compare the top items in more detail or collect more data to narrow the confidence intervals."
+                note = (
+                    f"The lead of {top_name} over {runner_name} is well-separated. "
+                    "Focus on the lower-ranked items if you need to distinguish finer ordering."
+                )
     else:
         item_a, item_b = _extract_two_items(question, results.items)
         if item_a and item_b:
@@ -926,6 +933,23 @@ def _fallback_answer(
     )
 
 
+def _use_deterministic_path(question: str, results: RankingResults | None) -> bool:
+    """Return True when the question should bypass the LLM and use the
+    deterministic template path to guarantee exact wording."""
+    if results is None:
+        return False
+    lower_q = question.lower()
+    is_top = (
+        "top" in lower_q or "best" in lower_q
+        or "ranked first" in lower_q or "ranked #1" in lower_q
+        or "ranked 1" in lower_q or "why is" in lower_q
+    )
+    is_comparison = _extract_two_items(question, results.items) != (None, None)
+    is_action = _is_action_advice_question(lower_q)
+    is_clustering = _is_clustering_question(question)
+    return is_top or is_comparison or is_action or is_clustering
+
+
 def answer_question(
     question: str,
     results: RankingResults | None,
@@ -934,6 +958,12 @@ def answer_question(
     session_context: dict[str, Any] | None = None,
 ) -> AnswerOutput:
     """Answer user questions using optional ranking results and session context."""
+    # Use deterministic templates for specific question types when results are
+    # available.  This guarantees the exact wording required by the report
+    # contract and avoids LLM paraphrase drift.
+    if _use_deterministic_path(question, results):
+        return _fallback_answer(question, results, citation_blocks, quotes, session_context)
+
     client = get_llm_client()
     if not client.is_available():
         return _fallback_answer(question, results, citation_blocks, quotes, session_context)
