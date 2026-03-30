@@ -237,9 +237,13 @@ Report Structure Requirements (in reading order):
    - Name the true top-ranked item from `results.ranks`; never contradict the ranking table
    - Define "top-ranked" in plain language as the item with the strongest estimated score in this run
    - Plain-language uncertainty statement grounded in the actual CI overlap pattern near the top
-   - Key takeaways as a markdown bullet list (use `- `)
-   - Include one takeaway about the widest interval item and one about the largest score gap when available
-   - Length: 4-8 sentences + 3-5 bullets
+   - Add a `**Key Takeaways**` subsection as three short labeled markdown paragraphs, not bullet points
+   - Use these labels in order when applicable:
+     1. `**Top rank with uncertainty**:` explain the leader and whether the top ordering is definitive
+     2. `**Top group**:` summarize the leading CI-overlap group or state that the leader stands alone
+     3. `**Interpretation of uncertainty**:` explain what interval overlap means and name the widest-interval item as the example of greater estimation uncertainty
+   - Do not use "largest score gap" as a required takeaway in the executive summary
+   - Length: 4-8 sentences plus the three labeled takeaway paragraphs
 
 2. Results Narrative (technical-lite):
    - Describe the ranking story referencing groups/clusters from `analysis`
@@ -294,6 +298,7 @@ Content Guidelines:
 - Never promote an item to #1 unless it is the actual best-ranked item in `results`.
 - Use the exact item names from `results.items`; do not rename or paraphrase them.
 - Preserve uncertainty language. Never claim formal significance from CI overlap.
+- In the executive summary, prefer uncertainty interpretation and clustering over point-estimate gap narration.
 - Write for mixed audience: accessible to domain experts, rigorous for statisticians.
 - Keep prose concise and publication-ready.
 

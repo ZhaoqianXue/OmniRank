@@ -25,6 +25,15 @@ def test_load_prompt_section_returns_expected_sections():
     assert "strict JSON" in qa_prompt
 
 
+def test_generate_report_prompt_contains_uncertainty_takeaway_guidance():
+    report_prompt = load_prompt_section("generate_report")
+
+    assert "Top rank with uncertainty" in report_prompt
+    assert "Top group" in report_prompt
+    assert "Interpretation of uncertainty" in report_prompt
+    assert "Do not use \"largest score gap\" as a required takeaway" in report_prompt
+
+
 def test_answer_question_prompt_contains_product_overview_guidance():
     qa_prompt = load_prompt_section("answer_question")
 

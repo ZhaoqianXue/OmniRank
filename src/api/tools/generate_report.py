@@ -116,9 +116,12 @@ def _has_top_claim(text: str, item: str) -> bool:
     escaped = re.escape(item)
     patterns = (
         rf"\*\*{escaped}\*\*\s+ranks?\s+#?1",
+        rf"\*\*{escaped}\*\*\s+ranks?\s+first",
         rf"\*\*{escaped}\*\*\s+is\s+ranked\s+#?1",
         rf"\*\*{escaped}\*\*\s+ranks?\s+highest",
+        rf"\*\*{escaped}\*\*\s+.*highest estimated score",
         rf"\*\*Top result\*\*:\s+\*\*{escaped}\*\*",
+        rf"\*\*Top rank with uncertainty\*\*:\s+\*\*{escaped}\*\*",
         rf"Top-ranked item[^.\n]*{escaped}",
         rf"{escaped}\s+is\s+top-ranked",
     )
@@ -133,11 +136,18 @@ def _validate_llm_narrative(
     top_item, _, _ = _top_item(results)
     summary = narrative.get("summary", "")
     results_narrative = narrative.get("results_narrative", "")
-    combined = f"{summary}\n{results_narrative}"
     issues: list[str] = []
 
-    if "key takeaways" not in summary.lower():
-        issues.append("Summary must include a '**Key Takeaways:**' header.")
+    summary_lower = summary.lower()
+    if "key takeaways" not in summary_lower:
+        issues.append("Summary must include a '**Key Takeaways**' header.")
+    for required_label in (
+        "top rank with uncertainty",
+        "top group",
+        "interpretation of uncertainty",
+    ):
+        if required_label not in summary_lower:
+            issues.append(f"Summary must include a '**{required_label.title()}**' takeaway.")
     if not _mentions_item(summary, top_item):
         issues.append(f"Summary must explicitly name **{top_item}** as the top-ranked item.")
 
@@ -151,22 +161,19 @@ def _validate_llm_narrative(
             break
 
     widest_ci_item = str(analysis.get("widest_ci_item") or "").strip()
-    if widest_ci_item and not _mentions_item(combined, widest_ci_item):
+    if widest_ci_item and not _mentions_item(summary, widest_ci_item):
         issues.append(
             f"Key takeaways should mention **{widest_ci_item}** as the item with the widest interval."
         )
 
-    largest_gap = analysis.get("largest_gap")
-    if isinstance(largest_gap, dict):
-        gap_from = str(largest_gap.get("from") or "").strip()
-        gap_to = str(largest_gap.get("to") or "").strip()
-        if gap_from and gap_to and not (_mentions_item(combined, gap_from) and _mentions_item(combined, gap_to)):
-            issues.append(
-                f"Narrative should mention the largest estimated-score gap between **{gap_from}** and **{gap_to}**."
-            )
-
-    if re.search(r"\btier(s)?\b", combined, re.IGNORECASE):
-        issues.append("Avoid 'tier' language; use groups or overlapping-interval clusters instead.")
+    top_cluster = analysis.get("clusters")[0] if analysis.get("clusters") else []
+    if isinstance(top_cluster, list) and top_cluster:
+        if not _mentions_item(summary, str(top_cluster[0])):
+            issues.append("Top-group takeaway must mention the leading group.")
+        if len(top_cluster) > 1:
+            mentioned_count = sum(1 for item in top_cluster if _mentions_item(summary, str(item)))
+            if mentioned_count < 2:
+                issues.append("Top-group takeaway should mention at least two items from the leading cluster when the top group is shared.")
 
     return issues
 
@@ -329,10 +336,6 @@ def _build_llm_narrative(
     analysis = _analyze_ranking(results)
     order = analysis["order"]
 
-    top_idx = order[0]
-    top_ci_lo = results.ci_lower[top_idx]
-    top_ci_hi = results.ci_upper[top_idx]
-    top_ci_pair = _ci_pair(top_ci_lo, top_ci_hi)
     near_ties = analysis["near_ties_with_top"]
     clusters = analysis["clusters"]
     runner_up_idx = order[1] if len(order) > 1 else None
@@ -340,51 +343,46 @@ def _build_llm_narrative(
 
     # ── Executive Summary ────────────────────────────────────────────────
     if near_ties:
-        tied_items = ", ".join(f"**{item}**" for item in near_ties)
+        competitor_phrase = "**the next-best item**" if len(near_ties) == 1 else "**nearby competitors**"
         uncertainty = (
-            f"**{top_item}** currently leads, but its rank interval overlaps with "
-            f"{tied_items}, so the exact ordering at the top remains uncertain."
+            f"However, its lead over {competitor_phrase} is small relative to the uncertainty, "
+            "with overlapping confidence intervals, so the top ordering is not definitive."
         )
     elif runner_up_item is not None:
         uncertainty = (
-            f"**{top_item}** is separated from **{runner_up_item}** by non-overlapping "
-            "rank intervals, suggesting a clearer lead in this run."
+            f"Its confidence interval does not overlap with **{runner_up_item}**, so the top ordering is more clearly separated in this run."
         )
     else:
-        uncertainty = f"Only **{top_item}** is present, so no head-to-head uncertainty applies."
+        uncertainty = f"No competitor is available, so top-order uncertainty cannot be assessed from overlap."
 
-    bullets: list[str] = [
-        f"**Top result**: **{top_item}** is ranked #1 (95% CI: {top_ci_pair}).",
-    ]
-    if near_ties:
-        bullets.append(
-            f"**Close competition**: {', '.join(f'**{item}**' for item in near_ties)} "
-            "still overlap with the leader."
+    top_group_items = clusters[0] if clusters else [top_item]
+    if len(top_group_items) > 1:
+        if len(top_group_items) == 2:
+            top_group_text = " and ".join(f"**{item}**" for item in top_group_items)
+        else:
+            top_group_text = ", ".join(f"**{item}**" for item in top_group_items[:-1]) + f", and **{top_group_items[-1]}**"
+        top_group_line = (
+            f"**Top group**: Consistent with this, {top_group_text} form a near-tied top group based on the clustering results."
         )
-    elif runner_up_item is not None:
-        bullets.append(
-            f"**Top separation**: **{top_item}** is cleanly separated from **{runner_up_item}** "
-            "by the reported rank intervals."
+    else:
+        top_group_line = (
+            f"**Top group**: **{top_item}** stands alone in the leading group based on the clustering results."
         )
-    bullets.append(
-        f"**Most uncertainty**: **{analysis['widest_ci_item']}** has the widest interval, "
-        "so its rank is estimated less precisely."
+
+    interpretation_line = (
+        "**Interpretation of uncertainty**: When confidence intervals overlap, we cannot confidently "
+        f"distinguish the relative performance of those items. **{analysis['widest_ci_item']}** has the widest confidence interval, indicating greater estimation uncertainty."
     )
-    if analysis["largest_gap"]:
-        lg = analysis["largest_gap"]
-        bullets.append(
-            f"**Largest score gap**: estimated scores drop most sharply between "
-            f"**{lg['from']}** and **{lg['to']}**."
-        )
 
     summary = (
-        f"**{top_item}** ranks #1 in this run, meaning it has the strongest estimated score "
-        "among the compared items. "
+        f"**{top_item}** ranks first with the highest estimated score in this run. "
         f"{uncertainty} "
         "The intervals shown are 95% bootstrap confidence intervals, so overlap should be read "
         "as ranking uncertainty rather than as a formal significance claim.\n\n"
-        "**Key Takeaways:**\n\n"
-        + "\n".join(f"- {b}" for b in bullets)
+        "**Key Takeaways**\n\n"
+        f"**Top rank with uncertainty**: **{top_item}** ranks first with the highest estimated score. {uncertainty}\n\n"
+        f"{top_group_line}\n\n"
+        f"{interpretation_line}"
     )
 
     # ── Results Narrative ────────────────────────────────────────────────
@@ -519,32 +517,29 @@ _HINTS: list[HintSpec] = [
         hint_id="hint-theta-hat",
         title="Estimated Score",
         body=(
-            "Score inferred from the spectral ranking model. Higher values indicate "
-            "stronger estimated preference when `bigbetter=1`, but rank and confidence intervals "
-            "are usually easier to interpret directly."
+            "The score estimated by the ranking algorithm. Higher values indicate a better "
+            "preference or performance."
         ),
         kind=HintKind.DEFINITION,
         sources=[],
     ),
     HintSpec(
         hint_id="hint-ci",
-        title="95% Confidence Interval",
+        title="95% confidence interval",
         body=(
-            "Computed with Gaussian multiplier bootstrap "
-            "(Spectral Ranking Inferences based on General Multiway Comparisons, "
-            "https://arxiv.org/html/2308.02918). Narrower intervals mean more precise estimates; "
-            "wider intervals mean more uncertainty."
+            "Estimated using the Gaussian multiplier bootstrap "
+            "(see Spectral Ranking Inferences based on General Multiway Comparisons). "
+            "Narrower intervals indicate more confident estimates, while wider intervals reflect larger uncertainty."
         ),
         kind=HintKind.DEFINITION,
         sources=[],
     ),
     HintSpec(
         hint_id="hint-ci-overlap",
-        title="How to Read Overlapping Intervals",
+        title="How to Interpret Overlapping Intervals",
         body=(
-            "If two intervals overlap, the ordering between those items is still uncertain. "
-            "If they do not overlap, the separation is more clearly measurable, but overlap does "
-            "not prove the items are equivalent."
+            "If two confidence intervals overlap, their relative ordering is uncertain. "
+            "If they do not overlap, the difference in ranks is more clearly distinguishable."
         ),
         kind=HintKind.CAVEAT,
         sources=[],

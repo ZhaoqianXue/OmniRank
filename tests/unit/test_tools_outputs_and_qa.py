@@ -274,10 +274,17 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
     assert report.markdown.find("## Ranking Results") < report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |")
     assert report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |") < report.markdown.find("## Executive Summary")
     assert "| 1 | A | [1, 2] | 0.6000 |" in report.markdown
-    assert "**A** ranks #1 in this run" in report.markdown
+    assert "**Top rank with uncertainty**: **A** ranks first with the highest estimated score." in report.markdown
     assert len(report.citation_blocks) > 0
     assert len(report.hints) > 0
     assert all(hint.title != "Rank Interpretation" for hint in report.hints)
+    hint_titles = {hint.title: hint.body for hint in report.hints}
+    assert "Estimated Score" in hint_titles
+    assert "better preference or performance" in hint_titles["Estimated Score"]
+    assert "95% confidence interval" in hint_titles
+    assert "Gaussian multiplier bootstrap" in hint_titles["95% confidence interval"]
+    assert "How to Interpret Overlapping Intervals" in hint_titles
+    assert "relative ordering is uncertain" in hint_titles["How to Interpret Overlapping Intervals"]
 
 
 def test_generate_report_ranking_table_uses_rank_order():
@@ -330,10 +337,10 @@ def test_generate_report_retries_llm_when_summary_is_wrong(tmp_path: Path, monke
                 "summary": (
                     "**A** leads the ranking in this run. "
                     "The ordering near the top still depends on the reported rank intervals.\n\n"
-                    "**Key Takeaways:**\n\n"
-                    "- **Top result**: **A** is ranked #1.\n"
-                    "- **Most uncertainty**: **B** has the widest interval.\n"
-                    "- **Largest score gap**: the clearest drop is between **B** and **C**."
+                    "**Key Takeaways**\n\n"
+                    "**Top rank with uncertainty**: **A** ranks first with the highest estimated score, but overlap near the top means the ordering is not definitive.\n\n"
+                    "**Top group**: Consistent with this, **A** and **B** form a near-tied top group based on the clustering results.\n\n"
+                    "**Interpretation of uncertainty**: When confidence intervals overlap, we cannot confidently distinguish relative performance. **B** has the widest confidence interval, indicating greater estimation uncertainty."
                 ),
                 "results_narrative": (
                     "**Group 1**: **A**, **B** remain close at the top. "
@@ -374,7 +381,11 @@ def test_generate_report_falls_back_when_llm_report_generation_fails(tmp_path: P
         plots=[],
     )
 
-    assert "**A** ranks #1 in this run" in report.markdown
+    assert "**Key Takeaways**" in report.markdown
+    assert "**Top rank with uncertainty**" in report.markdown
+    assert "**Top group**" in report.markdown
+    assert "**Interpretation of uncertainty**" in report.markdown
+    assert "Largest score gap" not in report.markdown
 
 
 def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path: Path):
