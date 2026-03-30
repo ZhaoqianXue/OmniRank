@@ -1,0 +1,28 @@
+driver_slug,driver_name,driver_code,driver_id,constructor,standing_position,standing_points,wins,constructor_standings
+Lando_Norris,Lando Norris,NOR,norris,McLaren,1,423.0,7,McLaren
+Max_Verstappen,Max Verstappen,VER,max_verstappen,Red Bull,2,421.0,8,Red Bull
+Oscar_Piastri,Oscar Piastri,PIA,piastri,McLaren,3,410.0,7,McLaren
+George_Russell,George Russell,RUS,russell,Mercedes,4,319.0,2,Mercedes
+Charles_Leclerc,Charles Leclerc,LEC,leclerc,Ferrari,5,242.0,0,Ferrari
+Lewis_Hamilton,Lewis Hamilton,HAM,hamilton,Mercedes,6,156.0,0,Ferrari
+Andrea_Kimi_Antonelli,Andrea Kimi Antonelli,ANT,antonelli,Mercedes,7,150.0,0,Mercedes
+Alexander_Albon,Alexander Albon,ALB,albon,Williams,8,73.0,0,Williams
+Sergio_Perez,Sergio Pérez,PER,perez,Red Bull,8,152.0,0,Red Bull
+Carlos_Sainz,Carlos Sainz,SAI,sainz,Ferrari,9,64.0,0,Williams
+Fernando_Alonso,Fernando Alonso,ALO,alonso,Aston Martin,10,56.0,0,Aston Martin
+Nico_Hulkenberg,Nico Hülkenberg,HUL,hulkenberg,Haas F1 Team,11,51.0,0,Sauber
+Isack_Hadjar,Isack Hadjar,HAD,hadjar,RB F1 Team,12,51.0,0,RB F1 Team
+Oliver_Bearman,Oliver Bearman,BEA,bearman,Ferrari,13,41.0,0,Haas F1 Team
+Liam_Lawson,Liam Lawson,LAW,lawson,RB F1 Team,14,38.0,0,Red Bull
+Esteban_Ocon,Esteban Ocon,OCO,ocon,Alpine F1 Team,15,38.0,0,Haas F1 Team
+Kevin_Magnussen,Kevin Magnussen,MAG,kevin_magnussen,Haas F1 Team,15,16.0,0,Haas F1 Team
+Lance_Stroll,Lance Stroll,STR,stroll,Aston Martin,16,33.0,0,Aston Martin
+Daniel_Ricciardo,Daniel Ricciardo,RIC,ricciardo,RB F1 Team,17,12.0,0,RB F1 Team
+Yuki_Tsunoda,Yuki Tsunoda,TSU,tsunoda,RB F1 Team,17,33.0,0,RB F1 Team
+Pierre_Gasly,Pierre Gasly,GAS,gasly,Alpine F1 Team,18,22.0,0,Alpine F1 Team
+Gabriel_Bortoleto,Gabriel Bortoleto,BOR,bortoleto,Sauber,19,19.0,0,Sauber
+Franco_Colapinto,Franco Colapinto,COL,colapinto,Williams,20,0.0,0,Alpine F1 Team
+Guanyu_Zhou,Guanyu Zhou,ZHO,zhou,Sauber,20,4.0,0,Sauber
+Jack_Doohan,Jack Doohan,DOO,doohan,Alpine F1 Team,21,0.0,0,Alpine F1 Team
+Valtteri_Bottas,Valtteri Bottas,BOT,bottas,Sauber,22,0.0,0,Sauber
+Logan_Sargeant,Logan Sargeant,SAR,sargeant,Williams,23,0.0,0,Williams

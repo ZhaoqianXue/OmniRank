@@ -102,7 +102,7 @@ export function FileUpload({
             <p className="text-sm font-medium truncate">{filename}</p>
             <p className="text-xs text-muted-foreground">
               {isUploading 
-                ? "Processing with Data Agent..." 
+                ? "Processing with OmniRank..." 
                 : isExample 
                   ? "Example dataset loaded" 
                   : "File uploaded successfully"}

@@ -27,7 +27,7 @@ export function DataAgentWorkingBubble({
         <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
           <Bot className="h-3.5 w-3.5 text-primary" />
         </div>
-        <span className="text-sm font-semibold">OmniRank Data Agent Processing</span>
+        <span className="text-sm font-semibold">OmniRank Processing</span>
       </div>
 
       {/* Steps */}

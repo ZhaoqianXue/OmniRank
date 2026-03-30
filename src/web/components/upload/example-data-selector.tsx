@@ -17,6 +17,7 @@ interface ExampleDataSelectorProps {
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   pairwise: UsersRound,
   pairwise_human_logs: UsersRound,
+  multiway_f1: Trophy,
   multiway_scores: Gauge,
   multiway_latency: Gauge,
   multiway_rank_columns: Trophy,
@@ -62,6 +63,12 @@ const cardDetailsByExampleId: Record<string, ExampleCardDetails> = {
     values: "Metric from 0 to 1 (higher is better)",
     bestFor: "Sample-level benchmark comparisons",
   },
+  multiway_f1: {
+    summary: "Official Formula 1 Grand Prix classifications across the 2024 and 2025 seasons.",
+    eachRow: "One Grand Prix with finish positions for the driver field",
+    values: "Official finishing positions (1 = best, lower is better)",
+    bestFor: "Sports rankings, driver comparison, and track-type analysis",
+  },
   pairwise_human_logs: {
     summary: "Raw human preference logs with one row per assistant in each comparison.",
     eachRow: "One assistant outcome within a comparison",
@@ -98,6 +105,7 @@ const cardDetailsByExampleId: Record<string, ExampleCardDetails> = {
 const shortDescriptions: Record<string, string> = {
   pairwise: "Direct win-loss comparisons between two models on the same task",
   pairwise_human_logs: "Raw human preference logs with one row per assistant outcome",
+  multiway_f1: "Official Formula 1 race classifications across the 2024-2025 seasons",
   multiway_scores: "Per-sample performance scores for multiple models",
   multiway_latency: "Latency measurements for multiple systems under shared workloads",
   multiway_rank_columns: "Full ranking outcomes stored in rank_1 through rank_6 columns",

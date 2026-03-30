@@ -182,6 +182,33 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     },
   },
   {
+    id: "multiway_phenotype",
+    filename: "example_data_multiway_phenotype.csv",
+    title: "PRS Phenotype Matrix",
+    description:
+      "AUC measurements for PRS methods across phenotype-level evaluations. " +
+      "Each row is one phenotype record with AUC values for the available methods, where higher values indicate better predictive performance. " +
+      "• Items to rank: C+T, SCT, LDpred, LDpred2, LDpred2-auto, LDpred2-inf, LDpred-funct, AnnoPred, lassosum, lassosum2, PRS-CS, PRS-CS-auto, SBayesR, DBSLMM " +
+      "• Indicator: Phenotype " +
+      "• Values: AUC from 0 to 1 " +
+      "• Best for: Comparing PRS methods overall and within phenotype-level analyses",
+    format: "multiway",
+  },
+  {
+    id: "multiway_f1",
+    filename: "example_data_f1_2024_2025.csv",
+    title: "Formula 1 Grand Prix Results",
+    description:
+      "Official Formula 1 race classifications from the 2024 and 2025 seasons, transformed into an OmniRank-ready multiway ranking matrix. " +
+      "Each row is one Grand Prix, with finishing positions for the drivers who appeared across the two-season field; smaller values indicate better placement. " +
+      "• Items to rank: 27 Formula 1 drivers from the 2024-2025 race field " +
+      "• Indicator: track_type (permanent, street, temporary_non_street) " +
+      "• Row metadata: season_tag, round_tag, race_name " +
+      "• Values: Official finishing positions, where 1 is best " +
+      "• Best for: Sports event rankings, driver comparisons, and circuit-type stratified analysis",
+    format: "multiway",
+  },
+  {
     id: "pairwise_human_logs",
     filename: "example_data_pairwise_human_logs.csv",
     title: "Human Preference Logs",
@@ -203,19 +230,6 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
       "• Items to rank: model_1 through model_6 " +
       "• Indicator: sample_id " +
       "• Best for: Benchmark-style comparisons across shared samples",
-    format: "multiway",
-  },
-  {
-    id: "multiway_phenotype",
-    filename: "example_data_multiway_phenotype.csv",
-    title: "PRS Phenotype Matrix",
-    description:
-      "AUC measurements for PRS methods across phenotype-level evaluations. " +
-      "Each row is one phenotype record with AUC values for the available methods, where higher values indicate better predictive performance. " +
-      "• Items to rank: C+T, SCT, LDpred, LDpred2, LDpred2-auto, LDpred2-inf, LDpred-funct, AnnoPred, lassosum, lassosum2, PRS-CS, PRS-CS-auto, SBayesR, DBSLMM " +
-      "• Indicator: Phenotype " +
-      "• Values: AUC from 0 to 1 " +
-      "• Best for: Comparing PRS methods overall and within phenotype-level analyses",
     format: "multiway",
   },
   {
