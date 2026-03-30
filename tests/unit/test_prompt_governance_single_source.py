@@ -25,6 +25,22 @@ def test_load_prompt_section_returns_expected_sections():
     assert "strict JSON" in qa_prompt
 
 
+def test_answer_question_prompt_contains_product_overview_guidance():
+    qa_prompt = load_prompt_section("answer_question")
+
+    assert "pipeline-based statistical analysis agent" in qa_prompt
+    assert "semantic schema of each variable" in qa_prompt
+    assert "confidence intervals, visualizations, and a single-page reproducible report" in qa_prompt
+
+
+def test_answer_question_prompt_contains_capability_guidance():
+    qa_prompt = load_prompt_section("answer_question")
+
+    assert "supports both pairwise and multiway comparison data in CSV/TSV format" in qa_prompt
+    assert "each row compares two items" in qa_prompt
+    assert "set of items of varying size, along with one winner selected from that set" in qa_prompt
+
+
 def test_agent_has_no_inline_optional_stage_llm_prompt():
     agent_path = Path(__file__).resolve().parents[2] / "src" / "api" / "agents" / "omnirank_agent.py"
     content = agent_path.read_text(encoding="utf-8")

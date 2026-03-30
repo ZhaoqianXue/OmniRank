@@ -443,7 +443,7 @@ def _stage_guidance(status: str) -> tuple[str, str]:
     if normalized == "idle":
         return (
             "No dataset is loaded yet, so ranking results and confidence intervals are not available.",
-            "Upload a CSV/TSV file first, then confirm the schema and run the analysis.",
+            "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis.",
         )
     if normalized == "uploaded":
         return (
@@ -870,8 +870,39 @@ def answer_question(
         "question": question,
         "product_positioning": {
             "target_users": "domain experts without statistical programming background",
-            "positioning": "bridge to rigorous spectral ranking methods, not a new statistical method",
+            "positioning": "pipeline-based statistical analysis agent for comparison data",
             "answer_goal": "decision-ready guidance with uncertainty awareness",
+            "core_workflow": [
+                "infer the semantic schema of each variable",
+                "validate data format and quality",
+                "request user confirmation before proceeding",
+                "generate rankings, confidence intervals, visualizations, and a single-page reproducible report",
+            ],
+            "overview_answer_preferences": {
+                "primary_description": (
+                    "OmniRank is a pipeline-based statistical analysis agent that transforms comparison data "
+                    "into reproducible, uncertainty-aware rankings."
+                ),
+                "avoid_phrases": [
+                    "spectral ranking engine",
+                    "deterministic visualizations",
+                ],
+            },
+            "supported_input_formats": {
+                "general_statement": "OmniRank supports both pairwise and multiway comparison data in CSV/TSV format.",
+                "pairwise": (
+                    "Each row compares two items, with fields such as item a, item b, and a comparison outcome between them."
+                ),
+                "multiway": (
+                    "Each row represents a set of items of varying size, along with one winner selected from that set."
+                ),
+                "avoid_emphasis_unless_asked": [
+                    "optional grouping column",
+                    "segmented analysis",
+                    "wide score matrix",
+                    "preprocessing details",
+                ],
+            },
         },
         "response_style": {
             "format": "short structured answer",

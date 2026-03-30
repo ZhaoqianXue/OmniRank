@@ -1,9 +1,9 @@
 export const DATA_AGENT_STEPS = [
-  "Reading your file...",
-  "Finding ranking columns...",
-  "Checking data format...",
-  "Checking data quality...",
-  "Building ranking preview...",
+  "Loading Data...",
+  "Identifying Relevant Columns for Ranking",
+  "Checking Data Format...",
+  "Checking Data Quality...",
+  "Generating Ranking Preview…",
 ] as const;
 
 export const DATA_AGENT_TOTAL_STEPS = DATA_AGENT_STEPS.length;

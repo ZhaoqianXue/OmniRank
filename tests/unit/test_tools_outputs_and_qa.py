@@ -487,6 +487,105 @@ def test_answer_question_works_before_analysis_results_are_ready():
     assert "Session status: uploaded." in answer.answer
 
 
+def test_answer_question_overview_uses_pipeline_positioning_and_idle_note(monkeypatch):
+    captured_payload = {}
+
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            captured_payload.update(payload)
+            return {
+                "conclusion": (
+                    "OmniRank is a pipeline-based statistical analysis agent that transforms comparison data "
+                    "into reproducible, uncertainty-aware rankings."
+                ),
+                "evidence": [
+                    "It first infers the semantic schema of each variable, validates data format and quality, and then requests user confirmation before proceeding.",
+                    "Once confirmed, it generates rankings, confidence intervals, visualizations, and a single-page reproducible report.",
+                ],
+                "note": "This note should be replaced by the stage guidance.",
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="What is OmniRank and how can it help me?",
+        results=None,
+        citation_blocks={},
+        quotes=[],
+        session_context={"status": "idle"},
+    )
+
+    assert (
+        captured_payload["product_positioning"]["positioning"]
+        == "pipeline-based statistical analysis agent for comparison data"
+    )
+    assert captured_payload["product_positioning"]["core_workflow"] == [
+        "infer the semantic schema of each variable",
+        "validate data format and quality",
+        "request user confirmation before proceeding",
+        "generate rankings, confidence intervals, visualizations, and a single-page reproducible report",
+    ]
+    assert "pipeline-based statistical analysis agent" in answer.answer
+    assert "semantic schema of each variable" in answer.answer
+    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." in answer.answer
+    assert "Upload a CSV/TSV file first" not in answer.answer
+
+
+def test_answer_question_capability_prompt_prefers_pairwise_and_multiway_descriptions(monkeypatch):
+    captured_payload = {}
+
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            captured_payload.update(payload)
+            return {
+                "conclusion": "OmniRank supports both pairwise and multiway comparison data in CSV/TSV format.",
+                "evidence": [
+                    "Pairwise format: Each row compares two items, with fields such as item a, item b, and a comparison outcome between them.",
+                    "Multiway format: Each row represents a set of items of varying size, along with one winner selected from that set.",
+                ],
+                "note": "This note should be replaced by the stage guidance.",
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="What ranking data and CSV format does OmniRank support?",
+        results=None,
+        citation_blocks={},
+        quotes=[],
+        session_context={"status": "idle"},
+    )
+
+    assert (
+        captured_payload["product_positioning"]["supported_input_formats"]["general_statement"]
+        == "OmniRank supports both pairwise and multiway comparison data in CSV/TSV format."
+    )
+    assert (
+        captured_payload["product_positioning"]["supported_input_formats"]["pairwise"]
+        == "Each row compares two items, with fields such as item a, item b, and a comparison outcome between them."
+    )
+    assert (
+        captured_payload["product_positioning"]["supported_input_formats"]["multiway"]
+        == "Each row represents a set of items of varying size, along with one winner selected from that set."
+    )
+    assert "supports both pairwise and multiway comparison data in CSV/TSV format" in answer.answer
+    assert "Pairwise format: Each row compares two items" in answer.answer
+    assert "Multiway format: Each row represents a set of items of varying size" in answer.answer
+    assert "optional categorical grouping column" not in answer.answer
+    assert "wide item-score columns" not in answer.answer
+    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." in answer.answer
+
+
 def test_fallback_clustering_answer_when_llm_unavailable():
     """When LLM is unavailable, clustering questions with key_findings use deterministic fallback."""
     results = _sample_results()
