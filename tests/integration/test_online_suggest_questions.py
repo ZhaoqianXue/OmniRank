@@ -42,6 +42,7 @@ _JARGON_TERMS = [
     "execute_spectral_ranking",
 ]
 _MAX_ANSWER_LINES = 8
+_IDLE_NEXT_STEP_SNIPPET = "Upload a CSV/TSV file, confirm the inferred schema"
 
 
 def _assert_answer_quality(answer_text: str, *, allow_theta: bool = False) -> None:
@@ -75,6 +76,9 @@ def test_sq_pre_upload_what_is_omnirank():
     _assert_answer_quality(answer.answer)
     lower = answer.answer.lower()
     assert "ranking" in lower or "rank" in lower, f"Answer should mention ranking: {answer.answer!r}"
+    assert _IDLE_NEXT_STEP_SNIPPET not in answer.answer, (
+        f"Overview answer should omit idle upload/schema note; got: {answer.answer!r}"
+    )
     print(f"\n[pre-upload] What is OmniRank?\n>>> {answer.answer}")
 
 
@@ -92,6 +96,9 @@ def test_sq_pre_upload_data_format():
     _assert_answer_quality(answer.answer)
     lower = answer.answer.lower()
     assert "csv" in lower or "data" in lower or "format" in lower, f"Should mention data format: {answer.answer!r}"
+    assert _IDLE_NEXT_STEP_SNIPPET in answer.answer, (
+        f"Data-format answer should include idle next-step note; got: {answer.answer!r}"
+    )
     print(f"\n[pre-upload] Data format?\n>>> {answer.answer}")
 
 

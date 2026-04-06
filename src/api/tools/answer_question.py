@@ -36,12 +36,20 @@ _DATA_CAPABILITY_DIRECT_PHRASES = (
     "what types of ranking data can i analyze",
     "what type of ranking data can i analyze",
     "what ranking data can i analyze",
+    "what ranking data",
     "what data can i analyze",
     "what data formats are supported",
     "what input format",
+    "what input does omnirank",
+    "which formats can i",
+    "which file formats",
+    "which data formats",
     "supported data format",
+    "prepare my data",
+    "what should i upload",
+    "what do i need to upload",
 )
-_DATA_CAPABILITY_FORMAT_TOKENS = ("data", "format", "input", "file")
+_DATA_CAPABILITY_FORMAT_TOKENS = ("data", "format", "input", "file", "csv", "tsv")
 _DATA_CAPABILITY_INTENT_TOKENS = ("type", "types", "support", "supported", "analyze", "accept", "ingest")
 
 _METHOD_KEYWORDS = (
@@ -164,6 +172,58 @@ def _is_data_capability_question(question: str) -> bool:
     has_format_signal = any(token in lower_q for token in _DATA_CAPABILITY_FORMAT_TOKENS)
     has_intent_signal = any(token in lower_q for token in _DATA_CAPABILITY_INTENT_TOKENS)
     return has_format_signal and has_intent_signal
+
+
+def _should_include_idle_pipeline_note(question: str) -> bool:
+    """Attach stage next-step guidance when there are no ranking results.
+
+    Used to avoid repeating upload/schema instructions on product overview and
+    unrelated topics, while keeping them for data-ingestion, format, and upload
+    questions (including paraphrases).
+    """
+    if _is_data_capability_question(question):
+        return True
+    lower_q = question.lower()
+    file_markers = ("csv", "tsv", ".csv", ".tsv", "tabular", "spreadsheet", "excel")
+    structure_words = (
+        "format",
+        "formats",
+        "file",
+        "files",
+        "schema",
+        "column",
+        "columns",
+        "delimiter",
+        "separator",
+        "input",
+        "dataset",
+        "ingest",
+    )
+    ingest_verbs = ("upload", "import", "load")
+    if any(m in lower_q for m in file_markers) and any(s in lower_q for s in structure_words):
+        return True
+    if any(v in lower_q for v in ingest_verbs) and any(
+        s in lower_q for s in ("data", "file", "csv", "tsv", "dataset", "spreadsheet", "comparison")
+    ):
+        return True
+    onboarding_phrases = (
+        "how do i start",
+        "get started",
+        "get my data in",
+        "bring my data",
+        "add my data",
+        "file type",
+        "types of file",
+        "which file",
+        "what extension",
+    )
+    if any(p in lower_q for p in onboarding_phrases):
+        return True
+    if ("supported" in lower_q or "support " in lower_q) and any(
+        w in lower_q for w in ("data", "format", "file", "csv", "tsv", "input")
+    ):
+        return True
+    return False
 
 
 _CLUSTERING_KEYWORDS = (
@@ -663,7 +723,7 @@ def _fallback_without_results(
         note = f"{stage_msg} {stage_next_action}"
     else:
         conclusion = stage_msg
-        note = stage_next_action
+        note = stage_next_action if _should_include_idle_pipeline_note(question) else None
 
     evidence = _session_evidence(session_context)
     if not evidence:
@@ -1096,7 +1156,11 @@ def answer_question(
         if results is None:
             _, stage_next_action = _stage_guidance(str((session_context or {}).get("status") or "idle"))
             # Prefer deterministic plain-language next step over verbose LLM phrasing.
-            note = stage_next_action
+            note = (
+                stage_next_action
+                if _should_include_idle_pipeline_note(question)
+                else None
+            )
         elif wants_concise:
             note = None
 
@@ -1141,7 +1205,11 @@ def answer_question(
             ):
                 note = None
             if note and note.endswith("..."):
-                if results is None and stage_next_action:
+                if (
+                    results is None
+                    and stage_next_action
+                    and _should_include_idle_pipeline_note(question)
+                ):
                     note = _sanitize_text_field(stage_next_action)
                 else:
                     note = None

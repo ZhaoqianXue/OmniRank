@@ -547,7 +547,7 @@ def test_answer_question_overview_uses_pipeline_positioning_and_idle_note(monkey
     ]
     assert "pipeline-based statistical analysis agent" in answer.answer
     assert "semantic schema of each variable" in answer.answer
-    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." in answer.answer
+    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." not in answer.answer
     assert "Upload a CSV/TSV file first" not in answer.answer
 
 
@@ -599,6 +599,61 @@ def test_answer_question_capability_prompt_prefers_pairwise_and_multiway_descrip
     assert "optional categorical grouping column" not in answer.answer
     assert "wide item-score columns" not in answer.answer
     assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." in answer.answer
+
+
+def test_answer_question_upload_paraphrase_includes_idle_note_when_no_results(monkeypatch):
+    """Paraphrased ingestion questions should still get stage next-step guidance."""
+
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            assert section_key == "answer_question"
+            return {
+                "conclusion": "Use the upload control in the workspace to add a delimited file.",
+                "evidence": ["Accepted formats are typically CSV or TSV with a header row."],
+                "note": "ignored",
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="How do I upload my comparison data to get started?",
+        results=None,
+        citation_blocks={},
+        quotes=[],
+        session_context={"status": "idle"},
+    )
+
+    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." in answer.answer
+
+
+def test_answer_question_overview_paraphrase_omits_idle_upload_note(monkeypatch):
+    class _FakeClient:
+        def is_available(self) -> bool:
+            return True
+
+        def generate_json(self, section_key, payload, max_completion_tokens=0):  # noqa: ANN001
+            return {
+                "conclusion": "OmniRank helps you turn messy comparison tables into a ranked summary.",
+                "evidence": ["It guides you through schema checks before running the statistical ranking step."],
+                "note": "Upload soon.",
+                "used_citation_block_ids": [],
+            }
+
+    monkeypatch.setattr("tools.answer_question.get_llm_client", lambda: _FakeClient())
+
+    answer = answer_question(
+        question="Give me a quick product overview of OmniRank.",
+        results=None,
+        citation_blocks={},
+        quotes=[],
+        session_context={"status": "idle"},
+    )
+
+    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." not in answer.answer
 
 
 def test_fallback_clustering_answer_when_llm_unavailable():
