@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Play, Loader2, Settings2, Check, X, ChevronDown, ChevronRight, Eye, EyeOff, CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -28,6 +29,7 @@ import type {
 type RankingMode = "flash" | "deep";
 
 interface RankingPreviewBubbleProps {
+  messageId: string;
   schema: SemanticSchema;
   detectedFormat?: "pairwise" | "multiway";
   formatResult?: FormatValidationResult | null;
@@ -103,6 +105,7 @@ function Section({
 }
 
 export function RankingPreviewBubble({
+  messageId,
   schema,
   detectedFormat,
   warnings = [],
@@ -129,6 +132,7 @@ export function RankingPreviewBubble({
   
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   
   // Temporary state for dialog editing
@@ -220,6 +224,32 @@ export function RankingPreviewBubble({
     bootstrapIterations !== 2000 ||
     randomSeed !== 42;
   const supportsDualRankingModes = hasIndicator && indicatorCol !== null;
+  const categoryDialogStorageKey = `omnirank-category-detected:${messageId}`;
+
+  useEffect(() => {
+    if (!hasIndicator || isAnalyzing || isCompleted || typeof window === "undefined") {
+      return;
+    }
+
+    if (window.sessionStorage.getItem(categoryDialogStorageKey) === "1") {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setIsCategoryDialogOpen(true);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [categoryDialogStorageKey, hasIndicator, isAnalyzing, isCompleted]);
+
+  const acknowledgeCategoryDialog = () => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(categoryDialogStorageKey, "1");
+    }
+    setIsCategoryDialogOpen(false);
+  };
 
   return (
     <>
@@ -582,6 +612,38 @@ export function RankingPreviewBubble({
             <Button onClick={handleSaveConfig} disabled={tempSelectedItems.length < 2}>
               <Check className="h-4 w-4 mr-1" />
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isCategoryDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            acknowledgeCategoryDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md" showCloseButton={false}>
+          <DialogHeader className="space-y-3">
+            <DialogTitle>Category Detected</DialogTitle>
+            <DialogDescription className="space-y-3 text-sm leading-relaxed text-foreground">
+              <p>OmniRank Agent detected a Category in your data.</p>
+              <p>
+                Category means your data can be divided into meaningful subgroups, such as{" "}
+                <span className="font-medium text-foreground">task type</span>,{" "}
+                <span className="font-medium text-foreground">phenotype</span>, or{" "}
+                <span className="font-medium text-foreground">track type</span>.
+              </p>
+              <p>
+                Stratified Ranking compares item performance within each Category, not only overall.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={acknowledgeCategoryDialog} className="w-full sm:w-auto">
+              Got it
             </Button>
           </DialogFooter>
         </DialogContent>

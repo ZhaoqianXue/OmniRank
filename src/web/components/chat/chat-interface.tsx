@@ -160,6 +160,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
       >
         <MessageIcon role="assistant" />
         <RankingPreviewBubble
+          messageId={message.id}
           schema={message.configData.schema}
           detectedFormat={message.configData.detectedFormat}
           formatResult={message.configData.formatResult}
