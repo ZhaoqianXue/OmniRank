@@ -598,7 +598,7 @@ def test_answer_question_overview_uses_pipeline_positioning_and_idle_note(monkey
     assert "statistical analysis agent" in answer.answer
     assert "supportive artifacts" in answer.answer
     assert "semantic schema of each variable" in answer.answer
-    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." not in answer.answer
+    assert "Upload a CSV/TSV file, confirm the parameters, and then start the analysis." not in answer.answer
     assert "Upload a CSV/TSV file first" not in answer.answer
 
 
@@ -653,7 +653,7 @@ def test_answer_question_capability_prompt_prefers_pairwise_and_multiway_descrip
     assert "Multiway format: Each row records one comparison among multiple items at once" in answer.answer
     assert "optional categorical grouping column" not in answer.answer
     assert "wide item-score columns" not in answer.answer
-    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." in answer.answer
+    assert "Upload a CSV/TSV file, confirm the parameters, and then start the analysis." in answer.answer
 
 
 def test_answer_question_upload_paraphrase_includes_idle_note_when_no_results(monkeypatch):
@@ -682,7 +682,7 @@ def test_answer_question_upload_paraphrase_includes_idle_note_when_no_results(mo
         session_context={"status": "idle"},
     )
 
-    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." in answer.answer
+    assert "Upload a CSV/TSV file, confirm the parameters, and then start the analysis." in answer.answer
 
 
 def test_answer_question_overview_paraphrase_omits_idle_upload_note(monkeypatch):
@@ -708,7 +708,7 @@ def test_answer_question_overview_paraphrase_omits_idle_upload_note(monkeypatch)
         session_context={"status": "idle"},
     )
 
-    assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." not in answer.answer
+    assert "Upload a CSV/TSV file, confirm the parameters, and then start the analysis." not in answer.answer
 
 
 def test_fallback_clustering_answer_when_llm_unavailable():

@@ -518,7 +518,7 @@ def _stage_guidance(status: str) -> tuple[str, str]:
     if normalized == "idle":
         return (
             "No dataset is loaded yet, so ranking results and confidence intervals are not available.",
-            "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis.",
+            "Upload a CSV/TSV file, confirm the parameters, and then start the analysis.",
         )
     if normalized == "uploaded":
         return (

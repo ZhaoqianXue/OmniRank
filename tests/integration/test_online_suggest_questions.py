@@ -42,7 +42,7 @@ _JARGON_TERMS = [
     "execute_spectral_ranking",
 ]
 _MAX_ANSWER_LINES = 8
-_IDLE_NEXT_STEP_SNIPPET = "Upload a CSV/TSV file, confirm the inferred schema"
+_IDLE_NEXT_STEP_SNIPPET = "Upload a CSV/TSV file, confirm the parameters"
 
 
 def _assert_answer_quality(answer_text: str, *, allow_theta: bool = False) -> None:

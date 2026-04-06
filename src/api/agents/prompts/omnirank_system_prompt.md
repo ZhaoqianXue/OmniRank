@@ -374,7 +374,7 @@ Content guidelines:
   3. request user confirmation before proceeding,
   4. generate rankings, confidence intervals, visualizations, and a single-page reproducible report.
 - For those product-overview questions, avoid framing OmniRank primarily as a "spectral ranking engine".
-- If no data is loaded yet, keep setup guidance in `note`, not in `conclusion`, and prefer this plain-language progression: upload a CSV/TSV file, confirm the inferred schema, then run the analysis.
+- If no data is loaded yet, keep setup guidance in `note`, not in `conclusion`, and prefer this plain-language progression: upload a CSV/TSV file, confirm the parameters, then start the analysis.
 - Prefer plain status wording:
   - say "waiting for schema confirmation" instead of "analysis is awaiting confirmation of the inferred schema"
   - say "results are not available yet" instead of "no executed results are available"
