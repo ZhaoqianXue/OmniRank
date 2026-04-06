@@ -476,7 +476,7 @@ def _indicator_rankings_combined_py(
     """Generate a single 2-panel figure for normalized ranks and heatmap."""
     from PIL import Image, ImageDraw, ImageFont
 
-    style_version = "v7-tight-gap-title-ylabel-match"
+    style_version = "v8-half-gap-min-square-heatmap"
 
     csv_source = Path(csv_path).resolve()
     if not csv_source.exists():
@@ -551,7 +551,7 @@ def _indicator_rankings_combined_py(
     # Keep each panel at original pixel size; only add title rows and vertical stacking.
     panel_w_max = max(panel_a_w, panel_b_w)
     side_padding = 24
-    panel_gap = 12
+    panel_gap = 6
 
     font_candidates = [
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",

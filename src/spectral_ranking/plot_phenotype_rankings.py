@@ -666,6 +666,10 @@ def _plot_heatmap(
     n_cols = len(method_cols)
     fig_h = max(5.2, min(32.0, 1.9 + 0.50 * float(n_rows)))
     fig_w = max(9.5, min(19.0, 6.2 + 0.23 * float(n_cols)))
+    if stratified_combined_panel:
+        # Keep panel B from collapsing when there are only a few row groups.
+        # We enforce a square-ish minimum canvas so the heatmap body is not overly short.
+        fig_h = max(fig_h, fig_w)
     if not stratified_combined_panel:
         fig_w = max(fig_w, 12.0)
         fig_h = max(fig_h, 8.5)

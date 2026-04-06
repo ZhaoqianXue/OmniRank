@@ -440,6 +440,7 @@ def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path
 
     assert "## Stratified Ranking Plot by Phenotype" in report.markdown
     assert "### Stratified Ranking Table by Phenotype" in report.markdown
+    assert "Grey cells indicate that the item was not ranked in that Category because it was removed during filtering." in report.markdown
     assert "| Phenotype | A | B | C |" in report.markdown
     assert "| p1 | 1 | 2 | 3 |" in report.markdown
     assert "| p2 | 2 | 1 | 3 |" in report.markdown

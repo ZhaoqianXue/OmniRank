@@ -60,6 +60,11 @@ def _sanitize_inline_text(value: str) -> str:
     return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+_HEATMAP_GRAY_CELL_NOTE = (
+    "Grey cells indicate that the item was not ranked in that Category because it was removed during filtering."
+)
+
+
 def _top_item(results: RankingResults) -> tuple[str, float, int]:
     """Return (name, score, rank) for the top-ranked item."""
     best_idx = min(range(len(results.ranks)), key=lambda i: results.ranks[i])
@@ -718,6 +723,8 @@ def generate_report(
             f"![{figure_title}]({plot.svg_path})\n\n"
             f"*{cap_acad}*"
         )
+        if plot.type in {"indicator_rankings_heatmap", "indicator_rankings_combined"}:
+            fig_body += f"\n\n*{_HEATMAP_GRAY_CELL_NOTE}*"
         if plot.type == "indicator_rankings_combined":
             indicator_table_md = _render_indicator_ranking_table(plot)
             if indicator_table_md:
