@@ -765,28 +765,12 @@ export function ReportOverlay({
             variant="secondary"
             className={cn("text-xs gap-1", isLightTheme ? "bg-slate-100 border border-slate-300 text-slate-800" : "")}
           >
-            {schema.ranking_items.length} items
+            {schema.ranking_items.length} Ranking Items
           </Badge>
-        )}
-        {config && (
-          <>
-            <Badge
-              variant="outline"
-              className={cn("text-xs gap-1 font-mono", isLightTheme ? "border-slate-300 text-slate-800 bg-white" : "")}
-            >
-              B={config.bootstrap_iterations ?? 2000}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={cn("text-xs gap-1 font-mono", isLightTheme ? "border-slate-300 text-slate-800 bg-white" : "")}
-            >
-              seed={config.random_seed ?? 42}
-            </Badge>
-          </>
         )}
       </>
     ),
-    [config, isLightTheme, schema],
+    [isLightTheme, schema],
   );
 
   /* ── Markdown components ─────────────────────────────────────────────── */
