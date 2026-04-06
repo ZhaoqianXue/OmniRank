@@ -1060,7 +1060,7 @@ def answer_question(
         "question": question,
         "product_positioning": {
             "target_users": "domain experts without statistical programming background",
-            "positioning": "pipeline-based statistical analysis agent for comparison data",
+            "positioning": "statistical analysis agent for comparison data",
             "answer_goal": "decision-ready guidance with uncertainty awareness",
             "core_workflow": [
                 "infer the semantic schema of each variable",
@@ -1070,8 +1070,8 @@ def answer_question(
             ],
             "overview_answer_preferences": {
                 "primary_description": (
-                    "OmniRank is a pipeline-based statistical analysis agent that transforms comparison data "
-                    "into reproducible, uncertainty-aware rankings."
+                    "OmniRank is a statistical analysis agent that transforms comparison data "
+                    "into reproducible, uncertainty-aware rankings and supportive artifacts."
                 ),
                 "avoid_phrases": [
                     "spectral ranking engine",
@@ -1084,7 +1084,9 @@ def answer_question(
                     "Each row compares two items, with fields such as item a, item b, and a comparison outcome between them."
                 ),
                 "multiway": (
-                    "Each row represents a set of items of varying size, along with one winner selected from that set."
+                    "Each row records one comparison among multiple items at once, usually as numeric "
+                    "values across several item columns (for example scores or rank positions); the number "
+                    "of items in that row may be fixed or vary across rows."
                 ),
                 "avoid_emphasis_unless_asked": [
                     "optional grouping column",

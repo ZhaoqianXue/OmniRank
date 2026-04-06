@@ -37,7 +37,8 @@ def test_generate_report_prompt_contains_uncertainty_takeaway_guidance():
 def test_answer_question_prompt_contains_product_overview_guidance():
     qa_prompt = load_prompt_section("answer_question")
 
-    assert "pipeline-based statistical analysis agent" in qa_prompt
+    assert "statistical analysis agent" in qa_prompt
+    assert "supportive artifacts" in qa_prompt
     assert "semantic schema of each variable" in qa_prompt
     assert "confidence intervals, visualizations, and a single-page reproducible report" in qa_prompt
 
@@ -47,7 +48,8 @@ def test_answer_question_prompt_contains_capability_guidance():
 
     assert "supports both pairwise and multiway comparison data in CSV/TSV format" in qa_prompt
     assert "each row compares two items" in qa_prompt
-    assert "set of items of varying size, along with one winner selected from that set" in qa_prompt
+    assert "each row records one comparison among multiple items at once" in qa_prompt
+    assert "scores or rank positions" in qa_prompt
 
 
 def test_agent_has_no_inline_optional_stage_llm_prompt():

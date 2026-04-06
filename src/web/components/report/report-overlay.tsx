@@ -596,8 +596,27 @@ function buildMarkdownComponents(
 /* -------------------------------------------------------------------------- */
 
 function GlossaryPanel({ hints, theme }: { hints: HintSpec[]; theme: ReportTheme }) {
-  if (!hints || hints.length === 0) return null;
   const isLightTheme = theme === "light";
+  const glossaryComponents = useMemo<Components>(
+    () => ({
+      a: ({ href, children }) => (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "underline underline-offset-2 font-medium",
+            isLightTheme ? "text-blue-700 hover:text-blue-900" : "text-sky-400 hover:text-sky-300",
+          )}
+        >
+          {children}
+        </a>
+      ),
+    }),
+    [isLightTheme],
+  );
+
+  if (!hints || hints.length === 0) return null;
 
   return (
     <section className="my-6">
@@ -622,7 +641,20 @@ function GlossaryPanel({ hints, theme }: { hints: HintSpec[]; theme: ReportTheme
                 {hint.kind}
               </Badge>
             </div>
-            <p className={cn("text-sm leading-relaxed", isLightTheme ? "text-slate-800" : "text-foreground/90")}>{hint.body}</p>
+            <div
+              className={cn(
+                "text-sm leading-relaxed [&_p]:m-0 [&_p+p]:mt-2",
+                isLightTheme ? "text-slate-800" : "text-foreground/90",
+              )}
+            >
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[[rehypeSanitize, defaultSchema]]}
+                components={glossaryComponents}
+              >
+                {hint.body}
+              </ReactMarkdown>
+            </div>
           </div>
         ))}
       </div>

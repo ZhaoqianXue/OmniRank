@@ -112,6 +112,17 @@ def _mentions_item(text: str, item: str) -> bool:
     return item.lower() in text.lower()
 
 
+def _strip_key_findings_subsection(summary: str) -> str:
+    """Drop a trailing **Key Findings** block from executive summary (display-only)."""
+    for marker in ("\n\n**Key Findings**", "\n**Key Findings**", "\n\n## Key Findings", "\n## Key Findings"):
+        pos = summary.find(marker)
+        if pos != -1:
+            return summary[:pos].rstrip()
+    if summary.lstrip().startswith("**Key Findings**"):
+        return ""
+    return summary
+
+
 def _has_top_claim(text: str, item: str) -> bool:
     escaped = re.escape(item)
     patterns = (
@@ -122,6 +133,7 @@ def _has_top_claim(text: str, item: str) -> bool:
         rf"\*\*{escaped}\*\*\s+.*highest estimated score",
         rf"\*\*Top result\*\*:\s+\*\*{escaped}\*\*",
         rf"\*\*Top rank with uncertainty\*\*:\s+\*\*{escaped}\*\*",
+        rf"\*\*{escaped}\*\*\s+is\s+the\s+leader",
         rf"Top-ranked item[^.\n]*{escaped}",
         rf"{escaped}\s+is\s+top-ranked",
     )
@@ -141,8 +153,6 @@ def _validate_llm_narrative(
     summary_lower = summary.lower()
     if "key takeaways" not in summary_lower:
         issues.append("Summary must include a '**Key Takeaways**' header.")
-    if "key findings" not in summary_lower:
-        issues.append("Summary must include a '**Key Findings**' header after Key Takeaways.")
     for required_label in (
         "top rank with uncertainty",
         "top group",
@@ -150,13 +160,14 @@ def _validate_llm_narrative(
     ):
         if required_label not in summary_lower:
             issues.append(f"Summary must include a '**{required_label.title()}**' takeaway.")
-    for required_kf_label in (
-        "reported rank",
-        "near-ties",
-        "ci-overlap groups",
+    takeaway_labels = ("Top rank with uncertainty", "Top group", "Interpretation of uncertainty")
+    if not all(
+        re.search(rf"(?m)^-\s+\*\*{re.escape(lbl)}\*\*:", summary) for lbl in takeaway_labels
     ):
-        if required_kf_label not in summary_lower:
-            issues.append(f"Key Findings must include a '**{required_kf_label.title()}**' entry.")
+        issues.append(
+            "Key Takeaways: each labeled line must be a markdown list item starting with "
+            "`- ` before the bold label (e.g. `- **Top rank with uncertainty**: ...`)."
+        )
     if not _mentions_item(summary, top_item):
         issues.append(f"Summary must explicitly name **{top_item}** as the top-ranked item.")
 
@@ -341,7 +352,7 @@ def _build_llm_narrative(
     The returned dict values may contain markdown formatting (bold, bullets,
     inline code) but no raw HTML.
     """
-    top_item, top_score, top_rank = _top_item(results)
+    top_item, _, _ = _top_item(results)
     analysis = _analyze_ranking(results)
     order = analysis["order"]
 
@@ -349,117 +360,59 @@ def _build_llm_narrative(
     clusters = analysis["clusters"]
     runner_up_idx = order[1] if len(order) > 1 else None
     runner_up_item = results.items[runner_up_idx] if runner_up_idx is not None else None
-    top_idx = order[0]
 
-    # ── Executive Summary ────────────────────────────────────────────────
+    # ── Executive Summary (Key Takeaways = three labeled paragraphs only) ──
     if near_ties:
-        competitor_phrase = "**the next-best item**" if len(near_ties) == 1 else "**nearby competitors**"
-        uncertainty = (
-            f"However, its lead over {competitor_phrase} is small relative to the uncertainty, "
-            "with overlapping confidence intervals, so the top ordering is not definitive."
+        top_rank_uncertainty_line = (
+            f"**Top rank with uncertainty**: **{top_item}** is the leader by estimated score, "
+            "but its margin over the nearest competitors is within overlapping confidence intervals, "
+            "so the first-place ordering is not definitively resolved."
         )
     elif runner_up_item is not None:
-        uncertainty = (
-            f"Its confidence interval does not overlap with **{runner_up_item}**, so the top ordering is more clearly separated in this run."
+        top_rank_uncertainty_line = (
+            f"**Top rank with uncertainty**: **{top_item}** is the leader by estimated score, "
+            f"and its confidence interval does not overlap with **{runner_up_item}**, "
+            "so the top ordering is more clearly separated in this run."
         )
     else:
-        uncertainty = f"No competitor is available, so top-order uncertainty cannot be assessed from overlap."
+        top_rank_uncertainty_line = (
+            f"**Top rank with uncertainty**: **{top_item}** is the only item in this analysis."
+        )
 
     top_group_items = clusters[0] if clusters else [top_item]
     if len(top_group_items) > 1:
         if len(top_group_items) == 2:
-            top_group_text = " and ".join(f"**{item}**" for item in top_group_items)
+            top_group_items_md = " and ".join(f"**{item}**" for item in top_group_items)
         else:
-            top_group_text = ", ".join(f"**{item}**" for item in top_group_items[:-1]) + f", and **{top_group_items[-1]}**"
+            top_group_items_md = (
+                ", ".join(f"**{item}**" for item in top_group_items[:-1])
+                + f", and **{top_group_items[-1]}**"
+            )
+        pair_word = "pair" if len(top_group_items) == 2 else "group"
         top_group_line = (
-            f"**Top group**: Consistent with this, {top_group_text} form a near-tied top group based on the clustering results."
+            f"**Top group**: The leading CI-overlap group contains {top_group_items_md}, "
+            f"indicating they form a competitive {pair_word} where rank order is uncertain."
         )
     else:
         top_group_line = (
-            f"**Top group**: **{top_item}** stands alone in the leading group based on the clustering results."
+            f"**Top group**: The leading CI-overlap group contains **{top_item}** only; "
+            "the leader stands apart from the rest in this interval-based grouping."
         )
 
     interpretation_line = (
-        "**Interpretation of uncertainty**: When confidence intervals overlap, we cannot confidently "
-        f"distinguish the relative performance of those items. **{analysis['widest_ci_item']}** has the widest confidence interval, indicating greater estimation uncertainty."
+        "**Interpretation of uncertainty**: Overlapping 95% confidence intervals mean rankings are "
+        "consistent with multiple plausible orderings; "
+        f"**{analysis['widest_ci_item']}** has the widest interval and thus the least precise estimate."
     )
 
-    # ── Key Findings subsection ────────────────────────────────────────
-    top_ci_lo = _ci_int(results.ci_lower[top_idx])
-    top_ci_hi = _ci_int(results.ci_upper[top_idx])
-
-    # Reported rank
-    kf_reported_rank = (
-        f"**Reported rank**: **{top_item}** holds rank {top_rank} with a 95% confidence interval "
-        f"of [{top_ci_lo}, {top_ci_hi}], confirming it as the top-ranked item in this analysis."
-    )
-    if top_ci_hi - top_ci_lo <= 1:
-        kf_reported_rank += " The narrow interval suggests relatively stable positioning at the top of the ranking."
-    else:
-        kf_reported_rank += (
-            f" The interval spans {top_ci_hi - top_ci_lo} rank positions, "
-            "reflecting some uncertainty in the precise placement."
-        )
-
-    # Near-ties
-    if near_ties:
-        if len(near_ties) == 1:
-            near_ties_text = f"**{near_ties[0]}**"
-        elif len(near_ties) == 2:
-            near_ties_text = " and ".join(f"**{nt}**" for nt in near_ties)
-        else:
-            near_ties_text = ", ".join(f"**{nt}**" for nt in near_ties[:-1]) + f", and **{near_ties[-1]}**"
-        kf_near_ties = (
-            f"**Near-ties**: {near_ties_text} {'is' if len(near_ties) == 1 else 'are'} near-tied with "
-            f"**{top_item}**, as their confidence intervals overlap. "
-            "This means the difference between them is within uncertainty, "
-            "and the rank-1 position should not be treated as definitive without further data."
-        )
-    else:
-        kf_near_ties = (
-            f"**Near-ties**: No item is near-tied with **{top_item}**. "
-            "Its confidence interval does not overlap with any competitor, "
-            "providing stronger evidence that the top position is reliable."
-        )
-
-    # CI-overlap groups
-    if len(clusters) > 1:
-        group_descriptions: list[str] = []
-        for ci, cluster in enumerate(clusters, start=1):
-            items_str = ", ".join(f"**{it}**" for it in cluster)
-            if len(cluster) == 1:
-                group_descriptions.append(f"Group {ci} ({items_str}) stands on its own")
-            else:
-                group_descriptions.append(f"Group {ci} contains {items_str}")
-        groups_sentence = "; ".join(group_descriptions) + "."
-        kf_clustering = (
-            f"**CI-overlap groups**: Items separate into {len(clusters)} groups based on confidence-interval overlap. "
-            f"{groups_sentence} "
-            "Items within the same group are practically tied — "
-            "their ranking order cannot be reliably distinguished from the current data."
-        )
-    else:
-        all_items_str = ", ".join(f"**{it}**" for it in clusters[0]) if clusters else f"**{top_item}**"
-        kf_clustering = (
-            f"**CI-overlap groups**: All items ({all_items_str}) fall into a single group, "
-            "as every item's confidence interval overlaps with at least one other. "
-            "No clear separation exists between any pair, so the entire ranking should be "
-            "interpreted with caution."
-        )
+    # Key Findings (reported rank, near-ties, CI groups) are omitted from visible report text;
+    # the same structure is still attached as `key_findings` on ReportOutput for Q&A tools.
 
     summary = (
         "**Key Takeaways**\n\n"
-        f"**{top_item}** ranks first with the highest estimated score in this run. "
-        f"{uncertainty} "
-        "The intervals shown are 95% bootstrap confidence intervals, so overlap should be read "
-        "as ranking uncertainty rather than as a formal significance claim.\n\n"
-        f"**Top rank with uncertainty**: **{top_item}** ranks first with the highest estimated score. {uncertainty}\n\n"
-        f"{top_group_line}\n\n"
-        f"{interpretation_line}\n\n"
-        "**Key Findings**\n\n"
-        f"{kf_reported_rank}\n\n"
-        f"{kf_near_ties}\n\n"
-        f"{kf_clustering}"
+        f"- {top_rank_uncertainty_line}\n"
+        f"- {top_group_line}\n"
+        f"- {interpretation_line}"
     )
 
     # ── Results Narrative ────────────────────────────────────────────────
@@ -576,6 +529,7 @@ def _build_llm_narrative(
             llm_narrative = {k: str(llm_output.get(k) or fallback[k]) for k in fallback}
             # Keep Methodology deterministic and clean for consistent report quality.
             llm_narrative["methods"] = methods
+            llm_narrative["summary"] = _strip_key_findings_subsection(llm_narrative["summary"])
             issues = _validate_llm_narrative(llm_narrative, results, analysis)
             if not issues:
                 return {k: _integerize_ci_text(v) for k, v in llm_narrative.items()}
@@ -605,7 +559,8 @@ _HINTS: list[HintSpec] = [
         title="95% confidence interval",
         body=(
             "Estimated using the Gaussian multiplier bootstrap "
-            "(see Spectral Ranking Inferences based on General Multiway Comparisons). "
+            "(see [Spectral Ranking Inferences based on General Multiway Comparisons]"
+            "(https://arxiv.org/html/2308.02918)). "
             "Narrower intervals indicate more confident estimates, while wider intervals reflect larger uncertainty."
         ),
         kind=HintKind.DEFINITION,

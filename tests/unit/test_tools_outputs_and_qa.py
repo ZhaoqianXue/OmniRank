@@ -274,7 +274,7 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
     assert report.markdown.find("## Ranking Results") < report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |")
     assert report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |") < report.markdown.find("## Executive Summary")
     assert "| 1 | A | [1, 2] | 0.6000 |" in report.markdown
-    assert "**Top rank with uncertainty**: **A** ranks first with the highest estimated score." in report.markdown
+    assert "- **Top rank with uncertainty**: **A** is the leader by estimated score," in report.markdown
     assert len(report.citation_blocks) > 0
     assert len(report.hints) > 0
     assert all(hint.title != "Rank Interpretation" for hint in report.hints)
@@ -283,6 +283,7 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
     assert "better preference or performance" in hint_titles["Estimated Score"]
     assert "95% confidence interval" in hint_titles
     assert "Gaussian multiplier bootstrap" in hint_titles["95% confidence interval"]
+    assert "https://arxiv.org/html/2308.02918" in hint_titles["95% confidence interval"]
     assert "How to Interpret Overlapping Intervals" in hint_titles
     assert "relative ordering is uncertain" in hint_titles["How to Interpret Overlapping Intervals"]
 
@@ -336,15 +337,9 @@ def test_generate_report_retries_llm_when_summary_is_wrong(tmp_path: Path, monke
             return {
                 "summary": (
                     "**Key Takeaways**\n\n"
-                    "**A** leads the ranking in this run. "
-                    "The ordering near the top still depends on the reported rank intervals.\n\n"
-                    "**Top rank with uncertainty**: **A** ranks first with the highest estimated score, but overlap near the top means the ordering is not definitive.\n\n"
-                    "**Top group**: Consistent with this, **A** and **B** form a near-tied top group based on the clustering results.\n\n"
-                    "**Interpretation of uncertainty**: When confidence intervals overlap, we cannot confidently distinguish relative performance. **B** has the widest confidence interval, indicating greater estimation uncertainty.\n\n"
-                    "**Key Findings**\n\n"
-                    "**Reported rank**: **A** holds rank 1 with a 95% confidence interval of [1, 2], confirming it as the top-ranked item.\n\n"
-                    "**Near-ties**: **B** is near-tied with **A**, as their confidence intervals overlap. The rank-1 position should not be treated as definitive.\n\n"
-                    "**CI-overlap groups**: Items separate into 2 groups. Group 1 contains **A** and **B**; Group 2 contains **C**. Items within the same group are practically tied."
+                    "- **Top rank with uncertainty**: **A** ranks first with the highest estimated score, but overlap near the top means the ordering is not definitive.\n"
+                    "- **Top group**: Consistent with this, **A** and **B** form a near-tied top group based on the clustering results.\n"
+                    "- **Interpretation of uncertainty**: When confidence intervals overlap, we cannot confidently distinguish relative performance. **B** has the widest confidence interval, indicating greater estimation uncertainty."
                 ),
                 "results_narrative": (
                     "**Group 1**: **A**, **B** remain close at the top. "
@@ -363,7 +358,8 @@ def test_generate_report_retries_llm_when_summary_is_wrong(tmp_path: Path, monke
     )
 
     assert calls["count"] == 2
-    assert "**A** leads the ranking in this run." in report.markdown
+    assert "- **Top rank with uncertainty**: **A**" in report.markdown
+    assert "**A** leads the ranking in this run." not in report.markdown
     assert "**B** is top-ranked here" not in report.markdown
 
 
@@ -514,8 +510,8 @@ def test_answer_question_overview_uses_pipeline_positioning_and_idle_note(monkey
             captured_payload.update(payload)
             return {
                 "conclusion": (
-                    "OmniRank is a pipeline-based statistical analysis agent that transforms comparison data "
-                    "into reproducible, uncertainty-aware rankings."
+                    "OmniRank is a statistical analysis agent that transforms comparison data "
+                    "into reproducible, uncertainty-aware rankings and supportive artifacts."
                 ),
                 "evidence": [
                     "It first infers the semantic schema of each variable, validates data format and quality, and then requests user confirmation before proceeding.",
@@ -537,7 +533,7 @@ def test_answer_question_overview_uses_pipeline_positioning_and_idle_note(monkey
 
     assert (
         captured_payload["product_positioning"]["positioning"]
-        == "pipeline-based statistical analysis agent for comparison data"
+        == "statistical analysis agent for comparison data"
     )
     assert captured_payload["product_positioning"]["core_workflow"] == [
         "infer the semantic schema of each variable",
@@ -545,7 +541,8 @@ def test_answer_question_overview_uses_pipeline_positioning_and_idle_note(monkey
         "request user confirmation before proceeding",
         "generate rankings, confidence intervals, visualizations, and a single-page reproducible report",
     ]
-    assert "pipeline-based statistical analysis agent" in answer.answer
+    assert "statistical analysis agent" in answer.answer
+    assert "supportive artifacts" in answer.answer
     assert "semantic schema of each variable" in answer.answer
     assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." not in answer.answer
     assert "Upload a CSV/TSV file first" not in answer.answer
@@ -565,7 +562,7 @@ def test_answer_question_capability_prompt_prefers_pairwise_and_multiway_descrip
                 "conclusion": "OmniRank supports both pairwise and multiway comparison data in CSV/TSV format.",
                 "evidence": [
                     "Pairwise format: Each row compares two items, with fields such as item a, item b, and a comparison outcome between them.",
-                    "Multiway format: Each row represents a set of items of varying size, along with one winner selected from that set.",
+                    "Multiway format: Each row records one comparison among multiple items at once, usually as numeric values across several item columns (for example scores or rank positions); the number of items in that row may be fixed or vary across rows.",
                 ],
                 "note": "This note should be replaced by the stage guidance.",
                 "used_citation_block_ids": [],
@@ -591,11 +588,15 @@ def test_answer_question_capability_prompt_prefers_pairwise_and_multiway_descrip
     )
     assert (
         captured_payload["product_positioning"]["supported_input_formats"]["multiway"]
-        == "Each row represents a set of items of varying size, along with one winner selected from that set."
+        == (
+            "Each row records one comparison among multiple items at once, usually as numeric "
+            "values across several item columns (for example scores or rank positions); the number "
+            "of items in that row may be fixed or vary across rows."
+        )
     )
     assert "supports both pairwise and multiway comparison data in CSV/TSV format" in answer.answer
     assert "Pairwise format: Each row compares two items" in answer.answer
-    assert "Multiway format: Each row represents a set of items of varying size" in answer.answer
+    assert "Multiway format: Each row records one comparison among multiple items at once" in answer.answer
     assert "optional categorical grouping column" not in answer.answer
     assert "wide item-score columns" not in answer.answer
     assert "Upload a CSV/TSV file, confirm the inferred schema, and then run the analysis." in answer.answer
