@@ -338,22 +338,15 @@ def _stratified_table_row_dense_ranks(item_order: list[str], row: list[Any]) -> 
 
 
 def _render_indicator_ranking_table(plot: PlotSpec) -> str | None:
-    data = plot.data or {}
-    item_order_raw = data.get("item_order")
-    phenotype_order_raw = data.get("phenotype_order")
-    rank_rows_raw = data.get("rank_rows")
-    if not isinstance(item_order_raw, list) or not isinstance(phenotype_order_raw, list) or not isinstance(rank_rows_raw, list):
+    extracted = _extract_indicator_matrix(plot)
+    if extracted is None:
         return None
-    if not item_order_raw or not phenotype_order_raw or not rank_rows_raw:
+    indicator, item_order, phenotype_order, rank_rows = extracted
+    if not item_order or not phenotype_order or not rank_rows:
         return None
-
-    item_order = [str(item) for item in item_order_raw]
-    phenotype_order = [str(value) for value in phenotype_order_raw]
-    rank_rows: list[list[Any]] = [row if isinstance(row, list) else [] for row in rank_rows_raw]
     if len(rank_rows) != len(phenotype_order):
         return None
 
-    indicator = str((data or {}).get("indicator_col") or "indicator")
     indicator_display = _indicator_display_name(indicator)
 
     def _rank_cell(value: Any) -> str:
@@ -382,6 +375,115 @@ def _render_indicator_ranking_table(plot: PlotSpec) -> str | None:
 
     table_title = f"Stratified Ranking Table by {indicator_display}"
     return f"### {table_title}\n\n" + "\n".join(lines)
+
+
+def _extract_indicator_matrix(plot: PlotSpec) -> tuple[str, list[str], list[str], list[list[Any]]] | None:
+    data = plot.data or {}
+
+    indicator = str(data.get("indicator_col") or "indicator")
+
+    item_order_raw = data.get("item_order")
+    phenotype_order_raw = data.get("phenotype_order")
+    rank_rows_raw = data.get("rank_rows")
+    if (
+        isinstance(item_order_raw, list)
+        and isinstance(phenotype_order_raw, list)
+        and isinstance(rank_rows_raw, list)
+    ):
+        item_order = [str(item) for item in item_order_raw]
+        phenotype_order = [str(value) for value in phenotype_order_raw]
+        rank_rows = [row if isinstance(row, list) else [] for row in rank_rows_raw]
+        return indicator, item_order, phenotype_order, rank_rows
+
+    methods_raw = data.get("methods")
+    indicator_values_raw = data.get("indicator_values")
+    matrix_rows_raw = data.get("matrix_rows")
+    if (
+        isinstance(methods_raw, list)
+        and isinstance(indicator_values_raw, list)
+        and isinstance(matrix_rows_raw, list)
+    ):
+        item_order = [str(item) for item in methods_raw]
+        phenotype_order = [str(value) for value in indicator_values_raw]
+        rank_rows = [row if isinstance(row, list) else [] for row in matrix_rows_raw]
+        return indicator, item_order, phenotype_order, rank_rows
+
+    return None
+
+
+def _build_stratified_key_takeaways(plot: PlotSpec) -> str | None:
+    extracted = _extract_indicator_matrix(plot)
+    if extracted is None:
+        return None
+
+    _indicator, item_order, category_order, rank_rows = extracted
+    if not item_order or not category_order or not rank_rows:
+        return None
+
+    def _to_float(value: Any) -> float | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, (int, float)):
+            value_f = float(value)
+            return value_f if math.isfinite(value_f) else None
+        return None
+
+    item_values: dict[str, list[float]] = {item: [] for item in item_order}
+    for row in rank_rows:
+        padded = list(row[: len(item_order)])
+        if len(padded) < len(item_order):
+            padded.extend([None] * (len(item_order) - len(padded)))
+        for item, value in zip(item_order, padded, strict=False):
+            value_f = _to_float(value)
+            if value_f is not None:
+                item_values[item].append(value_f)
+
+    populated = {item: values for item, values in item_values.items() if values}
+    if not populated:
+        return None
+
+    def _mean(values: list[float]) -> float:
+        return sum(values) / len(values)
+
+    def _spread(values: list[float]) -> float:
+        return max(values) - min(values) if len(values) >= 2 else 0.0
+
+    def _std(values: list[float]) -> float:
+        if len(values) < 2:
+            return 0.0
+        mean_value = _mean(values)
+        return math.sqrt(sum((value - mean_value) ** 2 for value in values) / len(values))
+
+    top_item = min(
+        populated,
+        key=lambda item: (_mean(populated[item]), -len(populated[item]), _spread(populated[item]), item.lower()),
+    )
+
+    multi_category_items = {item: values for item, values in populated.items() if len(values) >= 2}
+    stability_pool = multi_category_items or populated
+    stable_item = min(
+        stability_pool,
+        key=lambda item: (_spread(stability_pool[item]), _std(stability_pool[item]), _mean(stability_pool[item]), item.lower()),
+    )
+    variable_item = max(
+        stability_pool,
+        key=lambda item: (_spread(stability_pool[item]), _std(stability_pool[item]), len(stability_pool[item]), item.lower()),
+    )
+
+    top_mean = _mean(populated[top_item])
+    top_coverage = len(populated[top_item])
+    stable_spread = _spread(stability_pool[stable_item])
+    variable_spread = _spread(stability_pool[variable_item])
+
+    return (
+        "**Key Takeaways**\n\n"
+        f"- **Top average rank across Categories**: **{top_item}** has the best average stratified rank "
+        f"({top_mean:.2f}) across the available Categories, based on {top_coverage} ranked Categories.\n"
+        f"- **Most stable across Categories**: **{stable_item}** shows the smallest rank spread "
+        f"({stable_spread:.2f}) across the available Categories, suggesting the most consistent subgroup-level behavior.\n"
+        f"- **Interpretation of stratified variation**: Rank shifts across Categories indicate category-dependent performance; "
+        f"**{variable_item}** shows the largest rank spread ({variable_spread:.2f}) and the strongest category-specific variation."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -647,6 +749,26 @@ def generate_report(
     top_item, top_score, top_rank = _top_item(render_results)
     analysis = _analyze_ranking(render_results)
     ranking_table = _render_ranking_table(render_results)
+    overall_plots = [plot for plot in plots if plot.type == "ci_forest"]
+    stratified_plots = [plot for plot in plots if plot.type != "ci_forest"]
+    stratified_primary_plot = next(
+        (
+            plot
+            for plot in stratified_plots
+            if plot.type in {"indicator_rankings_combined", "indicator_rankings_heatmap"}
+        ),
+        stratified_plots[0] if stratified_plots else None,
+    )
+    has_stratified = stratified_primary_plot is not None
+    stratified_indicator = (
+        _indicator_display_name(str((stratified_primary_plot.data or {}).get("indicator_col") or "Category"))
+        if stratified_primary_plot is not None
+        else "Category"
+    )
+    overall_chapter_title = "Overall Ranking Results" if has_stratified else "Ranking Results"
+    overall_table_title = "Overall Ranking Table" if has_stratified else "Ranking Table"
+    overall_summary_title = "Overall Ranking Key Takeaways" if has_stratified else "Ranking Key Takeaways"
+    overall_plot_title = "Overall Ranking Plot" if has_stratified else "Ranking Plot"
 
     # ── Block IDs ────────────────────────────────────────────────────────
     summary_bid = _stable_block_id(
@@ -660,9 +782,9 @@ def generate_report(
     result_bid = _stable_block_id(
         "result",
         {
+            "title": overall_chapter_title,
             "items": results.items,
             "ranks": results.ranks,
-            "theta_hat": [round(x, 8) for x in results.theta_hat],
         },
     )
     table_bid = _stable_block_id(
@@ -671,26 +793,35 @@ def generate_report(
             "rows": len(results.items),
             "items": results.items,
             "ranks": results.ranks,
+            "has_stratified": has_stratified,
         },
     )
+    stratified_summary_md: str | None = None
+    stratified_summary_bid: str | None = None
+    stratified_table_md: str | None = None
+    stratified_table_bid: str | None = None
+    stratified_result_md: str | None = None
+    stratified_result_bid: str | None = None
+
     # ── Construct named section markdowns ────────────────────────────────
-    summary_md = _section(
-        summary_bid,
-        "summary",
-        f"## Executive Summary\n\n{narrative['summary']}",
-    )
     result_md = _section(
         result_bid,
         "result",
-        "## Ranking Results",
+        f"## {overall_chapter_title}",
+    )
+    summary_md = _section(
+        summary_bid,
+        "summary",
+        f"### {overall_summary_title}\n\n{narrative['summary']}",
     )
     table_md = _section(
         table_bid,
         "table",
-        f"{ranking_table}\n\n*{_RANKING_TABLE_ESTIMATED_SCORE_NOTE}*",
+        f"### {overall_table_title}\n\n{ranking_table}\n\n*{_RANKING_TABLE_ESTIMATED_SCORE_NOTE}*",
     )
     # ── Figures (interleaved in the narrative) ───────────────────────────
-    figure_mds: list[str] = []
+    overall_figure_mds: list[str] = []
+    stratified_figure_mds: list[str] = []
     figure_blocks: list[CitationBlock] = []
     artifacts: list[ArtifactRef] = []
 
@@ -699,38 +830,30 @@ def generate_report(
             "figure",
             {"type": plot.type, "index": idx, "data": plot.data, "config": plot.config},
         )
-        cap_plain = plot.caption_plain or plot.type
         cap_acad = plot.caption_academic or plot.type
         if plot.type == "ci_forest":
-            figure_title = "Overall Ranking Plot"
+            figure_title = overall_plot_title
         elif plot.type == "indicator_rankings_combined":
-            ind = (plot.data or {}).get("indicator_col") or "phenotype"
-            tc = _indicator_display_name(str(ind))
-            figure_title = f"Stratified Ranking Plot by {tc}"
+            figure_title = f"Stratified Ranking Plot by {stratified_indicator}"
         elif plot.type == "normalized_ranking_over_indicator":
-            ind = (plot.data or {}).get("indicator_col") or "phenotype"
-            tc = _indicator_display_name(str(ind))
-            figure_title = f"Normalized Ranks by {tc}"
+            figure_title = f"Stratified Ranking Plot by {stratified_indicator}"
         elif plot.type == "indicator_rankings_heatmap":
-            ind = (plot.data or {}).get("indicator_col") or "phenotype"
-            tc = _indicator_display_name(str(ind))
-            figure_title = f"Rank Heatmap by {tc}"
+            figure_title = f"Stratified Ranking Plot by {stratified_indicator}"
         else:
-            figure_title = cap_plain
+            figure_title = plot.caption_plain or plot.type
 
         fig_body = (
-            f"## {figure_title}\n\n"
+            f"### {figure_title}\n\n"
             f"![{figure_title}]({plot.svg_path})\n\n"
             f"*{cap_acad}*"
         )
         if plot.type in {"indicator_rankings_heatmap", "indicator_rankings_combined"}:
             fig_body += f"\n\n*{_HEATMAP_GRAY_CELL_NOTE}*"
-        if plot.type == "indicator_rankings_combined":
-            indicator_table_md = _render_indicator_ranking_table(plot)
-            if indicator_table_md:
-                fig_body += f"\n\n{indicator_table_md}"
         fig_md = _section(fig_bid, "figure", fig_body)
-        figure_mds.append(fig_md)
+        if plot.type == "ci_forest":
+            overall_figure_mds.append(fig_md)
+        else:
+            stratified_figure_mds.append(fig_md)
 
         figure_blocks.append(
             CitationBlock(
@@ -752,14 +875,64 @@ def generate_report(
             )
         )
 
+    if has_stratified and stratified_primary_plot is not None:
+        stratified_summary_body = _build_stratified_key_takeaways(stratified_primary_plot)
+        if stratified_summary_body:
+            stratified_summary_bid = _stable_block_id(
+                "summary-stratified",
+                {
+                    "indicator_col": str((stratified_primary_plot.data or {}).get("indicator_col") or ""),
+                    "data": stratified_primary_plot.data,
+                },
+            )
+            stratified_summary_md = _section(
+                stratified_summary_bid,
+                "summary",
+                f"### Stratified Ranking Key Takeaways by {stratified_indicator}\n\n{stratified_summary_body}",
+            )
+
+        indicator_table_md = _render_indicator_ranking_table(stratified_primary_plot)
+        if indicator_table_md:
+            stratified_result_bid = _stable_block_id(
+                "result-stratified",
+                {
+                    "title": "Stratified Ranking Results",
+                    "indicator_col": str((stratified_primary_plot.data or {}).get("indicator_col") or ""),
+                },
+            )
+            stratified_result_md = _section(
+                stratified_result_bid,
+                "result",
+                "## Stratified Ranking Results",
+            )
+            stratified_table_bid = _stable_block_id(
+                "table-stratified",
+                {
+                    "indicator_col": str((stratified_primary_plot.data or {}).get("indicator_col") or ""),
+                    "data": stratified_primary_plot.data,
+                },
+            )
+            stratified_table_md = _section(
+                stratified_table_bid,
+                "table",
+                indicator_table_md,
+            )
+
     # ── Assemble full markdown ───────────────────────────────────────────
     parts: list[str] = [
         "# OmniRank Report",
         result_md,
         table_md,
         summary_md,
-        *figure_mds,
+        *overall_figure_mds,
     ]
+    if stratified_result_md:
+        parts.append(stratified_result_md)
+    if stratified_table_md:
+        parts.append(stratified_table_md)
+    if stratified_summary_md:
+        parts.append(stratified_summary_md)
+    parts.extend(stratified_figure_mds)
 
     full_markdown = "\n\n".join(parts)
 
@@ -777,7 +950,7 @@ def generate_report(
             block_id=result_bid,
             kind=CitationKind.RESULT,
             markdown=result_md,
-            text="Ranking results section",
+            text=overall_chapter_title,
             hint_ids=[],
             artifact_paths=[],
         ),
@@ -788,6 +961,48 @@ def generate_report(
             text="Ranking table",
             hint_ids=["hint-theta-hat", "hint-ci"],
             artifact_paths=[],
+        ),
+        *(
+            [
+                CitationBlock(
+                    block_id=stratified_result_bid,
+                    kind=CitationKind.RESULT,
+                    markdown=stratified_result_md,
+                    text="Stratified Ranking Results",
+                    hint_ids=[],
+                    artifact_paths=[],
+                )
+            ]
+            if stratified_result_bid and stratified_result_md
+            else []
+        ),
+        *(
+            [
+                CitationBlock(
+                    block_id=stratified_summary_bid,
+                    kind=CitationKind.SUMMARY,
+                    markdown=stratified_summary_md,
+                    text=_build_stratified_key_takeaways(stratified_primary_plot) or "",
+                    hint_ids=[],
+                    artifact_paths=[],
+                )
+            ]
+            if stratified_summary_bid and stratified_summary_md and stratified_primary_plot is not None
+            else []
+        ),
+        *(
+            [
+                CitationBlock(
+                    block_id=stratified_table_bid,
+                    kind=CitationKind.TABLE,
+                    markdown=stratified_table_md,
+                    text=f"Stratified ranking table by {stratified_indicator}",
+                    hint_ids=["hint-ci"],
+                    artifact_paths=[],
+                )
+            ]
+            if stratified_table_bid and stratified_table_md
+            else []
         ),
         *figure_blocks,
     ]

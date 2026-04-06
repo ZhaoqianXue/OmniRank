@@ -290,10 +290,16 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
     assert "### Ranking Interpretation" not in report.markdown
     assert "## Methodology" not in report.markdown
     assert "### Limitations and Assumptions" not in report.markdown
+    assert "## Executive Summary" not in report.markdown
     assert "CI Width" not in report.markdown
     assert "Gap to #1" not in report.markdown
-    assert report.markdown.find("## Ranking Results") < report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |")
-    assert report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |") < report.markdown.find("## Executive Summary")
+    assert "## Ranking Results" in report.markdown
+    assert "### Ranking Table" in report.markdown
+    assert "### Ranking Key Takeaways" in report.markdown
+    assert "### Ranking Plot" in report.markdown
+    assert report.markdown.find("## Ranking Results") < report.markdown.find("### Ranking Table")
+    assert report.markdown.find("### Ranking Table") < report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |")
+    assert report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |") < report.markdown.find("### Ranking Key Takeaways")
     assert "| 1 | A | [1, 2] | 0.6000 |" in report.markdown
     assert (
         "*Estimated Score: the value estimated by the ranking algorithm. "
@@ -330,7 +336,7 @@ def test_generate_report_ranking_table_uses_rank_order():
     )
 
     table_start = report.markdown.index("| Rank | Item | Confidence Interval | Estimated Score |")
-    table_end = report.markdown.index("\n\n## Executive Summary", table_start)
+    table_end = report.markdown.index("\n\n### Ranking Key Takeaways", table_start)
     ranking_table = report.markdown[table_start:table_end]
 
     assert "| 1 | C+T | [1, 2] | 0.6000 |" in ranking_table
@@ -415,7 +421,18 @@ def test_generate_report_falls_back_when_llm_report_generation_fails(tmp_path: P
 
 def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path: Path):
     results = _sample_results()
+    (tmp_path / "ci_forest.svg").write_text("<svg/>", encoding="utf-8")
     (tmp_path / "combined.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    overall_plot = PlotSpec(
+        type="ci_forest",
+        data={},
+        config={},
+        svg_path=str(tmp_path / "ci_forest.svg"),
+        block_id="figure-ranking-bar-123",
+        caption_plain="Plain caption",
+        caption_academic="Academic caption",
+        hint_ids=["hint-ci"],
+    )
     plot = PlotSpec(
         type="indicator_rankings_combined",
         data={
@@ -435,11 +452,18 @@ def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path
     report = generate_report(
         results=results,
         session_meta={"B": 2000, "seed": 42, "current_file_path": "/tmp/input.csv"},
-        plots=[plot],
+        plots=[overall_plot, plot],
     )
 
-    assert "## Stratified Ranking Plot by Phenotype" in report.markdown
+    assert "## Overall Ranking Results" in report.markdown
+    assert "### Overall Ranking Table" in report.markdown
+    assert "### Overall Ranking Key Takeaways" in report.markdown
+    assert "### Overall Ranking Plot" in report.markdown
+    assert "## Stratified Ranking Results" in report.markdown
     assert "### Stratified Ranking Table by Phenotype" in report.markdown
+    assert "### Stratified Ranking Key Takeaways by Phenotype" in report.markdown
+    assert "### Stratified Ranking Plot by Phenotype" in report.markdown
+    assert "**Top average rank across Categories**" in report.markdown
     assert "Grey cells indicate that the item was not ranked in that Category because it was removed during filtering." in report.markdown
     assert "| Phenotype | A | B | C |" in report.markdown
     assert "| p1 | 1 | 2 | 3 |" in report.markdown
