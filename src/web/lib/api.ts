@@ -167,11 +167,11 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     filename: "example_data_pairwise.csv",
     title: "LLM Pairwise Comparison",
     description:
-      "Pairwise outcomes for language models evaluated on the same task. " +
-      "Each row records one comparison between two models, with 1 for the winner and 0 for the loser. " +
+      "Pairwise comparison outcomes for language models evaluation. " +
+      "Each row represents a comparison between two models, with 1 indicating the winner and 0 the loser. " +
       "• Items to rank: Your Model, ChatGPT, Claude, Gemini, Llama, Qwen " +
-      "• Indicator: Task (code, math, writing) " +
-      "• Best for: Comparing models overall or within task categories",
+      "• Indicator: Task category (code, math, writing) " +
+      "• Suggested Comparisons: Comparing model performance overall or within specific task categories",
     format: "pairwise",
     previewCta: {
       title: "OmniRank LLM Leaderboard",
@@ -186,12 +186,12 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     filename: "example_data_multiway_phenotype.csv",
     title: "PRS Phenotype Matrix",
     description:
-      "AUC measurements for PRS methods across phenotype-level evaluations. " +
-      "Each row is one phenotype record with AUC values for the available methods, where higher values indicate better predictive performance. " +
+      "AUC measurements for Polygenic Risk Score (PRS) methods across phenotype-level evaluations. " +
+      "Each row represents one phenotype record with AUC values for the available methods, where higher values indicate better predictive performance. " +
       "• Items to rank: C+T, SCT, LDpred, LDpred2, LDpred2-auto, LDpred2-inf, LDpred-funct, AnnoPred, lassosum, lassosum2, PRS-CS, PRS-CS-auto, SBayesR, DBSLMM " +
       "• Indicator: Phenotype " +
       "• Values: AUC from 0 to 1 " +
-      "• Best for: Comparing PRS methods overall and within phenotype-level analyses",
+      "• Suggested Comparisons: Comparing PRS method performance overall or within specific phenotype categories",
     format: "multiway",
   },
   {
@@ -200,12 +200,12 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     title: "Formula 1 Grand Prix Results",
     description:
       "Official Formula 1 race classifications from the 2024 and 2025 seasons, transformed into an OmniRank-ready multiway ranking matrix. " +
-      "Each row is one Grand Prix, with finishing positions for the drivers who appeared across the two-season field; smaller values indicate better placement. " +
-      "• Items to rank: 27 Formula 1 drivers from the 2024-2025 race field " +
-      "• Indicator: track_type (permanent, street, temporary_non_street) " +
+      "Each row represents one Grand Prix, with finishing positions for the drivers across the two-season field; smaller values indicate better placement. " +
+      "• Items to rank: 27 Formula 1 drivers from the 2024–2025 race field " +
+      "• Indicator: Track type (permanent, street, temporary_non_street) " +
       "• Row metadata: season_tag, round_tag, race_name " +
       "• Values: Official finishing positions, where 1 is best " +
-      "• Best for: Sports event rankings, driver comparisons, and circuit-type stratified analysis",
+      "• Suggested Comparisons: Driver performance rankings overall or stratified by circuit type",
     format: "multiway",
   },
   {
@@ -214,10 +214,10 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     title: "Human Preference Logs",
     description:
       "Raw human preference logs in long format before preprocessing. " +
-      "Each comparison is represented by two rows, one per assistant, with value=1 for the winner and value=0 for the loser. " +
+      "Each comparison is represented by two rows (one per assistant), with value=1 indicating the winner and value=0 the loser. " +
       "• Items to rank: Orion, Astra, Nova, Pulse, Zenith, Nimbus " +
-      "• Indicator: Task (coding, math, reasoning, safety) " +
-      "• Best for: Long-format annotation exports that OmniRank converts automatically",
+      "• Indicator: Task category (coding, math, reasoning, safety) " +
+      "• Suggested Comparisons: Comparing assistant performance overall or within specific task categories",
     format: "pairwise",
   },
   {
@@ -226,10 +226,10 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     title: "Model Performance Matrix",
     description:
       "Per-sample performance scores for multiple models evaluated on the same input. " +
-      "Each row contains all model scores for one sample on a 0-1 scale, where higher values indicate better performance. " +
+      "Each row contains all model scores for one sample on a 0–1 scale, where higher values indicate better performance. " +
       "• Items to rank: model_1 through model_6 " +
-      "• Indicator: sample_id " +
-      "• Best for: Benchmark-style comparisons across shared samples",
+      "• Indicator: Sample ID " +
+      "• Suggested Comparisons: Benchmark-style comparisons of model performance across shared samples",
     format: "multiway",
   },
   {
@@ -238,10 +238,10 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     title: "System Latency Matrix",
     description:
       "Latency measurements for multiple systems under the same workload scenario. " +
-      "Each row contains one workload with system latencies in milliseconds, where lower values indicate better performance. " +
+      "Each row represents one workload with system latencies in milliseconds, where lower values indicate better performance. " +
       "• Items to rank: latency_alpha through latency_zeta " +
-      "• Indicator: scenario (short_context, medium_context, long_context, tool_heavy) " +
-      "• Best for: Comparing system speed overall or by workload type",
+      "• Indicator: Scenario type (short_context, medium_context, long_context, tool_heavy) " +
+      "• Suggested Comparisons: Comparing system speed overall or within specific workload categories",
     format: "multiway",
   },
   {
@@ -250,10 +250,10 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     title: "Rank-Order Tournaments",
     description:
       "Full ranking outcomes stored explicitly in rank_1 through rank_6 columns. " +
-      "Each row records the complete ordering of candidates for one event. " +
+      "Each row represents the complete ordering of candidates for one event. " +
       "• Items to rank: Alpha, Beta, Gamma, Delta, Epsilon, Zeta " +
-      "• Indicator: domain (coding, math, reasoning, safety) " +
-      "• Best for: Recovering robust rankings from full-order results",
+      "• Indicator: Domain category (coding, math, reasoning, safety) " +
+      "• Suggested Comparisons: Recovering robust rankings from full-order results overall or within specific domains",
     format: "multiway",
   },
   {
@@ -262,11 +262,11 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
     title: "Horse Racing Results",
     description:
       "Finish-order results for all competitors within the same race. " +
-      "Each row is one race, with finish positions for every horse; smaller values indicate better placement. " +
+      "Each row represents one race, with finish positions for every horse; smaller values indicate better placement. " +
       "• Items to rank: Horse_A through Horse_F " +
-      "• Indicator: Track (grass, dirt) " +
+      "• Indicator: Track type (grass, dirt) " +
       "• Values: Finish positions, where 1 is best " +
-      "• Best for: Event-level ranking with optional track-specific comparisons",
+      "• Suggested Comparisons: Comparing horse performance overall or within specific track categories",
     format: "multiway",
   },
 ];
