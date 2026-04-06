@@ -52,6 +52,27 @@ def test_generate_visualizations_deterministic_svg(tmp_path: Path):
     assert ci_forest.data["ci_upper"] == [2.0, 3.0, 3.0]
 
 
+def test_generate_visualizations_ci_forest_orders_by_rank_when_few_preferred_matches(tmp_path: Path):
+    """With <2 names in PRS preferred list, CI forest row order follows reported rank (best at top)."""
+    results = RankingResults(
+        items=["Zeta", "Alpha", "Beta"],
+        theta_hat=[0.3, 0.9, 0.6],
+        ranks=[3, 1, 2],
+        ci_lower=[2.0, 1.0, 1.0],
+        ci_upper=[4.0, 2.0, 3.0],
+        indicator_value=None,
+    )
+    artifact_dir = tmp_path / "artifacts"
+    output = generate_visualizations(results=results, viz_types=["ci_forest"], artifact_dir=str(artifact_dir))
+    assert output.errors == []
+    ci_forest = output.plots[0]
+    assert ci_forest.data["names"] == ["Alpha", "Beta", "Zeta"]
+    assert ci_forest.data["rank_point"] == [1, 2, 3]
+    assert ci_forest.data["theta_hat"] == [0.9, 0.6, 0.3]
+    assert ci_forest.data["ci_lower"] == [1.0, 1.0, 2.0]
+    assert ci_forest.data["ci_upper"] == [2.0, 3.0, 4.0]
+
+
 def test_generate_visualizations_ci_forest_uses_preferred_prs_method_order(tmp_path: Path):
     results = RankingResults(
         items=["PRS-CS-auto", "LDpred", "AnnoPred", "C+T", "DBSLMM"],
@@ -413,7 +434,7 @@ def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path
         plots=[plot],
     )
 
-    assert "## Rankings by Phenotype" in report.markdown
+    assert "## Stratified Ranking Plot by Phenotype" in report.markdown
     assert "### Phenotype Ranking Table" in report.markdown
     assert "| Phenotype | A | B | C |" in report.markdown
     assert "| p1 | 1 | 2 | 3 |" in report.markdown

@@ -657,11 +657,11 @@ def generate_report(
         cap_plain = plot.caption_plain or plot.type
         cap_acad = plot.caption_academic or plot.type
         if plot.type == "ci_forest":
-            figure_title = "Ranking Confidence Intervals"
+            figure_title = "Overall Ranking Plot"
         elif plot.type == "indicator_rankings_combined":
             ind = (plot.data or {}).get("indicator_col") or "phenotype"
             tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
-            figure_title = f"Rankings by {tc}"
+            figure_title = f"Stratified Ranking Plot by {tc}"
         elif plot.type == "normalized_ranking_over_indicator":
             ind = (plot.data or {}).get("indicator_col") or "phenotype"
             tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"

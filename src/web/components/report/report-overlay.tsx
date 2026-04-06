@@ -477,7 +477,7 @@ function buildMarkdownComponents(
               >
                 <img
                   src={normalizedSrc}
-                  alt={matchedPlot.caption_plain || "Ranking Confidence Intervals"}
+                  alt={matchedPlot.caption_plain || "Overall Ranking Plot"}
                   className="w-full"
                 />
               </div>

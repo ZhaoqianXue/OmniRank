@@ -22,6 +22,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.font_manager import FontProperties
 from matplotlib.patches import Rectangle
 
 matplotlib.rcParams.update(
@@ -47,6 +48,14 @@ PREFERRED_PRS_METHOD_ORDER = [
     "lassosum2",
 ]
 _PREFERRED_PRS_METHOD_SET = set(PREFERRED_PRS_METHOD_ORDER)
+
+# CI forest / ranking plot accent colors
+_CI_FOREST_RANK_POINT_COLOR = "#d26e66"
+_CI_FOREST_RANK_LABEL_COLOR = "#6e80a2"
+
+# Phenotype rank heatmap: slightly softened orange→blue (subtle vs. named "orange"/"blue")
+_HEATMAP_RANK_ORANGE = "#F29A3A"
+_HEATMAP_RANK_BLUE = "#3A78D4"
 
 
 def _mm_to_pt(mm: float) -> float:
@@ -110,13 +119,18 @@ def _ensure_parent(path: str | Path) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
 
-def _preferred_method_reorder_indices(methods: list[str]) -> list[int]:
+def _preferred_method_reorder_indices(
+    methods: list[str],
+    ranks: list[float] | None = None,
+) -> list[int]:
     if not methods:
         return []
 
     index_by_method = {method: idx for idx, method in enumerate(methods)}
     preferred_indices = [index_by_method[method] for method in PREFERRED_PRS_METHOD_ORDER if method in index_by_method]
     if len(preferred_indices) < 2:
+        if ranks is not None and len(ranks) == len(methods):
+            return sorted(range(len(methods)), key=lambda i: (float(ranks[i]), i))
         return list(range(len(methods)))
     return preferred_indices + [idx for idx, method in enumerate(methods) if method not in _PREFERRED_PRS_METHOD_SET]
 
@@ -243,20 +257,10 @@ def _style_axes_bw(ax: plt.Axes) -> None:
     ax.tick_params(colors="black")
 
 
-def _ci_forest_y_axis_title(*, show_axes: bool) -> str | None:
-    """Match the configured axis labeling for CI plots."""
-    return "Item" if show_axes else None
-
-
-def _apply_ci_axis_labels(ax: plt.Axes, *, show_axes: bool) -> None:
-    ax.set_xlabel("Rank", fontsize=16, fontweight="bold", color="black")
-    y_title = _ci_forest_y_axis_title(show_axes=show_axes)
-    if y_title is None:
-        ax.set_ylabel("")
-        return
-    ax.set_ylabel(y_title, fontsize=16, fontweight="bold", color="black")
-    # Position to visually match the ggplot2 output used by the R script.
-    ax.yaxis.set_label_coords(-0.16, 0.5)
+def _apply_ci_axis_labels(ax: plt.Axes) -> None:
+    """X label matches tick label size/weight; no y-axis title (item names are tick labels)."""
+    ax.set_xlabel("Rank", fontsize=12, color="black")
+    ax.set_ylabel("")
 
 
 def _plot_ci_forest(
@@ -295,7 +299,7 @@ def _plot_ci_forest(
         ax.set_ylim(n_labels + 0.6, 0.4)
         ax.set_yticks(np.arange(1, n_labels + 1))
         ax.set_yticklabels(y_labels, fontsize=12, color="black")
-        _apply_ci_axis_labels(ax, show_axes=True)
+        _apply_ci_axis_labels(ax)
         _style_axes_bw(ax)
         fig.patch.set_facecolor("white")
         fig.subplots_adjust(left=0.24, right=0.99, top=0.984, bottom=0.106)
@@ -328,29 +332,34 @@ def _plot_ci_forest(
         ax.hlines(y, lo, hi, colors="black", linewidth=err_lw, zorder=2)
         ax.vlines([lo, hi], y - cap_half_height, y + cap_half_height, colors="black", linewidth=err_lw, zorder=2)
 
-    # R: geom_point(size = 3, shape = 21, stroke = 0, fill = red)
+    # R: geom_point(size = 3, shape = 21, stroke = 0, fill); brand palette
     ax.plot(
         ranks_arr,
         y_positions,
         linestyle="None",
         marker="o",
         markersize=_mm_to_pt(3.0),
-        markerfacecolor="red",
+        markerfacecolor=_CI_FOREST_RANK_POINT_COLOR,
         markeredgewidth=0,
-        markeredgecolor="red",
-        color="red",
+        markeredgecolor=_CI_FOREST_RANK_POINT_COLOR,
+        color=_CI_FOREST_RANK_POINT_COLOR,
         zorder=3,
     )
 
+    # Rank digits above points: bold face (explicit FontProperties so Agg reliably uses a heavy face)
+    rank_label_fp = FontProperties(
+        family="sans-serif",
+        weight="bold",
+        size=_mm_to_pt(4.5),
+    )
     # R: geom_text y=as.numeric(Method)+0.35 (above point); with invert, use y-0.35 for above
     for x, y in zip(ranks_arr, y_positions):
         ax.text(
             x,
             y - 0.35,
             f"{int(round(x))}",
-            color="blue",
-            fontsize=_mm_to_pt(4.0),
-            fontweight="bold",
+            color=_CI_FOREST_RANK_LABEL_COLOR,
+            fontproperties=rank_label_fp,
             ha="center",
             va="center",
             zorder=4,
@@ -363,7 +372,7 @@ def _plot_ci_forest(
     ax.set_xticks(x_breaks)
     ax.set_yticks(np.arange(1, n_labels + 1))
     ax.set_yticklabels(y_labels, fontsize=12, color="black")
-    _apply_ci_axis_labels(ax, show_axes=True)
+    _apply_ci_axis_labels(ax)
     ax.tick_params(axis="both", labelsize=12, colors="black")
     # R: panel.grid.major color=grey90, linewidth=0.3 (both x and y)
     ax.xaxis.grid(True, color="#E5E5E5", linewidth=0.3, linestyle="-")
@@ -603,7 +612,11 @@ def _plot_heatmap(rank_matrix: pd.DataFrame, method_cols: list[str], out_path: s
     y_labels = [str(x) for x in rank_matrix.index[::-1]]
     x_labels = method_cols
 
-    cmap = LinearSegmentedColormap.from_list("orange_blue_rank", ["orange", "blue"], N=max(n_rank_levels, 256))
+    cmap = LinearSegmentedColormap.from_list(
+        "orange_blue_rank",
+        [_HEATMAP_RANK_ORANGE, _HEATMAP_RANK_BLUE],
+        N=max(n_rank_levels, 256),
+    )
     cmap = cmap.copy()
     cmap.set_bad(color="darkgrey")
     masked = np.ma.masked_invalid(data_rev)
@@ -663,7 +676,7 @@ def _ci_from_json(ci_plot_path: str, ci_out_path: str) -> None:
     ranks = ranks[:n]
     ci_lower = ci_lower[:n]
     ci_upper = ci_upper[:n]
-    reorder = _preferred_method_reorder_indices(items)
+    reorder = _preferred_method_reorder_indices(items, ranks=ranks)
     _plot_ci_forest(
         _reorder_aligned(items, reorder),
         _reorder_aligned(ranks, reorder),

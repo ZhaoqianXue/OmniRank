@@ -65,13 +65,18 @@ def _fmt_rank_bound(value: float) -> str:
     return _fmt_number(value, digits=2)
 
 
-def _preferred_method_reorder_indices(methods: list[str]) -> list[int]:
+def _preferred_method_reorder_indices(
+    methods: list[str],
+    ranks: list[float] | None = None,
+) -> list[int]:
     if not methods:
         return []
 
     index_by_method = {method: idx for idx, method in enumerate(methods)}
     preferred_indices = [index_by_method[method] for method in PREFERRED_PRS_METHOD_ORDER if method in index_by_method]
     if len(preferred_indices) < 2:
+        if ranks is not None and len(ranks) == len(methods):
+            return sorted(range(len(methods)), key=lambda i: (float(ranks[i]), i))
         return list(range(len(methods)))
     return preferred_indices + [idx for idx, method in enumerate(methods) if method not in _PREFERRED_PRS_METHOD_SET]
 
@@ -201,8 +206,11 @@ def _item_rank_matrix_from_csv(
 
 
 def _ci_forest_py(results: RankingResults, artifact_dir: Path) -> PlotSpec:
-    """Generate Ranking Confidence Interval Plot using Python plot script."""
-    order = _preferred_method_reorder_indices([str(item) for item in results.items])
+    """Generate overall ranking plot (CI forest) using Python plot script."""
+    order = _preferred_method_reorder_indices(
+        [str(item) for item in results.items],
+        ranks=list(results.ranks),
+    )
     names = [results.items[i] for i in order]
     theta_hat = [results.theta_hat[i] for i in order]
     ranks = [results.ranks[i] for i in order]
@@ -262,7 +270,7 @@ def _ci_forest_py(results: RankingResults, artifact_dir: Path) -> PlotSpec:
         config={"x_label": "rank", "point": "rank", "interval": "rank_ci", "source": "python"},
         svg_path=str(png_path),
         block_id=block_id,
-        caption_plain="Ranking Confidence Intervals",
+        caption_plain="Overall Ranking Plot",
         caption_academic="Forest plot of 95% rank confidence intervals with rank point estimates.",
         hint_ids=["hint-ci"],
     )
@@ -610,7 +618,7 @@ def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
     ranks = [results.ranks[i] for i in order]
     lower = [results.ci_lower[i] for i in order]
     upper = [results.ci_upper[i] for i in order]
-    preferred_order = _preferred_method_reorder_indices([str(name) for name in names])
+    preferred_order = _preferred_method_reorder_indices([str(name) for name in names], ranks=ranks)
     names = [names[i] for i in preferred_order]
     scores = [scores[i] for i in preferred_order]
     ranks = [ranks[i] for i in preferred_order]
@@ -640,7 +648,7 @@ def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
             config={"x_label": "rank", "point": "rank", "interval": "rank_ci"},
             svg_path=str(svg_path),
             block_id=block_id,
-            caption_plain="Ranking Confidence Intervals",
+            caption_plain="Overall Ranking Plot",
             caption_academic="Forest plot of 95% rank confidence intervals with rank point estimates.",
             hint_ids=["hint-ci"],
         )
@@ -766,7 +774,7 @@ def _ci_forest(results: RankingResults, artifact_dir: Path) -> PlotSpec:
         config={"x_label": "rank", "point": "rank", "interval": "rank_ci"},
         svg_path=str(svg_path),
         block_id=block_id,
-        caption_plain="Ranking Confidence Intervals",
+        caption_plain="Overall Ranking Plot",
         caption_academic="Forest plot of rank confidence intervals with rank point estimates for each item.",
         hint_ids=["hint-ci"],
     )
@@ -831,7 +839,8 @@ def _deep_rank_color(rank_value: float, rank_min: float, rank_max: float) -> str
         return "#bfdbfe"
     ratio = (rank_value - rank_min) / (rank_max - rank_min)
     # Better ranks (smaller) are warm; worse ranks (larger) are blue.
-    return _interpolate_color((245, 158, 11), (37, 99, 235), ratio)
+    # Match softened heatmap endpoints (#F29A3A .. #3A78D4) used in plot_phenotype_rankings.
+    return _interpolate_color((242, 154, 58), (58, 120, 212), ratio)
 
 
 def _is_multiway_phenotype_format(csv_path: str, indicator_col: str) -> bool:

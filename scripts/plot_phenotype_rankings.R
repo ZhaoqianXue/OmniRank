@@ -223,7 +223,7 @@ legend_bar_height_cm <- 15
 p_heatmap <- ggplot2::ggplot(mat_long, ggplot2::aes(x = Method, y = Phenotype, fill = rank)) +
   ggplot2::geom_tile(color = "grey60", linewidth = 0.2) +
   ggplot2::scale_fill_gradientn(
-    colors = colorRampPalette(c("orange", "blue"))(n_rank_levels),
+    colors = colorRampPalette(c("#F29A3A", "#3A78D4"))(n_rank_levels),
     values = scales::rescale(seq(1, n_rank_levels)),
     limits = c(1, n_rank_levels),
     breaks = rank_breaks,
@@ -291,17 +291,18 @@ if (run_heatmaps) {
   p_ci_standalone <- ggplot(df_ci, aes(x = rank, y = Method)) +
     geom_vline(xintercept = x_breaks_ci, color = "grey85", linewidth = 0.5) +
     geom_errorbar(aes(xmin = ci_lower, xmax = ci_upper), width = 0.3, linewidth = 0.8, color = "black", orientation = "y") +
-    geom_point(size = 3, color = "red", fill = "red", shape = 21, stroke = 0) +
-    geom_text(aes(x = rank, y = as.numeric(Method) + 0.35, label = round(rank)), inherit.aes = FALSE, size = 4, color = "blue", fontface = "bold") +
+    geom_point(size = 3, color = "#d26e66", fill = "#d26e66", shape = 21, stroke = 0) +
+    geom_text(aes(x = rank, y = as.numeric(Method) + 0.35, label = round(rank)), inherit.aes = FALSE, size = 4, color = "#6e80a2", fontface = "bold") +
     scale_x_continuous(limits = c(x_min_ci, x_max_ci), breaks = x_breaks_ci, expand = c(0.02, 0)) +
-    labs(x = "Rank") +
+    labs(x = "Rank", y = NULL) +
     theme_bw(base_size = 14) +
     theme(
       plot.title = element_blank(),
       panel.grid.major = element_line(color = "grey90", linewidth = 0.3),
       panel.grid.minor = element_blank(),
       axis.text = element_text(color = "black", size = 12),
-      axis.title = element_text(size = 16, face = "bold", color = "black"),
+      axis.title.x = element_text(size = 12, face = "plain", color = "black"),
+      axis.title.y = element_blank(),
       panel.background = element_rect(fill = "white"),
       plot.background = element_rect(fill = "white")
     )
