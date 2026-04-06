@@ -27,6 +27,28 @@ class LLMCallError(RuntimeError):
     """Raised when an LLM call fails or returns invalid content."""
 
 
+def resolve_reasoning_effort(model: str) -> str:
+    """Return a valid default ``reasoning.effort`` for OpenAI Responses API.
+
+    Different model families accept different enumerations (e.g. gpt-5-mini
+    supports ``minimal`` but not ``none``; gpt-5.4-nano supports ``none`` but
+    not ``minimal``). Set ``OPENAI_REASONING_EFFORT`` to override.
+    """
+    override = (os.getenv("OPENAI_REASONING_EFFORT") or "").strip()
+    if override:
+        return override
+    m = (model or "").lower()
+    # gpt-5.4* and nano (non-mini): none / low / medium / high / xhigh
+    if "5.4" in m or ("nano" in m and "mini" not in m):
+        return "none"
+    # gpt-5-mini: minimal / low / medium / high
+    if "mini" in m:
+        return "minimal"
+    if m.startswith("gpt-5"):
+        return "low"
+    return "low"
+
+
 class OmniLLMClient:
     """Thin wrapper around OpenAI chat completions for JSON-first tool calls."""
 
@@ -76,7 +98,7 @@ class OmniLLMClient:
                         {"role": "user", "content": user_prompt},
                     ],
                     max_output_tokens=max_completion_tokens,
-                    reasoning={"effort": os.getenv("OPENAI_REASONING_EFFORT", "none") or "none"},
+                    reasoning={"effort": resolve_reasoning_effort(self.model)},
                 )
                 self._record_usage(response)
                 content = self._extract_content(response)

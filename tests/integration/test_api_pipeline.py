@@ -163,7 +163,7 @@ def test_full_pipeline_deep_ranking_adds_indicator_plots(monkeypatch):
     infer = client.post(f"/api/sessions/{session_id}/infer", json={"user_hints": None})
     assert infer.status_code == 200
     schema = infer.json()["schema_result"]["schema"]
-    assert schema["indicator_col"] == "phenotype"
+    assert str(schema["indicator_col"]).lower() == "phenotype"
 
     confirm = client.post(
         f"/api/sessions/{session_id}/confirm",

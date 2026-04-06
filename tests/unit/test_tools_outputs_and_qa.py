@@ -549,7 +549,7 @@ def test_answer_question_works_before_analysis_results_are_ready():
     )
 
     assert "Conclusion:" not in answer.answer
-    assert "Session status: uploaded." in answer.answer
+    assert "Session status: File uploaded." in answer.answer
 
 
 def test_answer_question_overview_uses_pipeline_positioning_and_idle_note(monkeypatch):

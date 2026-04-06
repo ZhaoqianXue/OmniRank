@@ -607,6 +607,32 @@ def _extract_two_items(question: str, available_items: Iterable[str]) -> tuple[s
     return None, None
 
 
+def _humanize_session_status(status: str) -> str:
+    """Map internal session status to user-facing text (avoid snake_case tokens in model output)."""
+    key = (status or "").strip().lower()
+    labels = {
+        "idle": "Idle (no dataset loaded)",
+        "uploaded": "File uploaded",
+        "inferred": "Schema inferred",
+        "awaiting_confirmation": "Waiting for your confirmation on the inferred settings",
+        "confirmed": "Settings confirmed",
+        "running": "Ranking analysis is running",
+        "completed": "Analysis completed",
+        "error": "A processing error occurred",
+    }
+    return labels.get(key, "In progress")
+
+
+def _session_context_for_llm(session_context: dict[str, Any] | None) -> dict[str, Any]:
+    """Session snapshot embedded in LLM JSON prompts: same fields, readable status label."""
+    if not session_context:
+        return {}
+    out = dict(session_context)
+    if "status" in out and out["status"] is not None:
+        out["status"] = _humanize_session_status(str(out["status"]))
+    return out
+
+
 def _session_evidence(session_context: dict[str, Any] | None) -> list[str]:
     if not session_context:
         return []
@@ -614,7 +640,7 @@ def _session_evidence(session_context: dict[str, Any] | None) -> list[str]:
     evidence: list[str] = []
     status = str(session_context.get("status") or "").strip()
     if status:
-        evidence.append(f"Session status: {status}.")
+        evidence.append(f"Session status: {_humanize_session_status(status)}.")
 
     schema = session_context.get("schema")
     if isinstance(schema, dict):
@@ -1118,7 +1144,7 @@ def answer_question(
             if results
             else None
         ),
-        "session_context": session_context or {},
+        "session_context": _session_context_for_llm(session_context),
         "quotes": quoted_blocks,
         "known_citation_block_ids": sorted(known_ids),
         "literature_context": literature_context,
