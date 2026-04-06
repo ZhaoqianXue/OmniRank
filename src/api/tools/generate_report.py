@@ -274,6 +274,13 @@ def _analyze_ranking(results: RankingResults) -> dict[str, Any]:
 # Table renderer
 # ---------------------------------------------------------------------------
 
+# Shown as italic caption below the main ranking table (same convention as figure caption_academic).
+_RANKING_TABLE_ESTIMATED_SCORE_NOTE = (
+    "The score estimated by the ranking algorithm. "
+    "Higher values indicate a better preference or performance."
+)
+
+
 def _render_ranking_table(results: RankingResults) -> str:
     """Render ranking table with confidence interval and score columns."""
     order = sorted(range(len(results.ranks)), key=lambda i: results.ranks[i])
@@ -675,7 +682,7 @@ def generate_report(
     table_md = _section(
         table_bid,
         "table",
-        ranking_table,
+        f"{ranking_table}\n\n*{_RANKING_TABLE_ESTIMATED_SCORE_NOTE}*",
     )
     # ── Figures (interleaved in the narrative) ───────────────────────────
     figure_mds: list[str] = []
