@@ -276,7 +276,7 @@ def _analyze_ranking(results: RankingResults) -> dict[str, Any]:
 
 # Shown as italic caption below the main ranking table (same convention as figure caption_academic).
 _RANKING_TABLE_ESTIMATED_SCORE_NOTE = (
-    "The score estimated by the ranking algorithm. "
+    "Estimated Score: the value estimated by the ranking algorithm. "
     "Higher values indicate a better preference or performance."
 )
 

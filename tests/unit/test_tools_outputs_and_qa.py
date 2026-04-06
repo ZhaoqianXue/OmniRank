@@ -296,7 +296,7 @@ def test_generate_report_contains_required_sections_and_citation_blocks(tmp_path
     assert report.markdown.find("| Rank | Item | Confidence Interval | Estimated Score |") < report.markdown.find("## Executive Summary")
     assert "| 1 | A | [1, 2] | 0.6000 |" in report.markdown
     assert (
-        "*The score estimated by the ranking algorithm. "
+        "*Estimated Score: the value estimated by the ranking algorithm. "
         "Higher values indicate a better preference or performance.*" in report.markdown
     )
     assert "- **Top rank with uncertainty**: **A** is the leader by estimated score," in report.markdown
