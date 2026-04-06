@@ -17,6 +17,17 @@ import pandas as pd
 from core.r_executor import RScriptExecutor
 from core.schemas import EngineConfig, PlotSpec, RankingMode, RankingResults, VisualizationOutput
 
+# Match plot_phenotype_rankings STRATIFIED_COMBINED_HEATMAP_YLABEL_FONTSIZE / COMBINED_PANEL_FIGURE_DPI
+_STRATIFIED_HEATMAP_YLABEL_PT = 18
+_COMBINED_PANEL_SAVE_DPI = 150
+
+
+def _combined_stack_title_font_points(panel_b_height_px: int) -> int:
+    """PIL title point size to align with heatmap y-axis label on exported panel B."""
+    base = round(_STRATIFIED_HEATMAP_YLABEL_PT * (_COMBINED_PANEL_SAVE_DPI / 72.0) * 1.55)
+    boost = int(0.008 * panel_b_height_px)
+    return max(54, min(92, base + boost))
+
 
 PREFERRED_PRS_METHOD_ORDER = [
     "C+T",
@@ -149,13 +160,38 @@ def _empty_plot_svg(message: str, width: int = 840, height: int = 220) -> str:
     return _render_svg(width=width, height=height, elements=elements)
 
 
+def _indicator_display_name(indicator_col: str) -> str:
+    """Human-readable label for an indicator column (e.g. track_type -> Track type)."""
+    if not indicator_col:
+        return "Indicator"
+    parts = [p for p in str(indicator_col).replace("-", "_").split("_") if p]
+    if not parts:
+        return "Indicator"
+    return " ".join(word[:1].upper() + word[1:].lower() for word in parts)
+
+
+def _indicator_display_plural(indicator_col: str) -> str:
+    """Title-style plural for figure text (e.g. Phenotype -> Phenotypes, Track type -> Track types)."""
+    name = _indicator_display_name(indicator_col)
+    parts = name.split()
+    if not parts:
+        return name + "s"
+    last_raw = parts[-1]
+    last = last_raw.lower()
+    if last.endswith("y") and len(last) > 1 and last[-2] not in "aeiou":
+        parts[-1] = last_raw[:-1] + "ies"
+    elif last.endswith(("s", "x", "z")) or last.endswith("ch") or last.endswith("sh"):
+        parts[-1] = last_raw + "es"
+    else:
+        parts[-1] = last_raw + "s"
+    return " ".join(p[:1].upper() + p[1:].lower() for p in parts)
+
+
 def _indicator_label(indicator_col: str) -> tuple[str, str]:
-    """Return (title_case, plural) for indicator column name."""
+    """Return (display name singular, display plural) for indicator column."""
     if not indicator_col:
         return "Indicator", "Indicators"
-    tc = indicator_col[0].upper() + indicator_col[1:].lower()
-    plural = tc + ("es" if tc.endswith("s") else "s")
-    return tc, plural
+    return _indicator_display_name(indicator_col), _indicator_display_plural(indicator_col)
 
 
 def _phenotype_plot_py_script(project_root: Path) -> Path:
@@ -391,6 +427,8 @@ def _indicator_rankings_heatmap_py(
         str(png_path),
         "--bigbetter",
         str(int(bigbetter)),
+        "--heatmap-ylabel",
+        _indicator_display_name(indicator_col),
     ]
     if pre_ranked:
         command.extend(["--pre-ranked", "1"])
@@ -438,7 +476,7 @@ def _indicator_rankings_combined_py(
     """Generate a single 2-panel figure for normalized ranks and heatmap."""
     from PIL import Image, ImageDraw, ImageFont
 
-    style_version = "v6-leftalign-b-and-tablefit"
+    style_version = "v7-tight-gap-title-ylabel-match"
 
     csv_source = Path(csv_path).resolve()
     if not csv_source.exists():
@@ -471,6 +509,10 @@ def _indicator_rankings_combined_py(
                     str(int(bigbetter)),
                 ]
                 + (["--pre-ranked", "1"] if pre_ranked else [])
+                + [
+                    "--heatmap-ylabel",
+                    _indicator_display_name(indicator_col),
+                ]
             ),
             cwd=str(project_root),
             capture_output=True,
@@ -509,30 +551,24 @@ def _indicator_rankings_combined_py(
     # Keep each panel at original pixel size; only add title rows and vertical stacking.
     panel_w_max = max(panel_a_w, panel_b_w)
     side_padding = 24
-    panel_gap = 24
+    panel_gap = 12
 
     font_candidates = [
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
         "/Library/Fonts/Arial Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     ]
+    title_pt = _combined_stack_title_font_points(panel_b_h)
     title_font = None
     for candidate in font_candidates:
         try:
-            title_font = ImageFont.truetype(candidate, size=39)
+            title_font = ImageFont.truetype(candidate, size=title_pt)
             break
         except OSError:
             continue
     if title_font is None:
         title_font = ImageFont.load_default()
     title_font_b = title_font
-    if hasattr(title_font, "size"):
-        for candidate in font_candidates:
-            try:
-                title_font_b = ImageFont.truetype(candidate, size=int(title_font.size) + 1)
-                break
-            except OSError:
-                continue
 
     measure_draw = ImageDraw.Draw(Image.new("RGB", (1, 1), "white"))
     title_bbox_a = measure_draw.textbbox((0, 0), panel_a_title, font=title_font)
@@ -839,8 +875,8 @@ def _deep_rank_color(rank_value: float, rank_min: float, rank_max: float) -> str
         return "#bfdbfe"
     ratio = (rank_value - rank_min) / (rank_max - rank_min)
     # Better ranks (smaller) are warm; worse ranks (larger) are blue.
-    # Match softened heatmap endpoints (#F29A3A .. #3A78D4) used in plot_phenotype_rankings.
-    return _interpolate_color((242, 154, 58), (58, 120, 212), ratio)
+    # Match heatmap endpoints (#F29A3A .. #2563EB) used in plot_phenotype_rankings.
+    return _interpolate_color((242, 154, 58), (37, 99, 235), ratio)
 
 
 def _is_multiway_phenotype_format(csv_path: str, indicator_col: str) -> bool:

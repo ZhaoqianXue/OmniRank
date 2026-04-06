@@ -435,10 +435,39 @@ def test_generate_report_adds_indicator_ranking_table_for_combined_plot(tmp_path
     )
 
     assert "## Stratified Ranking Plot by Phenotype" in report.markdown
-    assert "### Phenotype Ranking Table" in report.markdown
+    assert "### Stratified Ranking Table by Phenotype" in report.markdown
     assert "| Phenotype | A | B | C |" in report.markdown
     assert "| p1 | 1 | 2 | 3 |" in report.markdown
     assert "| p2 | 2 | 1 | 3 |" in report.markdown
+
+
+def test_stratified_ranking_table_breaks_ties_for_display_only(tmp_path: Path):
+    results = _sample_results()
+    (tmp_path / "combined.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    plot = PlotSpec(
+        type="indicator_rankings_combined",
+        data={
+            "indicator_col": "phenotype",
+            "item_order": ["C", "A", "B"],
+            "phenotype_order": ["p1"],
+            # Tied ranks 2: table assigns dense 2 and 3 using item name order A before B
+            "rank_rows": [[1.0, 2.0, 2.0]],
+        },
+        config={"source": "python", "bigbetter": 1},
+        svg_path=str(tmp_path / "combined.png"),
+        block_id="figure-indicator-rankings-combined-ties",
+        caption_plain="(A) ...; (B) ...",
+        caption_academic="Combined ranking view.",
+        hint_ids=["hint-ci"],
+    )
+
+    report = generate_report(
+        results=results,
+        session_meta={"B": 2000, "seed": 42, "current_file_path": "/tmp/input.csv"},
+        plots=[plot],
+    )
+
+    assert "| p1 | 1 | 2 | 3 |" in report.markdown
 
 
 def test_generate_visualizations_deep_mode_marks_na_on_known_r_failure(tmp_path: Path, monkeypatch):

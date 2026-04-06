@@ -24,6 +24,7 @@ from core.schemas import (
     RankingResults,
     ReportOutput,
 )
+from tools.generate_visualizations import _indicator_display_name
 
 
 # ---------------------------------------------------------------------------
@@ -293,6 +294,37 @@ def _render_ranking_table(results: RankingResults) -> str:
     return "\n".join(lines)
 
 
+def _stratified_table_row_dense_ranks(item_order: list[str], row: list[Any]) -> list[Any]:
+    """Dense 1..k ranks for one stratum row (markdown table only; figures unchanged).
+
+    Sorts by original rank (lower is better), then breaks ties by item name (case-insensitive)
+    so every ranked cell is a unique integer. Missing / non-finite / non-numeric cells stay None.
+    """
+    n = len(item_order)
+    padded = list(row[:n])
+    if len(padded) < n:
+        padded.extend([None] * (n - len(padded)))
+
+    scored: list[tuple[int, str, float]] = []
+    for j, item in enumerate(item_order):
+        v = padded[j]
+        if v is None:
+            continue
+        if isinstance(v, float) and not math.isfinite(v):
+            continue
+        if isinstance(v, (int, float)):
+            scored.append((j, item, float(v)))
+
+    if not scored:
+        return padded
+
+    scored.sort(key=lambda t: (t[2], t[1].lower()))
+    out: list[Any] = [None] * n
+    for new_r, (j, _item, _rv) in enumerate(scored, start=1):
+        out[j] = new_r
+    return out
+
+
 def _render_indicator_ranking_table(plot: PlotSpec) -> str | None:
     data = plot.data or {}
     item_order_raw = data.get("item_order")
@@ -310,7 +342,7 @@ def _render_indicator_ranking_table(plot: PlotSpec) -> str | None:
         return None
 
     indicator = str((data or {}).get("indicator_col") or "indicator")
-    indicator_title = indicator[0].upper() + indicator[1:].lower() if indicator else "Indicator"
+    indicator_display = _indicator_display_name(indicator)
 
     def _rank_cell(value: Any) -> str:
         if value is None:
@@ -323,7 +355,7 @@ def _render_indicator_ranking_table(plot: PlotSpec) -> str | None:
                 return str(rounded)
         return _escape_table_cell(value)
 
-    header = [indicator_title, *item_order]
+    header = [indicator_display, *item_order]
     lines = [
         "| " + " | ".join(_escape_table_cell(cell) for cell in header) + " |",
         "|" + "---|" * len(header),
@@ -332,10 +364,11 @@ def _render_indicator_ranking_table(plot: PlotSpec) -> str | None:
         padded = list(row[: len(item_order)])
         if len(padded) < len(item_order):
             padded.extend([None] * (len(item_order) - len(padded)))
+        padded = _stratified_table_row_dense_ranks(item_order, padded)
         cells = [_escape_table_cell(phenotype_value), *[_rank_cell(value) for value in padded]]
         lines.append("| " + " | ".join(cells) + " |")
 
-    table_title = f"{indicator_title} Ranking Table"
+    table_title = f"Stratified Ranking Table by {indicator_display}"
     return f"### {table_title}\n\n" + "\n".join(lines)
 
 
@@ -660,15 +693,15 @@ def generate_report(
             figure_title = "Overall Ranking Plot"
         elif plot.type == "indicator_rankings_combined":
             ind = (plot.data or {}).get("indicator_col") or "phenotype"
-            tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
+            tc = _indicator_display_name(str(ind))
             figure_title = f"Stratified Ranking Plot by {tc}"
         elif plot.type == "normalized_ranking_over_indicator":
             ind = (plot.data or {}).get("indicator_col") or "phenotype"
-            tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
+            tc = _indicator_display_name(str(ind))
             figure_title = f"Normalized Ranks by {tc}"
         elif plot.type == "indicator_rankings_heatmap":
             ind = (plot.data or {}).get("indicator_col") or "phenotype"
-            tc = ind[0].upper() + ind[1:].lower() if ind else "Indicator"
+            tc = _indicator_display_name(str(ind))
             figure_title = f"Rank Heatmap by {tc}"
         else:
             figure_title = cap_plain

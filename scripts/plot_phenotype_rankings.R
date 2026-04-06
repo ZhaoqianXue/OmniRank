@@ -223,7 +223,7 @@ legend_bar_height_cm <- 15
 p_heatmap <- ggplot2::ggplot(mat_long, ggplot2::aes(x = Method, y = Phenotype, fill = rank)) +
   ggplot2::geom_tile(color = "grey60", linewidth = 0.2) +
   ggplot2::scale_fill_gradientn(
-    colors = colorRampPalette(c("#F29A3A", "#3A78D4"))(n_rank_levels),
+    colors = colorRampPalette(c("#F29A3A", "#2563EB"))(n_rank_levels),
     values = scales::rescale(seq(1, n_rank_levels)),
     limits = c(1, n_rank_levels),
     breaks = rank_breaks,

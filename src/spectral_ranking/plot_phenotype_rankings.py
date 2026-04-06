@@ -53,9 +53,13 @@ _PREFERRED_PRS_METHOD_SET = set(PREFERRED_PRS_METHOD_ORDER)
 _CI_FOREST_RANK_POINT_COLOR = "#d26e66"
 _CI_FOREST_RANK_LABEL_COLOR = "#6e80a2"
 
-# Phenotype rank heatmap: slightly softened orange→blue (subtle vs. named "orange"/"blue")
+# Phenotype rank heatmap: warm orange → stronger blue (blue end tuned for cell legibility)
 _HEATMAP_RANK_ORANGE = "#F29A3A"
-_HEATMAP_RANK_BLUE = "#3A78D4"
+_HEATMAP_RANK_BLUE = "#2563EB"
+
+# Heatmap y-axis label in stratified combined export; keep in sync with compositing in generate_visualizations.
+STRATIFIED_COMBINED_HEATMAP_YLABEL_FONTSIZE = 18
+COMBINED_PANEL_FIGURE_DPI = 150
 
 
 def _mm_to_pt(mm: float) -> float:
@@ -72,6 +76,7 @@ def _parse_args(argv: list[str]) -> dict[str, str | None]:
     ci_out_path = None
     bigbetter = "0"
     pre_ranked = "0"
+    heatmap_ylabel = None
 
     i = 0
     while i < len(argv):
@@ -87,6 +92,9 @@ def _parse_args(argv: list[str]) -> dict[str, str | None]:
             i += 2
         elif arg == "--heatmap-out" and i + 1 < len(argv):
             heatmap_out_path = argv[i + 1]
+            i += 2
+        elif arg == "--heatmap-ylabel" and i + 1 < len(argv):
+            heatmap_ylabel = argv[i + 1]
             i += 2
         elif arg == "--ci-plot" and i + 1 < len(argv):
             ci_plot_path = argv[i + 1]
@@ -112,6 +120,7 @@ def _parse_args(argv: list[str]) -> dict[str, str | None]:
         "ci_out_path": ci_out_path,
         "bigbetter": bigbetter,
         "pre_ranked": pre_ranked,
+        "heatmap_ylabel": heatmap_ylabel,
     }
 
 
@@ -434,9 +443,11 @@ def _repel_violin_mean_labels(
     renderer = fig.canvas.get_renderer()
     ax_bbox = ax.get_window_extent(renderer=renderer)
     x_margin = 6.0
-    y_margin = 4.0
-    pair_pad_x = 8.0
-    pair_pad_y = 4.0
+    y_margin = 5.0
+    pair_pad_x = 10.0
+    pair_pad_y = 7.0
+    n = len(anns)
+    sep_boost = 2.0 + min(4.0, 0.12 * max(0, n - 10))
 
     # First pass: choose left/right side if a label would overflow the panel.
     for ann, anchor in zip(anns, anchors):
@@ -445,15 +456,15 @@ def _repel_violin_mean_labels(
         if bbox.x1 > ax_bbox.x1 - x_margin:
             ann.set_ha("right")
             # Small gap from the point, similar to ggrepel's point.padding.
-            x_data_new, y_data_new = ax.transData.inverted().transform((x_anchor_disp - 14.0, y_anchor_disp))
+            x_data_new, y_data_new = ax.transData.inverted().transform((x_anchor_disp - 16.0, y_anchor_disp))
             ann.set_position((x_data_new, y_data_new))
         elif bbox.x0 < ax_bbox.x0 + x_margin:
             ann.set_ha("left")
-            x_data_new, y_data_new = ax.transData.inverted().transform((x_anchor_disp + 14.0, y_anchor_disp))
+            x_data_new, y_data_new = ax.transData.inverted().transform((x_anchor_disp + 16.0, y_anchor_disp))
             ann.set_position((x_data_new, y_data_new))
 
     # Iteratively resolve collisions by vertical nudging (display-space).
-    for _ in range(80):
+    for _ in range(140):
         fig.canvas.draw()
         renderer = fig.canvas.get_renderer()
         moved = False
@@ -487,28 +498,49 @@ def _repel_violin_mean_labels(
                 x_overlap = min(b1.x1, b2.x1) - max(b1.x0, b2.x0)
                 y_overlap = min(b1.y1, b2.y1) - max(b1.y0, b2.y0)
                 if x_overlap > -pair_pad_x and y_overlap > -pair_pad_y:
-                    # Separate along y to preserve x nudge semantics.
-                    sep = (y_overlap + pair_pad_y) / 2.0 + 0.5
-                    c1 = (b1.y0 + b1.y1) / 2.0
-                    c2 = (b2.y0 + b2.y1) / 2.0
-                    if c1 <= c2:
-                        _shift_annotation_display(ax, anns[i], dy_px=-sep)
-                        _shift_annotation_display(ax, anns[j], dy_px=+sep)
+                    ax_i, _ = anchors[i]
+                    ax_j, _ = anchors[j]
+                    # Adjacent violin columns with overlapping boxes: push apart horizontally first.
+                    if abs(ax_i - ax_j) <= 1.25 and x_overlap > -pair_pad_x * 0.5:
+                        hx = 10.0 + sep_boost
+                        if ax_i <= ax_j:
+                            _shift_annotation_display(ax, anns[i], dx_px=-hx)
+                            _shift_annotation_display(ax, anns[j], dx_px=+hx)
+                        else:
+                            _shift_annotation_display(ax, anns[i], dx_px=+hx)
+                            _shift_annotation_display(ax, anns[j], dx_px=-hx)
+                        moved = True
                     else:
-                        _shift_annotation_display(ax, anns[i], dy_px=+sep)
-                        _shift_annotation_display(ax, anns[j], dy_px=-sep)
-                    moved = True
+                        sep = (max(0.0, y_overlap) + pair_pad_y) / 2.0 + sep_boost
+                        c1 = (b1.y0 + b1.y1) / 2.0
+                        c2 = (b2.y0 + b2.y1) / 2.0
+                        if c1 <= c2:
+                            _shift_annotation_display(ax, anns[i], dy_px=-sep)
+                            _shift_annotation_display(ax, anns[j], dy_px=+sep)
+                        else:
+                            _shift_annotation_display(ax, anns[i], dy_px=+sep)
+                            _shift_annotation_display(ax, anns[j], dy_px=-sep)
+                        moved = True
 
         if not moved:
             break
 
 
-def _plot_violin(table: pd.DataFrame, method_cols: list[str], out_path: str) -> None:
+def _plot_violin(
+    table: pd.DataFrame,
+    method_cols: list[str],
+    out_path: str,
+    *,
+    stratified_combined_panel: bool = False,
+) -> None:
     n_methods = len(method_cols)
     n_rank_levels = max(n_methods, 2)
     rank_breaks = list(range(1, n_rank_levels + 1))
 
-    fig, ax = plt.subplots(figsize=(22, 7), dpi=150)
+    # Taller canvas when there are many rank ticks (y-axis) to reduce crowding
+    fig_h = max(7.0, 4.5 + 0.32 * float(n_rank_levels))
+    fig_w = max(22.0, 10.0 + 0.48 * float(n_methods))
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=150)
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
 
@@ -516,6 +548,7 @@ def _plot_violin(table: pd.DataFrame, method_cols: list[str], out_path: str) -> 
     rng = np.random.default_rng(42)
     mean_label_anns: list[matplotlib.text.Annotation] = []
     mean_label_anchors: list[tuple[float, float]] = []
+    label_fs = _mm_to_pt(6.4) if n_methods > 16 else _mm_to_pt(7.0)
 
     # R: sample.size.label = "K = " -> each method shows (n = K)
     n_per_method = table.groupby("Method").size()
@@ -558,14 +591,17 @@ def _plot_violin(table: pd.DataFrame, method_cols: list[str], out_path: str) -> 
                 linewidths=0.6,
                 zorder=6,
             )
+            # Alternate label side by column to reduce pairwise overlap when means align.
+            side = 1 if idx % 2 == 1 else -1
+            dx = (0.38 + (0.06 if n_methods > 16 else 0.0)) * float(side)
             ann = ax.annotate(
                 rf"$\hat{{R}}_{{\mathrm{{mean}}}} = {mean_rank:.2f}$",
                 xy=(idx, mean_rank),
-                xytext=(idx + 0.35, mean_rank),
+                xytext=(float(idx) + dx, mean_rank),
                 textcoords="data",
-                fontsize=_mm_to_pt(7.0),
+                fontsize=label_fs,
                 color="black",
-                ha="left",
+                ha="left" if side > 0 else "right",
                 va="center",
                 zorder=7,
                 bbox=dict(boxstyle="round,pad=0.12", facecolor=(1, 1, 1, 0.75), edgecolor="0.45", linewidth=0.8),
@@ -576,17 +612,32 @@ def _plot_violin(table: pd.DataFrame, method_cols: list[str], out_path: str) -> 
             mean_label_anchors.append((float(idx), mean_rank))
 
     ax.set_axisbelow(True)
-    ax.set_xlim(0.5, n_methods + 0.6)
     # Match ggplot2 scale_y_reverse default expansion (~5% of range).
     ax.set_ylim(n_rank_levels + 0.65, 0.35)
     ax.set_xticks(np.arange(1, n_methods + 1))
     # R: sample.size.label = "K = " -> "Item (n = K)" on x-axis
     x_labels = [f"{m}\n(n = {int(n_per_method.get(m, 0))})" for m in method_cols]
-    ax.set_xticklabels(x_labels, rotation=0, ha="center", fontsize=17, color="black")
+    if stratified_combined_panel:
+        ax.set_xticklabels(
+            x_labels,
+            rotation=45,
+            ha="right",
+            rotation_mode="anchor",
+            fontsize=17,
+            color="black",
+        )
+        ax.set_ylabel("Rank", fontsize=23, color="black")
+        ax.set_xlabel("")
+        # Extra x-range so repelled mean labels at alternating sides stay in-frame.
+        ax.set_xlim(0.35, float(n_methods) + 0.75)
+    else:
+        ax.set_xticklabels(x_labels, rotation=0, ha="center", fontsize=17, color="black")
+        ax.set_ylabel("Rank", fontsize=23, fontweight="bold", color="black")
+        ax.set_xlabel("Item", fontsize=23, fontweight="bold", color="black")
+        ax.set_xlim(0.5, n_methods + 0.6)
+
     ax.set_yticks(rank_breaks)
     ax.set_yticklabels(rank_breaks, fontsize=17, color="black")
-    ax.set_ylabel("Rank", fontsize=23, fontweight="bold", color="black")
-    ax.set_xlabel("Item", fontsize=23, fontweight="bold", color="black")
 
     ax.grid(axis="both", which="major", color="#D9D9D9", linewidth=0.8)
     ax.yaxis.set_minor_locator(mticker.MultipleLocator(0.5))
@@ -594,16 +645,32 @@ def _plot_violin(table: pd.DataFrame, method_cols: list[str], out_path: str) -> 
     ax.tick_params(axis="y", which="minor", length=0)
     _style_axes_bw(ax)
     _repel_violin_mean_labels(fig, ax, mean_label_anns, mean_label_anchors)
-    # Approximate ggplot margin(12,16,12,12)
-    fig.subplots_adjust(left=0.045, right=0.995, top=0.965, bottom=0.22)
+    # Approximate ggplot margin(12,16,12,12); extra bottom room for 45° x labels on combined panel
+    bottom_margin = 0.32 if stratified_combined_panel else 0.22
+    fig.subplots_adjust(left=0.045, right=0.995, top=0.965, bottom=bottom_margin)
     _save_fig(fig, out_path, dpi=150, tight=False)
 
 
-def _plot_heatmap(rank_matrix: pd.DataFrame, method_cols: list[str], out_path: str) -> None:
+def _plot_heatmap(
+    rank_matrix: pd.DataFrame,
+    method_cols: list[str],
+    out_path: str,
+    *,
+    stratified_combined_panel: bool = False,
+    heatmap_row_axis_label: str | None = None,
+) -> None:
     n_rank_levels = max(len(method_cols), 2)
     rank_breaks = list(range(1, n_rank_levels + 1))
 
-    fig, ax = plt.subplots(figsize=(12, 14), dpi=150)
+    n_rows = len(rank_matrix.index)
+    n_cols = len(method_cols)
+    fig_h = max(5.2, min(32.0, 1.9 + 0.50 * float(n_rows)))
+    fig_w = max(9.5, min(19.0, 6.2 + 0.23 * float(n_cols)))
+    if not stratified_combined_panel:
+        fig_w = max(fig_w, 12.0)
+        fig_h = max(fig_h, 8.5)
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=150)
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
 
@@ -625,14 +692,19 @@ def _plot_heatmap(rank_matrix: pd.DataFrame, method_cols: list[str], out_path: s
 
     ax.set_xticks(np.arange(len(x_labels)))
     ax.set_yticks(np.arange(len(y_labels)))
+    ytick_fs = 12 if n_rows > 36 else 14
     ax.set_xticklabels(x_labels, fontsize=14, color="black")
-    ax.set_yticklabels(y_labels, fontsize=14, color="black")
+    ax.set_yticklabels(y_labels, fontsize=ytick_fs, color="black")
     # R: axis.text.x angle=315, hjust=0, vjust=1
     plt.setp(ax.get_xticklabels(), rotation=315, ha="left", va="top", rotation_mode="anchor")
 
-    # R: axis.title size=18, face=bold
-    ax.set_xlabel("Item", fontsize=18, fontweight="bold", color="black")
-    ax.set_ylabel("Phenotype", fontsize=18, fontweight="bold", color="black")
+    row_axis_title = heatmap_row_axis_label if heatmap_row_axis_label else "Phenotype"
+    if stratified_combined_panel:
+        ax.set_xlabel("")
+        ax.set_ylabel(row_axis_title, fontsize=STRATIFIED_COMBINED_HEATMAP_YLABEL_FONTSIZE, color="black")
+    else:
+        ax.set_xlabel("Item", fontsize=18, fontweight="bold", color="black")
+        ax.set_ylabel(row_axis_title, fontsize=STRATIFIED_COMBINED_HEATMAP_YLABEL_FONTSIZE, fontweight="bold", color="black")
 
     # R: geom_tile color="grey60", linewidth=0.2
     ax.set_xticks(np.arange(-0.5, len(x_labels), 1), minor=True)
@@ -650,7 +722,10 @@ def _plot_heatmap(rank_matrix: pd.DataFrame, method_cols: list[str], out_path: s
     cbar.outline.set_linewidth(0.8)
     cbar.outline.set_edgecolor("black")
 
-    fig.subplots_adjust(left=0.20, right=0.90, top=0.98, bottom=0.19)
+    max_y_lab = max((len(lab) for lab in y_labels), default=10)
+    left_margin = 0.16 + min(0.18, 0.0055 * max(0, max_y_lab - 10) + 0.012 * max(0, n_rows - 10))
+    left_margin = min(0.36, left_margin)
+    fig.subplots_adjust(left=left_margin, right=0.90, top=0.98, bottom=0.19)
     _save_fig(fig, out_path, dpi=150)
 
 
@@ -731,6 +806,8 @@ def main(argv: list[str] | None = None) -> int:
     ci_out_path = opts["ci_out_path"]
     bigbetter = _parse_bigbetter(opts["bigbetter"])
     pre_ranked = _parse_pre_ranked(opts["pre_ranked"])
+    heatmap_ylabel_raw = opts.get("heatmap_ylabel")
+    heatmap_row_axis_label = str(heatmap_ylabel_raw) if heatmap_ylabel_raw else None
 
     # CI forest plot (all modes) - run and exit if requested.
     if ci_plot_path is not None and ci_out_path is not None:
@@ -747,18 +824,37 @@ def main(argv: list[str] | None = None) -> int:
     if run_heatmaps:
         violin_out_path = str(out_dir / "violin_ranking_over_phenotypes.png")
 
+    stratified_combined = violin_out_path is not None and heatmap_out_path is not None
+
     if violin_out_path is not None:
         if run_heatmaps:
             _plot_violin(table, method_cols, str(out_dir / "violin_ranking_over_phenotypes.pdf"))
-        _plot_violin(table, method_cols, str(violin_out_path))
+        _plot_violin(
+            table,
+            method_cols,
+            str(violin_out_path),
+            stratified_combined_panel=stratified_combined,
+        )
         print(f"Saved violin plot to {violin_out_path}")
 
     run_heatmap = run_heatmaps or heatmap_out_path is not None
     if run_heatmap:
         heatmap_png = str(heatmap_out_path) if heatmap_out_path is not None else str(out_dir / "heatmap_phenotype_rankings.png")
         if run_heatmaps:
-            _plot_heatmap(rank_matrix, method_cols, str(out_dir / "heatmap_phenotype_rankings.pdf"))
-        _plot_heatmap(rank_matrix, method_cols, heatmap_png)
+            _plot_heatmap(
+                rank_matrix,
+                method_cols,
+                str(out_dir / "heatmap_phenotype_rankings.pdf"),
+                stratified_combined_panel=False,
+                heatmap_row_axis_label=heatmap_row_axis_label,
+            )
+        _plot_heatmap(
+            rank_matrix,
+            method_cols,
+            heatmap_png,
+            stratified_combined_panel=stratified_combined,
+            heatmap_row_axis_label=heatmap_row_axis_label,
+        )
         print(f"Saved heatmap to {heatmap_png}")
 
     if run_heatmaps:
