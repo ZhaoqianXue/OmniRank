@@ -288,9 +288,9 @@ export function RankingPreviewBubble({
               </div>
             </Section>
 
-            {/* Detected Stratification (only if indicator exists) */}
+            {/* Detected Category (only if indicator exists) */}
             {hasIndicator && (
-              <Section title="Detected Stratification">
+              <Section title="Detected Category">
                 <DisplayRow label="Column">{indicatorCol || "Disabled"}</DisplayRow>
                 <DisplayRow label="Selected">
                   {indicatorCol ? selectedIndicatorValues.length : 0} / {schema.indicator_values.length}
