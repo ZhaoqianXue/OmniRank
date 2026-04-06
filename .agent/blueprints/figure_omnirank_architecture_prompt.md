@@ -1,6 +1,6 @@
 # Figure Prompt: OmniRank System Architecture
 
-Use this prompt to generate a detailed scientific system architecture diagram for OmniRank. The diagram should meet Nature/JASA publication aesthetic standards; show exactly ONE LLM agent (gpt-5-mini) and all 10 tools; use strictly 2D flat style (no 3D effects, no shadows); and use a polished, professional style with labeled arrows and refined color palette.
+Use this prompt to generate a detailed scientific system architecture diagram for OmniRank. The diagram should meet Nature/JASA publication aesthetic standards; show exactly ONE LLM agent (gpt-5.4-nano) and all 10 tools; use strictly 2D flat style (no 3D effects, no shadows); and use a polished, professional style with labeled arrows and refined color palette.
 
 ---
 
@@ -15,9 +15,9 @@ Create a detailed scientific system architecture diagram illustrating the OmniRa
 - Each phase should be visually distinct (e.g., rounded rectangles or bordered regions) with clear phase labels.
 
 **LLM Agent role**
-- **Critical: Only ONE agent instance**—OmniRank uses a single LLM agent operating within one context window. Depict the agent exactly once (e.g., as a central spine, or one node that receives input and orchestrates all phases). Do NOT duplicate the agent icon across phases; do NOT show multiple "gpt-5-mini" or brain icons. The same agent orchestrates Phase 1, Phase 2, and Phase 3 sequentially.
+- **Critical: Only ONE agent instance**—OmniRank uses a single LLM agent operating within one context window. Depict the agent exactly once (e.g., as a central spine, or one node that receives input and orchestrates all phases). Do NOT duplicate the agent icon across phases; do NOT show multiple "gpt-5.4-nano" or brain icons. The same agent orchestrates Phase 1, Phase 2, and Phase 3 sequentially.
 - Depict this single agent as a central orchestrator that receives user requests (natural language + data upload), interprets intent, and selects tools based on the current pipeline phase.
-- **Mandatory: Display the model name prominently**—label the agent as "LLM Agent (gpt-5-mini)" or place a visible badge/tag (e.g., "gpt-5-mini") on or beside the agent node so the backbone model is immediately identifiable.
+- **Mandatory: Display the model name prominently**—label the agent as "LLM Agent (gpt-5.4-nano)" or place a visible badge/tag (e.g., "gpt-5.4-nano") on or beside the agent node so the backbone model is immediately identifiable.
 - Show the agent as a "cognitive controller" that handles semantic understanding (data interpretation, schema inference, natural-language synthesis) but delegates all mathematical computation to external tools.
 - Use a distinct icon or shape (e.g., brain/controller icon) to distinguish the agent from deterministic tools—but only one such icon in the entire diagram.
 
@@ -45,14 +45,14 @@ Create a detailed scientific system architecture diagram illustrating the OmniRa
 - Split the diagram into "Without OmniRank" (generic LLM attempting ranking directly—red tones, "hallucination" or "ad hoc heuristics" labels) and "With OmniRank" (tool-calling pipeline—blue/green tones, "deterministic spectral inference" label) to highlight the architectural benefit.
 
 **Labels and annotations**
-- Use clear text labels for key components (e.g., "LLM Agent (gpt-5-mini)", "Spectral Engine", "Human-in-the-Loop", "Data Tools", "Analysis Tools").
+- Use clear text labels for key components (e.g., "LLM Agent (gpt-5.4-nano)", "Spectral Engine", "Human-in-the-Loop", "Data Tools", "Analysis Tools").
 - Arrows indicating data flow (solid) vs. control flow (dashed); label critical arrows (e.g., "delegates computation", "validated data", "ranking results").
 - Include a legend explaining symbols (e.g., solid arrow = data flow, dashed = control, tool badge = tool component).
 
 **Overall aesthetic — Nature/JASA publication quality**
 - **Strictly 2D, flat style**: No 3D effects. No shadows, no drop shadows, no gradients that create depth or embossed/raised appearance. Use flat colors, flat fills, and simple borders. Create hierarchy through flat color blocks, line weight, and layout—not through shadows or 3D effects.
 - **Refined color palette**: Sophisticated blues and grays with accent tones (e.g., slate, navy, soft teal); avoid harsh primaries. Use flat, solid fills for regions; avoid gradient backgrounds that suggest depth.
-- **Typography**: Clean, professional sans-serif for labels; ensure model name "gpt-5-mini" and tool names are legible and prominent.
+- **Typography**: Clean, professional sans-serif for labels; ensure model name "gpt-5.4-nano" and tool names are legible and prominent.
 - **Phase separation**: Give each phase a distinct visual treatment using flat borders, flat background tints, or flat dividers—no shadows or gradients.
 - High-resolution, vector-style graphics suitable for print; no text-heavy clutter; keep it visually intuitive while meeting top-journal aesthetic standards.
 

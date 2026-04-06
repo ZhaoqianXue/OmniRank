@@ -56,7 +56,7 @@ This section describes the methodological framework of OmniRank. Section 3.1 int
 
 OmniRank employs a single-agent tool-calling architecture in which the LLM handles semantic understanding---data interpretation, schema inference, natural-language synthesis---while all mathematical computation is delegated to deterministic external tools. This separation addresses a fundamental limitation of current LLMs: their unreliable performance on arithmetic and algorithmic tasks when executed purely in-model [32]. The same design principle underlies recent scientific agent systems that use LLMs as cognitive controllers while offloading precise computation to verified components [33, 34].
 
-The system centers on a single LLM agent (gpt-5-mini) operating within one context window, equipped with a fixed registry of ten specialized tools organized into four categories:
+The system centers on a single LLM agent (gpt-5.4-nano) operating within one context window, equipped with a fixed registry of ten specialized tools organized into four categories:
 
 - **Data Tools** (5): `read_data_file`, `infer_semantic_schema`, `validate_data_format`, `validate_data_quality`, and `preprocess_data`---used for data ingestion, schema inference, and validation against spectral ranking requirements.
 - **User Interaction Tool** (1): `request_user_confirmation`---an explicit human-in-the-loop checkpoint for parameter verification.
@@ -252,7 +252,7 @@ We evaluate OmniRank through two complementary studies: a tool capability assess
 
 ### 4.1 Tool Capability Evaluation
 
-Of OmniRank's ten tools, five are deterministic---the spectral engine, visualization and report generators, user confirmation handler, and question-answering module---whose correctness is verified through unit tests. The remaining five data tools rely on LLM reasoning to detect formats, infer schemas, validate structures, and preprocess inputs. Because these tools mediate between raw uploads and the spectral engine, their accuracy is a prerequisite for no-code operation. We evaluate them below; all experiments use gpt-5-mini (temperature = 0) for reproducibility.
+Of OmniRank's ten tools, five are deterministic---the spectral engine, visualization and report generators, user confirmation handler, and question-answering module---whose correctness is verified through unit tests. The remaining five data tools rely on LLM reasoning to detect formats, infer schemas, validate structures, and preprocess inputs. Because these tools mediate between raw uploads and the spectral engine, their accuracy is a prerequisite for no-code operation. We evaluate them below; all experiments use gpt-5.4-nano (temperature = 0) for reproducibility.
 
 #### 4.1.1 Format Recognition and Schema Extraction Evaluation
 
@@ -308,7 +308,7 @@ We report three metrics per tool: recall (proportion of true defects detected), 
 
 **Baselines.** We compared OmniRank against four baselines, each representing a distinct paradigm for LLM-based ranking:
 
-- *GPT-5-mini (direct)*: The same backbone model used by OmniRank, prompted to perform ranking inference directly without tool access. This baseline isolates the contribution of tool calling.
+- *GPT-5.4-nano (direct)*: The same backbone model used by OmniRank, prompted to perform ranking inference directly without tool access. This baseline isolates the contribution of tool calling.
 - *GPT-5 (direct)*: A more capable model prompted identically, testing whether model scale alone compensates for the absence of specialized tools.
 - *DS-Agent* [54]: An automated data science agent that augments LLM code generation with case-based reasoning, retrieving relevant expert solutions from a curated knowledge base to guide its analytical workflow (Guo et al., ICML 2024). This baseline tests whether domain-general expert knowledge from machine learning competitions can compensate for the absence of spectral ranking tools.
 - *SciToolAgent* [33]: A knowledge-graph-driven scientific agent that orchestrates hundreds of specialized computational tools across scientific domains via graph-based retrieval-augmented generation (Ding et al., Nature Computational Science 2025). As a multi-tool scientific agent, this baseline tests whether a general tool-calling architecture---the paradigm closest to OmniRank---can handle ranking inference when its tool registry lacks spectral ranking capabilities.
@@ -323,7 +323,7 @@ For each baseline, we supplied the same dataset and natural language instruction
 
 | Method | Kendall's $\tau$ | Task completion | Statistical rigor | Method. validity |
 | :--- | :---: | :---: | :---: | :---: |
-| GPT-5-mini (direct) | [0.42 +/- 0.18] | [8/12] | [0/12] | [0/12] |
+| GPT-5.4-nano (direct) | [0.42 +/- 0.18] | [8/12] | [0/12] | [0/12] |
 | GPT-5 (direct) | [0.61 +/- 0.14] | [10/12] | [1/12] | [2/12] |
 | DS-Agent | [0.57 +/- 0.14] | [10/12] | [2/12] | [2/12] |
 | SciToolAgent | [0.52 +/- 0.16] | [9/12] | [1/12] | [1/12] |

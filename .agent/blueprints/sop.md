@@ -55,7 +55,7 @@ Following LAMBDA's successful positioning in JASA-ACS, OmniRank explicitly posit
 
 ### Single Agent + Tool Calling
 
-OmniRank employs a Single Agent architecture with Tool Calling (powered by **gpt-5-mini**). The agent operates within a single context window and invokes specialized tools for data processing, spectral computation, and analysis.
+OmniRank employs a Single Agent architecture with Tool Calling (powered by **gpt-5.4-nano**). The agent operates within a single context window and invokes specialized tools for data processing, spectral computation, and analysis.
 
 ### High-Level Architecture
 
@@ -63,7 +63,7 @@ OmniRank employs a Single Agent architecture with Tool Calling (powered by **gpt
                           OmniRank Single Agent
     ┌─────────────────────────────────────────────────────────────────┐
     │                                                                  │
-    │                    OmniRank Agent (gpt-5-mini)                  │
+    │                    OmniRank Agent (gpt-5.4-nano)                  │
     │                    ───────────────────────────                  │
     │                    Single context window                         │
     │                    Tool Calling enabled                          │
@@ -1250,7 +1250,7 @@ Each test dataset must include human-annotated labels:
 
 | Agent | Description | Why Included |
 |-------|-------------|--------------|
-| **gpt-5-mini (raw)** | Same base model as OmniRank, no specialized tools | Ablation: isolate tool contribution |
+| **gpt-5.4-nano (raw)** | Same base model as OmniRank, no specialized tools | Ablation: isolate tool contribution |
 | **gpt-5 (raw)** | More capable model, no specialized tools | Test if specialized tools on weaker model outperform stronger model without tools |
 | **[TBD] Other Ranking Systems** | Existing ranking-related agents or systems | Domain comparison (to be determined through literature review) |
 

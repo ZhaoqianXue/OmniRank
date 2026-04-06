@@ -46,7 +46,7 @@ def _default_model_prices() -> dict[str, dict[str, float]]:
     """Fallback prices (USD per 1M tokens). Can be overridden by env JSON."""
     return {
         "gpt-5": {"input_per_1m": 1.25, "output_per_1m": 10.0},
-        "gpt-5-mini": {"input_per_1m": 0.25, "output_per_1m": 2.0},
+        "gpt-5.4-nano": {"input_per_1m": 0.05, "output_per_1m": 0.4},
         "gpt-5-nano": {"input_per_1m": 0.05, "output_per_1m": 0.4},
     }
 

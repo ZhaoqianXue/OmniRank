@@ -999,9 +999,9 @@ OmniRank Workflow:
 
 | Component | Recommended Model | Minimum Capability |
 |-----------|------------------|-------------------|
-| Data Agent | GPT-5-mini | Schema inference, semantic analysis |
+| Data Agent | GPT-5.4-nano | Schema inference, semantic analysis |
 | Engine Orchestrator | N/A | Deterministic execution (no LLM required) |
-| Analyst Agent | GPT-5-mini | Report generation, Q&A, error diagnosis |
+| Analyst Agent | GPT-5.4-nano | Report generation, Q&A, error diagnosis |
 
 #### 8.2 Computational Requirements
 

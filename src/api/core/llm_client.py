@@ -38,7 +38,7 @@ class OmniLLMClient:
         max_retries: int = 2,
     ):
         configured_model = model or os.getenv("OPENAI_MODEL")
-        self.model = configured_model or "gpt-5-mini"
+        self.model = configured_model or "gpt-5.4-nano"
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
@@ -76,7 +76,7 @@ class OmniLLMClient:
                         {"role": "user", "content": user_prompt},
                     ],
                     max_output_tokens=max_completion_tokens,
-                    reasoning={"effort": "minimal"},
+                    reasoning={"effort": os.getenv("OPENAI_REASONING_EFFORT", "none") or "none"},
                 )
                 self._record_usage(response)
                 content = self._extract_content(response)

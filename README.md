@@ -24,7 +24,7 @@ The production pipeline is fixed:
 
 ## Default Model
 
-- `OPENAI_MODEL=gpt-5-mini`
+- `OPENAI_MODEL=gpt-5.4-nano`
 - No silent fallback model is used.
 
 ## HTTP API
@@ -111,7 +111,7 @@ Required env vars on Render:
 
 - Backend:
   - `OPENAI_API_KEY` (secret)
-  - `OPENAI_MODEL` (default in blueprint: `gpt-5-mini`)
+  - `OPENAI_MODEL` (default in blueprint: `gpt-5.4-nano`)
   - `CORS_ORIGINS` (comma-separated frontend origins)
   - `OMNIRANK_EXAMPLE_DATA_DIR` (default in blueprint: `/opt/render/project/bundled_examples`)
 - Frontend:

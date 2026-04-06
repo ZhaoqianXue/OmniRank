@@ -63,11 +63,11 @@ shared/
 
 ### Default LLM Configuration
 
-All LLM-powered agents in this project MUST use `gpt-5-mini` as the default model unless explicitly overridden by user configuration.
+All LLM-powered agents in this project MUST use `gpt-5.4-nano` as the default model unless explicitly overridden by user configuration.
 
 | Setting | Value |
 | :--- | :--- |
-| Default Model | `gpt-5-mini` |
+| Default Model | `gpt-5.4-nano` |
 | Environment Variable | `OPENAI_MODEL` |
 | Fallback | None (fail if model unavailable) |
 

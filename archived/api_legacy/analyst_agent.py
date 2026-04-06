@@ -142,8 +142,8 @@ Provide actionable guidance:
         api_key = os.getenv("OPENAI_API_KEY")
         if api_key:
             self.client = OpenAI(api_key=api_key)
-            # Use gpt-5-mini as per project rules (rules.md)
-            self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+            # Use gpt-5.4-nano as per project rules (rules.md)
+            self.model = os.getenv("OPENAI_MODEL", "gpt-5.4-nano")
             self.enabled = True
         else:
             logger.warning("OPENAI_API_KEY not set, Analyst Agent disabled")
