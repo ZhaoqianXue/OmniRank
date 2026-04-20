@@ -21,6 +21,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import matplotlib.transforms as mtransforms
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.font_manager import FontProperties
 from matplotlib.patches import Rectangle
@@ -394,16 +395,27 @@ def _plot_ci_forest(
     _save_fig(fig, out_path, dpi=150, tight=True)
 
 
-def _draw_half_violin(ax: plt.Axes, values: np.ndarray, pos: float, color: Any) -> None:
+def _draw_half_violin(
+    ax: plt.Axes,
+    values: np.ndarray,
+    pos: float,
+    color: Any,
+    *,
+    horizontal: bool = False,
+) -> None:
     if values.size == 0:
         return
     if values.size < 2 or np.allclose(values, values[0]):
-        ax.plot([pos, pos + 0.33], [values[0], values[0]], color=color, alpha=0.25, linewidth=3, zorder=1)
+        if horizontal:
+            ax.plot([values[0], values[0]], [pos, pos + 0.33], color=color, alpha=0.25, linewidth=3, zorder=1)
+        else:
+            ax.plot([pos, pos + 0.33], [values[0], values[0]], color=color, alpha=0.25, linewidth=3, zorder=1)
         return
     parts = ax.violinplot(
         [values],
         positions=[pos + 0.15],
         widths=0.70,
+        vert=not horizontal,
         points=256,
         bw_method=lambda kde: float(kde.scotts_factor()) * 2.0,
         showmeans=False,
@@ -415,8 +427,13 @@ def _draw_half_violin(ax: plt.Axes, values: np.ndarray, pos: float, color: Any) 
     body.set_edgecolor(matplotlib.colors.to_rgba("black", alpha=0.6))
     body.set_linewidth(1.2)
     body.set_zorder(1)
-    # Clip to the right half to mimic gghalves::geom_half_violin(side = "r").
-    clip = Rectangle((pos + 0.15, -1e6), 1e6, 2e6, transform=ax.transData)
+    if horizontal:
+        # Clip so the body sits below the item row (data-y >= pos+0.15); with y-axis
+        # inverted, that places the density curve in the gap toward the next item down.
+        clip = Rectangle((-1e6, pos + 0.15), 2e6, 1e6, transform=ax.transData)
+    else:
+        # Clip to the right half to mimic gghalves::geom_half_violin(side = "r").
+        clip = Rectangle((pos + 0.15, -1e6), 1e6, 2e6, transform=ax.transData)
     body.set_clip_path(clip)
 
 
@@ -537,9 +554,28 @@ def _plot_violin(
     n_rank_levels = max(n_methods, 2)
     rank_breaks = list(range(1, n_rank_levels + 1))
 
-    # Taller canvas when there are many rank ticks (y-axis) to reduce crowding
-    fig_h = max(7.0, 4.5 + 0.32 * float(n_rank_levels))
-    fig_w = max(22.0, 10.0 + 0.48 * float(n_methods))
+    # With many items, rotate the layout so item names read horizontally on the y-axis.
+    horizontal = n_methods > 20
+
+    # In horizontal mode, shrink the rank axis to the actual data max so F1-like cases
+    # (27 items but ranks only 1-20 per race) don't waste half the plot width.
+    data_max_rank = n_rank_levels
+    if horizontal:
+        try:
+            dm = float(pd.to_numeric(table.get("Ranking"), errors="coerce").max())
+            if np.isfinite(dm):
+                data_max_rank = max(2, int(np.ceil(dm)))
+        except Exception:
+            data_max_rank = n_rank_levels
+    x_axis_hi = data_max_rank if horizontal else n_rank_levels
+    x_rank_breaks = list(range(1, x_axis_hi + 1))
+
+    if horizontal:
+        fig_h = max(6.5, 2.5 + 0.42 * float(n_methods))
+        fig_w = max(14.0, 7.0 + 0.38 * float(x_axis_hi))
+    else:
+        fig_h = max(7.0, 4.5 + 0.32 * float(n_rank_levels))
+        fig_w = max(22.0, 10.0 + 0.48 * float(n_methods))
     fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=150)
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
@@ -548,22 +584,28 @@ def _plot_violin(
     rng = np.random.default_rng(42)
     mean_label_anns: list[matplotlib.text.Annotation] = []
     mean_label_anchors: list[tuple[float, float]] = []
-    label_fs = _mm_to_pt(6.4) if n_methods > 16 else _mm_to_pt(7.0)
+    # In horizontal mode, labels are placed in a dedicated right-side column (one per
+    # row), so a smaller point size keeps them inside a single data row (~0.5" tall).
+    if horizontal:
+        label_fs = _mm_to_pt(4.6)
+    else:
+        label_fs = _mm_to_pt(6.4) if n_methods > 16 else _mm_to_pt(7.0)
+    horizontal_mean_rows: list[tuple[int, float]] = []
 
     # R: sample.size.label = "K = " -> each method shows (n = K)
     n_per_method = table.groupby("Method").size()
     for idx, method in enumerate(method_cols, start=1):
         vals = table.loc[table["Method"] == method, "Ranking"].dropna().to_numpy(dtype=float)
         color = colors[idx - 1]
-        _draw_half_violin(ax, vals, float(idx), color)
+        _draw_half_violin(ax, vals, float(idx), color, horizontal=horizontal)
 
         if vals.size:
-            # ggbetweenstats default boxplot layer (kept centered; half violin is nudged right).
+            # ggbetweenstats default boxplot layer (kept centered; half violin is nudged right/down).
             bp = ax.boxplot(
                 [vals],
                 positions=[idx],
                 widths=0.28,
-                vert=True,
+                vert=not horizontal,
                 patch_artist=True,
                 showfliers=False,
                 manage_ticks=False,
@@ -578,76 +620,146 @@ def _plot_violin(
                         artist.set_zorder(3)
 
             # R: point.args jitter.width=0.1, dodge.width=0.6
-            jitter_x = idx + rng.uniform(-0.1, 0.1, size=vals.size)
-            ax.scatter(jitter_x, vals, s=28, color=[color], alpha=0.8, linewidths=0, zorder=4)
+            jitter = rng.uniform(-0.1, 0.1, size=vals.size)
+            if horizontal:
+                # Integer ranks (e.g., 17 F1 rank-1 finishes for Max) stack at the
+                # same x; add rank-axis jitter so repeated values fan out instead
+                # of piling into a single streak. y-jitter kept <= box half-height
+                # (0.14) so dots don't bleed into adjacent rows or the violin body
+                # that begins at y=idx+0.15.
+                x_jit = rng.uniform(-0.18, 0.18, size=vals.size)
+                y_jit = rng.uniform(-0.14, 0.14, size=vals.size)
+                ax.scatter(vals + x_jit, idx + y_jit, s=18, color=[color], alpha=0.7, linewidths=0, zorder=4)
+            else:
+                ax.scatter(idx + jitter, vals, s=28, color=[color], alpha=0.8, linewidths=0, zorder=4)
             mean_rank = float(np.nanmean(vals))
-            # Mean point + boxed repelled label (ggbetweenstats centrality label).
-            ax.scatter(
-                [idx],
-                [mean_rank],
-                s=72,
-                facecolors="#B00000",
-                edgecolors="#7A0000",
-                linewidths=0.6,
-                zorder=6,
-            )
-            # Alternate label side by column to reduce pairwise overlap when means align.
-            side = 1 if idx % 2 == 1 else -1
-            dx = (0.38 + (0.06 if n_methods > 16 else 0.0)) * float(side)
-            ann = ax.annotate(
-                rf"$\hat{{R}}_{{\mathrm{{mean}}}} = {mean_rank:.2f}$",
-                xy=(idx, mean_rank),
-                xytext=(float(idx) + dx, mean_rank),
-                textcoords="data",
-                fontsize=label_fs,
-                color="black",
-                ha="left" if side > 0 else "right",
-                va="center",
-                zorder=7,
-                bbox=dict(boxstyle="round,pad=0.12", facecolor=(1, 1, 1, 0.75), edgecolor="0.45", linewidth=0.8),
-                arrowprops=dict(arrowstyle="-", color="0.35", linewidth=0.8, shrinkA=0, shrinkB=0),
-                annotation_clip=False,
-            )
-            mean_label_anns.append(ann)
-            mean_label_anchors.append((float(idx), mean_rank))
+            # Mean point (red dot) kept on the data axis.
+            if horizontal:
+                ax.scatter(
+                    [mean_rank],
+                    [idx],
+                    s=52,
+                    facecolors="#B00000",
+                    edgecolors="#7A0000",
+                    linewidths=0.6,
+                    zorder=6,
+                )
+                horizontal_mean_rows.append((idx, mean_rank))
+            else:
+                ax.scatter(
+                    [idx],
+                    [mean_rank],
+                    s=72,
+                    facecolors="#B00000",
+                    edgecolors="#7A0000",
+                    linewidths=0.6,
+                    zorder=6,
+                )
+                # Alternate label side by column to reduce pairwise overlap when means align.
+                side = 1 if idx % 2 == 1 else -1
+                dx = (0.38 + (0.06 if n_methods > 16 else 0.0)) * float(side)
+                ann = ax.annotate(
+                    rf"$\hat{{R}}_{{\mathrm{{mean}}}} = {mean_rank:.2f}$",
+                    xy=(idx, mean_rank),
+                    xytext=(float(idx) + dx, mean_rank),
+                    textcoords="data",
+                    fontsize=label_fs,
+                    color="black",
+                    ha="left" if side > 0 else "right",
+                    va="center",
+                    zorder=7,
+                    bbox=dict(boxstyle="round,pad=0.12", facecolor=(1, 1, 1, 0.75), edgecolor="0.45", linewidth=0.8),
+                    arrowprops=dict(arrowstyle="-", color="0.35", linewidth=0.8, shrinkA=0, shrinkB=0),
+                    annotation_clip=False,
+                )
+                mean_label_anchors.append((float(idx), mean_rank))
+                mean_label_anns.append(ann)
 
     ax.set_axisbelow(True)
-    # Match ggplot2 scale_y_reverse default expansion (~5% of range).
-    ax.set_ylim(n_rank_levels + 0.65, 0.35)
-    ax.set_xticks(np.arange(1, n_methods + 1))
-    # R: sample.size.label = "K = " -> "Item (n = K)" on x-axis
-    x_labels = [f"{m}\n(n = {int(n_per_method.get(m, 0))})" for m in method_cols]
-    if stratified_combined_panel:
-        ax.set_xticklabels(
-            x_labels,
-            rotation=45,
-            ha="right",
-            rotation_mode="anchor",
-            fontsize=17,
-            color="black",
-        )
-        ax.set_ylabel("Rank", fontsize=23, color="black")
-        ax.set_xlabel("")
-        # Extra x-range so repelled mean labels at alternating sides stay in-frame.
-        ax.set_xlim(0.35, float(n_methods) + 0.75)
+
+    if horizontal:
+        # Items on y-axis (first item at top via inverted y-lim); rank ascending on x-axis.
+        ax.set_xlim(0.35, float(x_axis_hi) + 0.65)
+        ax.set_ylim(float(n_methods) + 0.75, 0.25)
+        ax.set_xticks(x_rank_breaks)
+        ax.set_xticklabels(x_rank_breaks, fontsize=17, color="black")
+        ax.set_yticks(np.arange(1, n_methods + 1))
+        y_labels = [f"{m}  (n = {int(n_per_method.get(m, 0))})" for m in method_cols]
+        ax.set_yticklabels(y_labels, fontsize=15, color="black")
+        if stratified_combined_panel:
+            ax.set_xlabel("Rank", fontsize=23, color="black")
+            ax.set_ylabel("")
+        else:
+            ax.set_xlabel("Rank", fontsize=23, fontweight="bold", color="black")
+            ax.set_ylabel("Item", fontsize=23, fontweight="bold", color="black")
+        ax.grid(axis="both", which="major", color="#D9D9D9", linewidth=0.8)
+        ax.xaxis.set_minor_locator(mticker.MultipleLocator(0.5))
+        ax.grid(axis="x", which="minor", color="#EFEFEF", linewidth=0.6)
+        ax.tick_params(axis="x", which="minor", length=0)
     else:
-        ax.set_xticklabels(x_labels, rotation=0, ha="center", fontsize=17, color="black")
-        ax.set_ylabel("Rank", fontsize=23, fontweight="bold", color="black")
-        ax.set_xlabel("Item", fontsize=23, fontweight="bold", color="black")
-        ax.set_xlim(0.5, n_methods + 0.6)
+        # Match ggplot2 scale_y_reverse default expansion (~5% of range).
+        ax.set_ylim(n_rank_levels + 0.65, 0.35)
+        ax.set_xticks(np.arange(1, n_methods + 1))
+        # R: sample.size.label = "K = " -> "Item (n = K)" on x-axis
+        x_labels = [f"{m}\n(n = {int(n_per_method.get(m, 0))})" for m in method_cols]
+        if stratified_combined_panel:
+            ax.set_xticklabels(
+                x_labels,
+                rotation=45,
+                ha="right",
+                rotation_mode="anchor",
+                fontsize=17,
+                color="black",
+            )
+            ax.set_ylabel("Rank", fontsize=23, color="black")
+            ax.set_xlabel("")
+            # Extra x-range so repelled mean labels at alternating sides stay in-frame.
+            ax.set_xlim(0.35, float(n_methods) + 0.75)
+        else:
+            ax.set_xticklabels(x_labels, rotation=0, ha="center", fontsize=17, color="black")
+            ax.set_ylabel("Rank", fontsize=23, fontweight="bold", color="black")
+            ax.set_xlabel("Item", fontsize=23, fontweight="bold", color="black")
+            ax.set_xlim(0.5, n_methods + 0.6)
+        ax.set_yticks(rank_breaks)
+        ax.set_yticklabels(rank_breaks, fontsize=17, color="black")
+        ax.grid(axis="both", which="major", color="#D9D9D9", linewidth=0.8)
+        ax.yaxis.set_minor_locator(mticker.MultipleLocator(0.5))
+        ax.grid(axis="y", which="minor", color="#EFEFEF", linewidth=0.6)
+        ax.tick_params(axis="y", which="minor", length=0)
 
-    ax.set_yticks(rank_breaks)
-    ax.set_yticklabels(rank_breaks, fontsize=17, color="black")
-
-    ax.grid(axis="both", which="major", color="#D9D9D9", linewidth=0.8)
-    ax.yaxis.set_minor_locator(mticker.MultipleLocator(0.5))
-    ax.grid(axis="y", which="minor", color="#EFEFEF", linewidth=0.6)
-    ax.tick_params(axis="y", which="minor", length=0)
     _style_axes_bw(ax)
-    _repel_violin_mean_labels(fig, ax, mean_label_anns, mean_label_anchors)
-    # Approximate ggplot margin(12,16,12,12); extra bottom room for 45° x labels on combined panel
-    bottom_margin = 0.32 if stratified_combined_panel else 0.22
-    fig.subplots_adjust(left=0.045, right=0.995, top=0.965, bottom=bottom_margin)
+    if not horizontal:
+        _repel_violin_mean_labels(fig, ax, mean_label_anns, mean_label_anchors)
+
+    if horizontal:
+        max_name_len = max((len(m) for m in method_cols), default=10)
+        left_margin = min(0.30, 0.09 + 0.009 * float(max_name_len))
+        # Reserve a right-side strip for an aligned R̂_mean column so labels never
+        # overlap across rows or collide with boxplots.
+        right_margin = 0.86
+        fig.subplots_adjust(left=left_margin, right=right_margin, top=0.975, bottom=0.08)
+
+        # Axes-fraction x (1.02 = just outside right edge) blended with data-y
+        # places one label per item row on a single aligned column.
+        right_tr = mtransforms.blended_transform_factory(ax.transAxes, ax.transData)
+        for row_idx, mr in horizontal_mean_rows:
+            ax.text(
+                1.02,
+                float(row_idx),
+                rf"$\hat{{R}}_{{\mathrm{{mean}}}} = {mr:.2f}$",
+                transform=right_tr,
+                fontsize=label_fs,
+                color="black",
+                ha="left",
+                va="center",
+                zorder=7,
+                clip_on=False,
+                bbox=dict(boxstyle="round,pad=0.18", facecolor="white", edgecolor="0.55", linewidth=0.7),
+            )
+    else:
+        # Approximate ggplot margin(12,16,12,12); extra bottom room for 45° x labels on combined panel
+        bottom_margin = 0.32 if stratified_combined_panel else 0.22
+        fig.subplots_adjust(left=0.045, right=0.995, top=0.965, bottom=bottom_margin)
     _save_fig(fig, out_path, dpi=150, tight=False)
 
 
@@ -664,15 +776,12 @@ def _plot_heatmap(
 
     n_rows = len(rank_matrix.index)
     n_cols = len(method_cols)
-    fig_h = max(5.2, min(32.0, 1.9 + 0.50 * float(n_rows)))
+    # Height tracks row count; floor only reserves room for colorbar, rotated
+    # x-tick labels, axis title, and margins so few-row heatmaps stay compact.
+    fig_h = max(4.0, min(32.0, 1.9 + 0.50 * float(n_rows)))
     fig_w = max(9.5, min(19.0, 6.2 + 0.23 * float(n_cols)))
-    if stratified_combined_panel:
-        # Keep panel B from collapsing when there are only a few row groups.
-        # We enforce a square-ish minimum canvas so the heatmap body is not overly short.
-        fig_h = max(fig_h, fig_w)
     if not stratified_combined_panel:
         fig_w = max(fig_w, 12.0)
-        fig_h = max(fig_h, 8.5)
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=150)
     fig.patch.set_facecolor("white")

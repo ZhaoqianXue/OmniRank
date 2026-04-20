@@ -2,13 +2,18 @@
 
 import { memo } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle, MessageCircleQuestion } from "lucide-react";
+import { CheckCircle, MessageCircleQuestion, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+type RankingMode = "flash" | "deep";
 
 interface AnalysisCompleteBubbleProps {
   suggestedQuestions: string[];
   onAskQuestion?: (question: string) => void;
+  alternativeMode?: RankingMode | null;
+  onRunAlternative?: () => void;
+  isRerunDisabled?: boolean;
   className?: string;
 }
 
@@ -19,8 +24,18 @@ interface AnalysisCompleteBubbleProps {
 export const AnalysisCompleteBubble = memo(function AnalysisCompleteBubble({
   suggestedQuestions,
   onAskQuestion,
+  alternativeMode,
+  onRunAlternative,
+  isRerunDisabled = false,
   className,
 }: AnalysisCompleteBubbleProps) {
+  const alternativeLabel =
+    alternativeMode === "flash"
+      ? "Also run Overall Ranking"
+      : alternativeMode === "deep"
+        ? "Also run Stratified Ranking"
+        : null;
+
   return (
     <div
       className={cn(
@@ -37,12 +52,34 @@ export const AnalysisCompleteBubble = memo(function AnalysisCompleteBubble({
           Analysis Complete!
         </span>
       </div>
-      
+
       {/* Description */}
       <p className="text-muted-foreground mb-4">
         Your ranking has finished successfully. You can now ask me questions about your analysis results!
       </p>
-      
+
+      {/* Run alternative mode */}
+      {alternativeLabel && onRunAlternative && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRunAlternative}
+            disabled={isRerunDisabled}
+            className="w-full justify-center h-auto py-2 px-3 text-xs font-medium bg-background hover:bg-primary/10 hover:text-foreground border-primary/30 hover:border-primary/50"
+          >
+            <Play className="h-3.5 w-3.5 mr-2 shrink-0" />
+            <span className="min-w-0 break-words whitespace-normal leading-relaxed">
+              {alternativeLabel}
+            </span>
+          </Button>
+        </motion.div>
+      )}
+
       {/* Suggested questions */}
       {suggestedQuestions.length > 0 && (
         <div className="space-y-2">

@@ -24,7 +24,7 @@ import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { ReportOverlay } from "@/components/report";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
-import { createInitialOmniRankState, useOmniRank, type OmniRankState } from "@/hooks/use-omnirank";
+import { createInitialOmniRankState, useOmniRank, type OmniRankState, type RankingMode } from "@/hooks/use-omnirank";
 import { cn } from "@/lib/utils";
 import { getDailyUsage, setApiUserSub, type AnalysisConfig, type QuotePayload } from "@/lib/api";
 
@@ -274,6 +274,7 @@ export default function Home() {
     loadExampleData,
     cancelData,
     startAnalysis,
+    rerunAnalysis,
     sendMessage,
     reset,
     hydrateState,
@@ -290,6 +291,13 @@ export default function Home() {
   const isAnalyzing = state.status === "analyzing";
   const showProgress = state.status === "analyzing";
   const showResults = state.status === "completed" && state.results;
+
+  const alternativeMode: RankingMode | null =
+    state.schema?.indicator_col && state.lastRunMode && state.runHistory.length < 2
+      ? state.lastRunMode === "flash"
+        ? "deep"
+        : "flash"
+      : null;
 
   const sortedHistoryEntries = useMemo(
     () => sortHistoryEntries(historyEntries),
@@ -1030,6 +1038,11 @@ export default function Home() {
                     isCompleted={!!showResults}
                     isReportVisible={state.isReportVisible}
                     onToggleReport={toggleReportVisibility}
+                    alternativeMode={alternativeMode}
+                    onRunAlternative={
+                      alternativeMode ? () => rerunAnalysis(alternativeMode) : undefined
+                    }
+                    isRerunDisabled={isAnalyzing}
                     className="h-full"
                   />
                 </CardContent>

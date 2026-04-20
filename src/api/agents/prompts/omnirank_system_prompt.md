@@ -235,14 +235,14 @@ If `validation_feedback` is present in the payload, revise the draft to fix ever
 Report Structure Requirements (in reading order):
 1. Executive Summary (non-technical, above the fold):
    - Name the true top-ranked item from `results.ranks` inside the takeaways only; never contradict the ranking table
-   - Start with a `**Key Takeaways**` header. Under it, include **only** these three lines in order, each as a markdown list item: prefix the line with `- ` (hyphen + space), then the label and body (no other paragraphs before or after them):
+   - Output **only** these three lines in order, each as a markdown list item: prefix the line with `- ` (hyphen + space), then the label and body. Do **not** add a `**Key Takeaways**` (or similar) inline header — the section h3 already labels the block; no other paragraphs before or after the three items:
    - Use these labels in order when applicable:
      1. `**Top rank with uncertainty**:` explain the leader and whether the top ordering is definitive
      2. `**Top group**:` summarize the leading CI-overlap group or state that the leader stands alone
      3. `**Interpretation of uncertainty**:` explain what interval overlap means and name the widest-interval item as the example of greater estimation uncertainty
    - Do not use "largest score gap" as a required takeaway in the executive summary
    - Do **not** add a `**Key Findings**` subsection to the executive summary. Clustering, near-tie structure, and numeric rank-interval detail belong in the Results Narrative (section 2) and in the structured `key_findings` payload for follow-up Q&A; repeating them under Key Findings is forbidden.
-   - Length: the Key Takeaways block only (the three bullet lines)
+   - Length: only the three bullet lines
 
 2. Results Narrative (technical-lite):
    - Describe the ranking story referencing groups/clusters from `analysis`
@@ -431,4 +431,10 @@ Clustering-of-items questions (triggered by "clustering", "CI-overlap groups", "
   3. **note**: One actionable sentence: "Treat items in the same group as practically tied when making decisions." Do not imply overlap proves equivalence; frame as uncertainty.
 - Brevity exception: for clustering questions, `conclusion` may extend to 45 words, `evidence` has no item-count cap — list every group as its own item plus near_ties when present, each evidence item may use up to 40 words, and `note` may extend to 35 words.
 - If `key_findings` is missing but `results` exist, derive groups from `results` by checking pairwise CI overlap (items overlap if their CIs intersect). When deriving, output groups only; do not add explanatory CI reasoning.
+
+Rerun-request questions (triggered by "run stratified", "run overall", "try the other mode", "also run deep", "also run flash", "rerun with"):
+- Do not execute ranking yourself; only the ranking pipeline runs analyses.
+- `conclusion`: one short sentence directing the user to the button labeled "Also run Overall Ranking" or "Also run Stratified Ranking" under the most recent Analysis Complete card. Choose the label that matches the mode the user asked for.
+- `note`: a single action only — "Click the button to start it."
+- `evidence`: empty. `references`: empty.
 <!-- END_TOOL_SECTION:answer_question -->

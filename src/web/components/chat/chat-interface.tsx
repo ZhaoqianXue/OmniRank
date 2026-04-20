@@ -11,7 +11,7 @@ import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { RankingPreviewBubble } from "./ranking-preview-bubble";
 import { DataAgentWorkingBubble } from "./data-agent-working-bubble";
 import { AnalysisCompleteBubble } from "./analysis-complete-bubble";
-import type { ChatMessage } from "@/hooks/use-omnirank";
+import type { ChatMessage, RankingMode } from "@/hooks/use-omnirank";
 import type { AnalysisConfig } from "@/lib/api";
 
 interface ChatInterfaceProps {
@@ -23,6 +23,9 @@ interface ChatInterfaceProps {
   isCompleted?: boolean;
   isReportVisible?: boolean;
   onToggleReport?: () => void;
+  alternativeMode?: RankingMode | null;
+  onRunAlternative?: () => void;
+  isRerunDisabled?: boolean;
   className?: string;
 }
 
@@ -90,10 +93,13 @@ interface ChatMessageItemProps {
   isCompleted?: boolean;
   isReportVisible?: boolean;
   onToggleReport?: () => void;
+  alternativeMode?: RankingMode | null;
+  onRunAlternative?: () => void;
+  isRerunDisabled?: boolean;
 }
 
-const ChatMessageItem = memo(function ChatMessageItem({ 
-  message, 
+const ChatMessageItem = memo(function ChatMessageItem({
+  message,
   onStartAnalysis,
   onSendMessage,
   canStartAnalysis = false,
@@ -101,6 +107,9 @@ const ChatMessageItem = memo(function ChatMessageItem({
   isCompleted = false,
   isReportVisible = true,
   onToggleReport,
+  alternativeMode = null,
+  onRunAlternative,
+  isRerunDisabled = false,
 }: ChatMessageItemProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
@@ -143,6 +152,9 @@ const ChatMessageItem = memo(function ChatMessageItem({
         <AnalysisCompleteBubble
           suggestedQuestions={message.analysisCompleteData.suggestedQuestions}
           onAskQuestion={onSendMessage}
+          alternativeMode={alternativeMode}
+          onRunAlternative={onRunAlternative}
+          isRerunDisabled={isRerunDisabled}
         />
       </motion.div>
     );
@@ -258,8 +270,8 @@ const ChatMessageItem = memo(function ChatMessageItem({
   );
 });
 
-export function ChatInterface({ 
-  messages, 
+export function ChatInterface({
+  messages,
   onStartAnalysis,
   onSendMessage,
   canStartAnalysis = false,
@@ -267,6 +279,9 @@ export function ChatInterface({
   isCompleted = false,
   isReportVisible = true,
   onToggleReport,
+  alternativeMode = null,
+  onRunAlternative,
+  isRerunDisabled = false,
   className,
 }: ChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -285,8 +300,8 @@ export function ChatInterface({
       <div className="space-y-2 px-2 py-2">
         <AnimatePresence initial={false}>
           {messages.map((message) => (
-            <ChatMessageItem 
-              key={message.id} 
+            <ChatMessageItem
+              key={message.id}
               message={message}
               onStartAnalysis={onStartAnalysis}
               onSendMessage={onSendMessage}
@@ -295,6 +310,9 @@ export function ChatInterface({
               isCompleted={isCompleted}
               isReportVisible={isReportVisible}
               onToggleReport={onToggleReport}
+              alternativeMode={alternativeMode}
+              onRunAlternative={onRunAlternative}
+              isRerunDisabled={isRerunDisabled}
             />
           ))}
         </AnimatePresence>

@@ -247,18 +247,18 @@ def test_sq_post_analysis_difference_driver():
 
 @pytest.mark.integration
 @pytest.mark.online_llm
-def test_sq_post_analysis_clear_vs_tied():
+def test_sq_post_analysis_action_advice():
     _require_api_key()
     results = _sample_results()
     answer = answer_question(
-        question="Which items are clearly better vs tied based on the confidence intervals (CI)?",
+        question="What should I do based on these results?",
         results=results,
         citation_blocks={},
         quotes=[],
         session_context={"status": "completed"},
     )
     _assert_answer_quality(answer.answer)
-    print(f"\n[post-analysis] Clear vs tied?\n>>> {answer.answer}")
+    print(f"\n[post-analysis] Action advice?\n>>> {answer.answer}")
 
 
 @pytest.mark.integration

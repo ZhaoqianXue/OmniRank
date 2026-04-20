@@ -174,7 +174,7 @@ function getHardcodedSuggestQuestions(
       topItem && secondItem
         ? `What drives the difference between ${topItem} and ${secondItem}`
         : "What drives the biggest ranking differences",
-      "Which items are clearly better vs tied based on the confidence intervals (CI)",
+      "What should I do based on these results",
     ];
     return pickUniqueQuestions([anchors[0], ...intentCandidates, ...anchors.slice(1)], MAX_SUGGEST_QUESTIONS);
   }

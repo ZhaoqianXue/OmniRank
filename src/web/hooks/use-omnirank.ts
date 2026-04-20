@@ -39,6 +39,8 @@ export type AnalysisStatus =
   | "completed"
   | "error";
 
+export type RankingMode = "flash" | "deep";
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -86,6 +88,9 @@ export interface OmniRankState {
 
   isReportVisible: boolean;
 
+  lastRunMode: RankingMode | null;
+  runHistory: RankingMode[];
+
   messages: ChatMessage[];
 
   progress: number;
@@ -125,6 +130,8 @@ export function createInitialOmniRankState(): OmniRankState {
     plots: [],
     artifacts: [],
     isReportVisible: true,
+    lastRunMode: null,
+    runHistory: [],
     messages: [WELCOME_MESSAGE],
     progress: 0,
     progressMessage: "",
@@ -161,6 +168,8 @@ function clearSessionDataState(
     plots: [],
     artifacts: [],
     isReportVisible: true,
+    lastRunMode: null,
+    runHistory: [],
     progress: 0,
     progressMessage: "",
     error: null,
@@ -390,6 +399,121 @@ export function useOmniRank() {
     [addMessage, cleanupSession, prepareSession, state.sessionId]
   );
 
+  const runConfiguredAnalysis = useCallback(
+    async (config: AnalysisConfig, opts: { skipConfirm: boolean }) => {
+      if (!state.sessionId || !state.schema) {
+        throw new Error("Session and schema are required before analysis");
+      }
+
+      const selectedItems = config.selected_items || state.schema.ranking_items;
+      const effectiveIndicatorCol =
+        config.indicator_col === undefined ? state.schema.indicator_col : config.indicator_col;
+      const selectedIndicators = effectiveIndicatorCol
+        ? config.selected_indicator_values || state.schema.indicator_values
+        : [];
+      const rankingMode: RankingMode = effectiveIndicatorCol
+        ? (config.ranking_mode ?? "flash")
+        : "flash";
+
+      if (!opts.skipConfirm) {
+        const confirmedSchema: SemanticSchema = {
+          bigbetter: config.bigbetter,
+          ranking_items: selectedItems,
+          indicator_col: effectiveIndicatorCol,
+          indicator_values: selectedIndicators,
+        };
+        await confirmSession(state.sessionId, {
+          confirmed: true,
+          confirmed_schema: confirmedSchema,
+          user_modifications: [],
+          B: config.bootstrap_iterations,
+          seed: config.random_seed,
+        });
+      }
+
+      setState((prev) => ({ ...prev, progress: 0.1, progressMessage: "Submitting analysis job..." }));
+
+      const runStart = await startRunSession(state.sessionId, {
+        selected_items: selectedItems,
+        selected_indicator_values: effectiveIndicatorCol ? selectedIndicators : undefined,
+        ranking_mode: rankingMode,
+      });
+      setState((prev) => ({
+        ...prev,
+        progress: Math.max(prev.progress, runStart.progress),
+        progressMessage: runStart.message || "Analysis job queued...",
+      }));
+
+      let run: RunResponse | null = null;
+      const pollStartedAt = Date.now();
+
+      while (Date.now() - pollStartedAt < RUN_JOB_TIMEOUT_MS) {
+        const runStatus = await getRunJobStatus(state.sessionId, runStart.job_id);
+
+        setState((prev) => ({
+          ...prev,
+          progress: Math.max(prev.progress, runStatus.progress),
+          progressMessage: runStatus.message || prev.progressMessage,
+        }));
+
+        if (runStatus.status === "completed") {
+          run = runStatus.result ?? null;
+          break;
+        }
+        if (runStatus.status === "failed") {
+          throw new Error(runStatus.error || runStatus.message || "Analysis failed");
+        }
+
+        await sleep(RUN_JOB_POLL_INTERVAL_MS);
+      }
+
+      if (!run) {
+        throw new Error("Analysis timed out while waiting for completion.");
+      }
+      if (!run.success) {
+        throw new Error(run.error || "Analysis failed");
+      }
+
+      const normalized = normalizeRunResponse(run);
+      const snapshot = await getSessionSnapshot(state.sessionId);
+      const rankingItems = normalized.rankingResults?.items ?? [];
+      const rankingItemsByRank = [...rankingItems].sort((a, b) => {
+        if (a.rank !== b.rank) return a.rank - b.rank;
+        return b.theta_hat - a.theta_hat;
+      });
+      const topItem = rankingItemsByRank[0]?.name ?? "the top item";
+      const runnerUpItem = rankingItemsByRank[1]?.name ?? "the runner-up";
+
+      setState((prev) => ({
+        ...prev,
+        status: "completed",
+        progress: 1,
+        progressMessage: "Complete",
+        results: normalized.rankingResults,
+        reportOutput: snapshot.session.report_output || normalized.reportOutput,
+        plots: normalized.plots,
+        artifacts: snapshot.artifacts,
+        isReportVisible: true,
+        lastRunMode: rankingMode,
+        runHistory: prev.runHistory.includes(rankingMode)
+          ? prev.runHistory
+          : [...prev.runHistory, rankingMode],
+      }));
+
+      addMessage("assistant", "", "analyst", {
+        type: "analysis-complete",
+        analysisCompleteData: {
+          suggestedQuestions: [
+            `Why is ${topItem} ranked first?`,
+            `Is ${topItem} really better than ${runnerUpItem}, or is it too close to tell?`,
+            "Show me the clustering of items by confidence-interval overlap and explain what it means.",
+          ],
+        },
+      });
+    },
+    [addMessage, state.schema, state.sessionId]
+  );
+
   const startAnalysis = useCallback(
     async (config: AnalysisConfig) => {
       if (!config) {
@@ -417,105 +541,8 @@ export function useOmniRank() {
 
       addMessage("user", "Start Ranking...");
 
-      const selectedItems = config.selected_items || state.schema.ranking_items;
-      const effectiveIndicatorCol =
-        config.indicator_col === undefined ? state.schema.indicator_col : config.indicator_col;
-      const selectedIndicators = effectiveIndicatorCol
-        ? config.selected_indicator_values || state.schema.indicator_values
-        : [];
-      const rankingMode = effectiveIndicatorCol ? (config.ranking_mode ?? "flash") : "flash";
-      const confirmedSchema: SemanticSchema = {
-        bigbetter: config.bigbetter,
-        ranking_items: selectedItems,
-        indicator_col: effectiveIndicatorCol,
-        indicator_values: selectedIndicators,
-      };
-
       try {
-        await confirmSession(state.sessionId, {
-          confirmed: true,
-          confirmed_schema: confirmedSchema,
-          user_modifications: [],
-          B: config.bootstrap_iterations,
-          seed: config.random_seed,
-        });
-
-        setState((prev) => ({ ...prev, progress: 0.1, progressMessage: "Submitting analysis job..." }));
-
-        const runStart = await startRunSession(state.sessionId, {
-          selected_items: selectedItems,
-          selected_indicator_values: effectiveIndicatorCol ? selectedIndicators : undefined,
-          ranking_mode: rankingMode,
-        });
-        setState((prev) => ({
-          ...prev,
-          progress: Math.max(prev.progress, runStart.progress),
-          progressMessage: runStart.message || "Analysis job queued...",
-        }));
-
-        let run: RunResponse | null = null;
-        const pollStartedAt = Date.now();
-
-        while (Date.now() - pollStartedAt < RUN_JOB_TIMEOUT_MS) {
-          const runStatus = await getRunJobStatus(state.sessionId, runStart.job_id);
-
-          setState((prev) => ({
-            ...prev,
-            progress: Math.max(prev.progress, runStatus.progress),
-            progressMessage: runStatus.message || prev.progressMessage,
-          }));
-
-          if (runStatus.status === "completed") {
-            run = runStatus.result ?? null;
-            break;
-          }
-          if (runStatus.status === "failed") {
-            throw new Error(runStatus.error || runStatus.message || "Analysis failed");
-          }
-
-          await sleep(RUN_JOB_POLL_INTERVAL_MS);
-        }
-
-        if (!run) {
-          throw new Error("Analysis timed out while waiting for completion.");
-        }
-        if (!run.success) {
-          throw new Error(run.error || "Analysis failed");
-        }
-
-        const normalized = normalizeRunResponse(run);
-        const snapshot = await getSessionSnapshot(state.sessionId);
-        const rankingItems = normalized.rankingResults?.items ?? [];
-        const rankingItemsByRank = [...rankingItems].sort((a, b) => {
-          if (a.rank !== b.rank) return a.rank - b.rank;
-          return b.theta_hat - a.theta_hat;
-        });
-        const topItem = rankingItemsByRank[0]?.name ?? "the top item";
-        const runnerUpItem = rankingItemsByRank[1]?.name ?? "the runner-up";
-
-        setState((prev) => ({
-          ...prev,
-          status: "completed",
-          progress: 1,
-          progressMessage: "Complete",
-          results: normalized.rankingResults,
-          reportOutput: snapshot.session.report_output || normalized.reportOutput,
-          plots: normalized.plots,
-          artifacts: snapshot.artifacts,
-          isReportVisible: true,
-        }));
-
-        addMessage("assistant", "", "analyst", {
-          type: "analysis-complete",
-          analysisCompleteData: {
-            suggestedQuestions: [
-              `Why is ${topItem} ranked first?`,
-              `Is ${topItem} really better than ${runnerUpItem}, or is it too close to tell?`,
-              "Show me the clustering of items by confidence-interval overlap and explain what it means.",
-              "What should I do based on these results?",
-            ],
-          },
-        });
+        await runConfiguredAnalysis(config, { skipConfirm: false });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Analysis failed";
         setState((prev) => ({ ...prev, status: "error", error: errorMessage }));
@@ -523,7 +550,51 @@ export function useOmniRank() {
         return;
       }
     },
-    [addMessage, state.schema, state.sessionId]
+    [addMessage, runConfiguredAnalysis, state.schema, state.sessionId]
+  );
+
+  const rerunAnalysis = useCallback(
+    async (mode: RankingMode) => {
+      if (state.status === "analyzing") return;
+      if (state.status !== "completed") return;
+      if (!state.sessionId || !state.schema || !state.config) return;
+
+      const newConfig: AnalysisConfig = { ...state.config, ranking_mode: mode };
+      const modeLabel = mode === "flash" ? "Overall" : "Stratified";
+
+      setState((prev) => ({
+        ...prev,
+        status: "analyzing",
+        progress: 0.05,
+        progressMessage: "Submitting analysis job...",
+        config: newConfig,
+        results: null,
+        reportOutput: null,
+        plots: [],
+        artifacts: [],
+        isReportVisible: true,
+        error: null,
+      }));
+
+      addMessage("user", `Also run ${modeLabel} Ranking`);
+
+      try {
+        await runConfiguredAnalysis(newConfig, { skipConfirm: true });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Analysis failed";
+        setState((prev) => ({ ...prev, status: "error", error: errorMessage }));
+        addMessage("system", `Error: ${errorMessage}`);
+        return;
+      }
+    },
+    [
+      addMessage,
+      runConfiguredAnalysis,
+      state.config,
+      state.schema,
+      state.sessionId,
+      state.status,
+    ]
   );
 
   const sendMessage = useCallback(
@@ -614,6 +685,7 @@ export function useOmniRank() {
     loadExampleData,
     cancelData,
     startAnalysis,
+    rerunAnalysis,
     sendMessage,
     addMessage,
     hydrateState,

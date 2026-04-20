@@ -367,7 +367,6 @@ def test_generate_report_retries_llm_when_summary_is_wrong(tmp_path: Path, monke
             assert "validation_feedback" in payload
             return {
                 "summary": (
-                    "**Key Takeaways**\n\n"
                     "- **Top rank with uncertainty**: **A** ranks first with the highest estimated score, but overlap near the top means the ordering is not definitive.\n"
                     "- **Top group**: Consistent with this, **A** and **B** form a near-tied top group based on the clustering results.\n"
                     "- **Interpretation of uncertainty**: When confidence intervals overlap, we cannot confidently distinguish relative performance. **B** has the widest confidence interval, indicating greater estimation uncertainty."
@@ -412,7 +411,6 @@ def test_generate_report_falls_back_when_llm_report_generation_fails(tmp_path: P
         plots=[],
     )
 
-    assert "**Key Takeaways**" in report.markdown
     assert "**Top rank with uncertainty**" in report.markdown
     assert "**Top group**" in report.markdown
     assert "**Interpretation of uncertainty**" in report.markdown

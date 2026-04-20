@@ -157,8 +157,6 @@ def _validate_llm_narrative(
     issues: list[str] = []
 
     summary_lower = summary.lower()
-    if "key takeaways" not in summary_lower:
-        issues.append("Summary must include a '**Key Takeaways**' header.")
     for required_label in (
         "top rank with uncertainty",
         "top group",
@@ -476,7 +474,6 @@ def _build_stratified_key_takeaways(plot: PlotSpec) -> str | None:
     variable_spread = _spread(stability_pool[variable_item])
 
     return (
-        "**Key Takeaways**\n\n"
         f"- **Top average rank across Categories**: **{top_item}** has the best average stratified rank "
         f"({top_mean:.2f}) across the available Categories, based on {top_coverage} ranked Categories.\n"
         f"- **Most stable across Categories**: **{stable_item}** shows the smallest rank spread "
@@ -556,7 +553,6 @@ def _build_llm_narrative(
     # the same structure is still attached as `key_findings` on ReportOutput for Q&A tools.
 
     summary = (
-        "**Key Takeaways**\n\n"
         f"- {top_rank_uncertainty_line}\n"
         f"- {top_group_line}\n"
         f"- {interpretation_line}"
