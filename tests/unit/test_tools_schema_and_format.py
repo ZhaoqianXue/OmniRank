@@ -55,6 +55,7 @@ def test_infer_semantic_schema_multiway_scores(tmp_path: Path):
     [
         ("example_data_pairwise.csv", "pairwise", 1),
         ("example_data_pairwise_human_logs.csv", "pairwise", 1),
+        ("example_data_multiway_phenotype.csv", "multiway", 1),
         ("example_data_multiway_scores.csv", "multiway", 1),
         ("example_data_multiway_latency.csv", "multiway", 0),
         ("example_data_multiway_rank_columns.csv", "multiway", 0),
@@ -72,6 +73,9 @@ def test_infer_semantic_schema_project_examples(filename: str, expected_format: 
     assert result.format.value == expected_format
     assert result.schema is not None
     assert result.schema.bigbetter == expected_bigbetter
+    if filename == "example_data_multiway_phenotype.csv":
+        assert result.schema.indicator_col == "Phenotype"
+        assert len(result.schema.indicator_values) >= 2
 
 
 def test_infer_semantic_schema_pairwise(tmp_path: Path):
@@ -550,6 +554,48 @@ def test_infer_semantic_schema_accepts_high_cardinality_phenotype_indicator(tmp_
     assert result.schema is not None
     assert result.schema.indicator_col == "Phenotype"
     assert len(result.schema.indicator_values) == 60
+
+
+def test_infer_semantic_schema_recovers_phenotype_indicator_when_llm_includes_it_as_item(
+    tmp_path: Path,
+    monkeypatch,
+):
+    file_path = _write(
+        tmp_path / "prs_phenotype_matrix.csv",
+        (
+            "Phenotype,C+T,LDpred,PRS-CS\n"
+            "Trait_A,0.70,0.72,0.74\n"
+            "Trait_A,0.71,0.73,0.75\n"
+            "Trait_B,0.68,0.69,0.70\n"
+            "Trait_B,0.69,0.70,0.71\n"
+        ),
+    )
+    summary = read_data_file(file_path).data
+    assert summary is not None
+
+    monkeypatch.setattr(
+        "tools.infer_semantic_schema.get_llm_client",
+        lambda: _FakeLLMClient(
+            {
+                "format": "multiway",
+                "format_evidence": "LLM included the phenotype column as an item",
+                "schema": {
+                    "bigbetter": 1,
+                    "ranking_items": ["Phenotype", "C+T", "LDpred", "PRS-CS"],
+                    "indicator_col": None,
+                    "indicator_values": [],
+                },
+            }
+        ),
+    )
+
+    result = infer_semantic_schema(summary, file_path)
+
+    assert result.success is True
+    assert result.schema is not None
+    assert result.schema.ranking_items == ["C+T", "LDpred", "PRS-CS"]
+    assert result.schema.indicator_col == "Phenotype"
+    assert sorted(result.schema.indicator_values) == ["Trait_A", "Trait_B"]
 
 
 def test_validate_data_format_pass(tmp_path: Path):

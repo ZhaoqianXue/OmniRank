@@ -207,6 +207,20 @@ def _stabilize_schema_with_data(
 
     ranking_items = list(schema.ranking_items)
 
+    fallback_numeric_items = [
+        item
+        for item in fallback_schema.ranking_items
+        if item in df.columns and item in df.select_dtypes(include=["number"]).columns and not is_meta_column(item)
+    ]
+    if len(fallback_numeric_items) >= 2:
+        numeric_item_set = set(df.select_dtypes(include=["number"]).columns)
+        cleaned_ranking_items = [
+            item
+            for item in ranking_items
+            if item in numeric_item_set and not is_meta_column(item)
+        ]
+        ranking_items = cleaned_ranking_items if len(cleaned_ranking_items) >= 2 else fallback_numeric_items
+
     indicator_col = schema.indicator_col
     indicator_values = list(schema.indicator_values)
     if indicator_col and not is_reasonable_indicator_column(df, indicator_col, ranking_items):
