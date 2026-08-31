@@ -50,7 +50,7 @@ const cardDetailsByExampleId: Record<string, ExampleCardDetails> = {
   },
   multiway_f1: {
     question: "Which drivers perform best across Grand Prix races?",
-    data: "2024-2025 race results",
+    data: "2025 race results",
   },
   pairwise_human_logs: {
     question: "Which assistant wins more often in human preference logs?",

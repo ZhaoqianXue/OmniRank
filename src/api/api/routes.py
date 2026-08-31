@@ -48,7 +48,7 @@ EXAMPLE_DATASETS: dict[str, str] = {
     "pairwise": "example_data_pairwise.csv",
     "pairwise_human_logs": "example_data_pairwise_human_logs.csv",
     "multiway_phenotype": "supplementary_tables_filtered.csv",
-    "multiway_f1": "example_data_f1_2024_2025.csv",
+    "multiway_f1": "example_data_f1_2025.csv",
     "multiway_scores": "example_data_multiway_scores.csv",
     "multiway_latency": "example_data_multiway_latency.csv",
     "multiway_rank_columns": "example_data_multiway_rank_columns.csv",

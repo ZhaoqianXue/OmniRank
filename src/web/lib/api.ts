@@ -196,12 +196,12 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   },
   {
     id: "multiway_f1",
-    filename: "example_data_f1_2024_2025.csv",
+    filename: "example_data_f1_2025.csv",
     title: "Formula 1 Grand Prix Results",
     description:
-      "Official Formula 1 race classifications from the 2024 and 2025 seasons, transformed into an OmniRank-ready multiway ranking matrix. " +
-      "Each row represents one Grand Prix, with finishing positions for the drivers across the two-season field; smaller values indicate better placement. " +
-      "• Items to rank: 27 Formula 1 drivers from the 2024–2025 race field " +
+      "Official Formula 1 race classifications from the 2025 season, transformed into an OmniRank-ready multiway ranking matrix. " +
+      "Each row represents one Grand Prix, with finishing positions for the drivers who appeared that season; smaller values indicate better placement. " +
+      "• Items to rank: 21 Formula 1 drivers from the 2025 season " +
       "• Indicator: Track type (permanent, street, temporary_non_street) " +
       "• Row metadata: season_tag, round_tag, race_name " +
       "• Values: Official finishing positions, where 1 is best " +
