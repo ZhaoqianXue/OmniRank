@@ -57,6 +57,8 @@ class SessionMemory:
     filename: Optional[str] = None
     original_file_path: Optional[str] = None
     current_file_path: Optional[str] = None
+    example_dataset_paths: dict[str, str] = field(default_factory=dict)
+    active_example_dataset_mode: Optional[str] = None
 
     data_summary: Optional[DataSummary] = None
     inferred_schema: Optional[SemanticSchema] = None

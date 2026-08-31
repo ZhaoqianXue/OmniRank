@@ -47,12 +47,19 @@ router = APIRouter(tags=["omnirank"])
 EXAMPLE_DATASETS: dict[str, str] = {
     "pairwise": "example_data_pairwise.csv",
     "pairwise_human_logs": "example_data_pairwise_human_logs.csv",
-    "multiway_phenotype": "example_data_multiway_phenotype.csv",
+    "multiway_phenotype": "supplementary_tables_filtered.csv",
     "multiway_f1": "example_data_f1_2024_2025.csv",
     "multiway_scores": "example_data_multiway_scores.csv",
     "multiway_latency": "example_data_multiway_latency.csv",
     "multiway_rank_columns": "example_data_multiway_rank_columns.csv",
     "multiway": "example_data_multiway.csv",
+}
+
+EXAMPLE_RANKING_MODE_DATASETS: dict[str, dict[str, str]] = {
+    "multiway_phenotype": {
+        "flash": "supplementary_tables_filtered.csv",
+        "deep": "example_data_multiway_phenotype.csv",
+    },
 }
 
 
@@ -251,19 +258,38 @@ async def upload_example(example_id: str, http_request: Request):
         raise HTTPException(status_code=404, detail=f"Unknown example id: {example_id}")
 
     filename = EXAMPLE_DATASETS[example_id]
-    source_path = _resolve_example_path(filename)
-    if source_path is None:
-        searched_paths = _format_example_search_paths(filename)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Example file missing: {filename}. Searched: {searched_paths}",
-        )
+    filenames_by_mode = EXAMPLE_RANKING_MODE_DATASETS.get(example_id, {})
+    filenames_to_resolve = set(filenames_by_mode.values()) or {filename}
+    source_paths: dict[str, Path] = {}
+    for candidate_filename in filenames_to_resolve:
+        source_path = _resolve_example_path(candidate_filename)
+        if source_path is None:
+            searched_paths = _format_example_search_paths(candidate_filename)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Example file missing: {candidate_filename}. Searched: {searched_paths}",
+            )
+        source_paths[candidate_filename] = source_path
 
-    content = source_path.read_bytes()
     store = get_session_store()
     session = store.create_session()
     session.user_sub = _extract_user_sub(http_request)
-    saved_path = store.save_file(session.session_id, filename, content)
+
+    saved_paths = {
+        candidate_filename: store.save_file(
+            session.session_id,
+            candidate_filename,
+            source_path.read_bytes(),
+        )
+        for candidate_filename, source_path in source_paths.items()
+    }
+    saved_path = saved_paths[filename]
+    if filenames_by_mode:
+        session.example_dataset_paths = {
+            mode: saved_paths[mode_filename]
+            for mode, mode_filename in filenames_by_mode.items()
+        }
+        session.active_example_dataset_mode = "flash"
 
     session.filename = Path(saved_path).name
     session.original_file_path = saved_path

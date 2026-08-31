@@ -244,6 +244,134 @@ class OmniRankAgent:
 
         return confirmation
 
+    def _prepare_example_dataset_for_mode(
+        self,
+        session: SessionMemory,
+        ranking_mode: RankingMode,
+        selected_items: list[str] | None,
+        selected_indicator_values: list[str] | None,
+        progress_callback: Callable[[float, str], None] | None = None,
+    ) -> tuple[list[str] | None, list[str] | None, str | None]:
+        """Switch a mode-dependent built-in example and revalidate its derived state."""
+        target_path = session.example_dataset_paths.get(ranking_mode.value)
+        if not target_path:
+            return selected_items, selected_indicator_values, None
+
+        previous_config = session.config.model_copy(deep=True) if session.config is not None else None
+        previous_schema = session.confirmed_schema
+        requested_items = (
+            selected_items
+            if selected_items is not None
+            else (previous_config.selected_items if previous_config is not None else None)
+        )
+        requested_indicator_values = (
+            selected_indicator_values
+            if selected_indicator_values is not None
+            else (previous_config.selected_indicator_values if previous_config is not None else None)
+        )
+
+        switched = session.active_example_dataset_mode != ranking_mode.value
+        if switched:
+            if not Path(target_path).is_file():
+                error = f"Example dataset for {ranking_mode.value} ranking is missing: {target_path}"
+                session.status = SessionStatus.ERROR
+                session.error = error
+                return None, None, error
+
+            if progress_callback is not None:
+                progress_callback(0.04, f"Loading {ranking_mode.value} ranking example data...")
+
+            session.filename = Path(target_path).name
+            session.current_file_path = target_path
+            session.active_example_dataset_mode = None
+            session.data_summary = None
+            session.inferred_schema = None
+            session.format_validation_result = None
+            session.quality_validation_result = None
+            session.confirmed_schema = None
+            session.config = None
+            session.current_results = None
+            session.report_output = None
+            session.visualization_output = None
+            session.citation_blocks.clear()
+            session.status = SessionStatus.UPLOADED
+            session.error = None
+
+            if progress_callback is not None:
+                progress_callback(0.08, "Revalidating the selected example dataset...")
+            infer_response = self.infer(session=session, user_hints=None)
+            if not infer_response.success or session.inferred_schema is None:
+                error = infer_response.error or "Failed to validate the selected example dataset."
+                session.status = SessionStatus.ERROR
+                session.error = error
+                return None, None, error
+
+        active_schema = session.confirmed_schema or session.inferred_schema
+        if active_schema is None:
+            error = "Missing schema for the selected example dataset."
+            session.status = SessionStatus.ERROR
+            session.error = error
+            return None, None, error
+
+        available_items = active_schema.ranking_items
+        effective_items = (
+            [item for item in requested_items if item in available_items]
+            if requested_items
+            else list(available_items)
+        )
+        if requested_items and not effective_items:
+            error = "None of the selected ranking items exist in the selected example dataset."
+            session.status = SessionStatus.ERROR
+            session.error = error
+            return None, None, error
+
+        available_indicator_values = active_schema.indicator_values
+        effective_indicator_values = (
+            [value for value in requested_indicator_values if value in available_indicator_values]
+            if requested_indicator_values
+            else list(available_indicator_values)
+        )
+        if ranking_mode == RankingMode.DEEP and requested_indicator_values and not effective_indicator_values:
+            error = "None of the selected Phenotype values exist in the stratified PRS example dataset."
+            session.status = SessionStatus.ERROR
+            session.error = error
+            return None, None, error
+
+        if switched:
+            confirmed_schema = active_schema.model_copy(
+                update={
+                    "bigbetter": (
+                        previous_schema.bigbetter
+                        if previous_schema is not None
+                        else (previous_config.bigbetter if previous_config is not None else active_schema.bigbetter)
+                    ),
+                    "ranking_items": effective_items,
+                    "indicator_values": effective_indicator_values,
+                }
+            )
+            try:
+                confirmation = self.confirm(
+                    session=session,
+                    confirmed=True,
+                    confirmed_schema=confirmed_schema,
+                    user_modifications=[],
+                    B=previous_config.B if previous_config is not None else 2000,
+                    seed=previous_config.seed if previous_config is not None else 42,
+                )
+            except Exception as exc:  # noqa: BLE001
+                error = f"Failed to confirm the selected example dataset: {exc}"
+                session.status = SessionStatus.ERROR
+                session.error = error
+                return None, None, error
+            if not confirmation.confirmed:
+                error = "The selected example dataset could not be confirmed."
+                session.status = SessionStatus.ERROR
+                session.error = error
+                return None, None, error
+            session.active_example_dataset_mode = ranking_mode.value
+
+        return effective_items, effective_indicator_values, None
+
     def run(
         self,
         session: SessionMemory,
@@ -264,14 +392,30 @@ class OmniRankAgent:
         if session.config is None:
             return RunResponse(success=False, error="Missing confirmed engine config.")
 
-        session.status = SessionStatus.RUNNING
-        emit_progress(0.05, "Preparing spectral ranking execution...")
-        session.config.selected_items = selected_items if selected_items else session.config.selected_items
-        session.config.selected_indicator_values = (
-            selected_indicator_values if selected_indicator_values else session.config.selected_indicator_values
+        target_mode = ranking_mode or session.config.ranking_mode
+        emit_progress(0.02, "Preparing spectral ranking execution...")
+        effective_items, effective_indicator_values, preparation_error = self._prepare_example_dataset_for_mode(
+            session=session,
+            ranking_mode=target_mode,
+            selected_items=selected_items,
+            selected_indicator_values=selected_indicator_values,
+            progress_callback=progress_callback,
         )
-        if ranking_mode is not None:
-            session.config.ranking_mode = ranking_mode
+        if preparation_error:
+            return RunResponse(success=False, error=preparation_error)
+        if session.config is None:
+            return RunResponse(success=False, error="Missing engine config after dataset validation.")
+
+        session.status = SessionStatus.RUNNING
+        emit_progress(0.12, "Example data validated. Preparing spectral ranking execution...")
+        session.config.csv_path = session.current_file_path or session.original_file_path or session.config.csv_path
+        session.config.selected_items = effective_items if effective_items else session.config.selected_items
+        session.config.selected_indicator_values = (
+            effective_indicator_values
+            if effective_indicator_values
+            else session.config.selected_indicator_values
+        )
+        session.config.ranking_mode = target_mode
 
         work_dir = os.path.dirname(session.current_file_path or session.original_file_path or "")
         emit_progress(0.2, "Executing spectral ranking engine...")
