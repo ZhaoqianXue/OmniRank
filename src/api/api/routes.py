@@ -45,8 +45,8 @@ router = APIRouter(tags=["omnirank"])
 
 
 EXAMPLE_DATASETS: dict[str, str] = {
-    "pairwise": "example_data_pairwise.csv",
-    "pairwise_human_logs": "example_data_pairwise_human_logs.csv",
+    "pairwise": "example_data_arena_pairwise.csv",
+    "pairwise_human_logs": "example_data_arena_battle_logs.csv",
     "multiway_phenotype": "supplementary_tables_filtered.csv",
     "multiway_f1": "example_data_f1_2025.csv",
     "multiway_scores": "example_data_multiway_scores.csv",

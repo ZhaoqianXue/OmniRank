@@ -85,7 +85,9 @@ const ARENA_SINGLE_CATEGORY_FIELDS = [
   "multi_turn",
 ] as const;
 
-const EXAMPLE_ARENA_FILE = path.join(REPO_ROOT, "data", "examples", "example_data_pairwise.csv");
+const EXAMPLE_ARENA_FILE = path.join(REPO_ROOT, "data", "examples", "example_data_arena_pairwise.csv");
+// Only a prefix of the file is sent to the client; rowCount still reports the full size.
+const EXAMPLE_ARENA_PREVIEW_ROWS = 200;
 
 let cachedHfBaseMethods: SpectralMethod[] | null = null;
 let cachedArenaBaseMethods: SpectralMethod[] | null = null;
@@ -602,7 +604,10 @@ export function loadExampleArenaPreview(): ExampleArenaPreview {
   const headers = rows[0] ?? [];
   const dataRows = rows.slice(1);
 
-  const taskIndex = headers.findIndex((header) => header.trim().toLowerCase() === "task");
+  const taskIndex = headers.findIndex((header) => {
+    const name = header.trim().toLowerCase();
+    return name === "task" || name === "category";
+  });
   const taskSet = new Set<string>();
 
   for (const row of dataRows) {
@@ -617,7 +622,7 @@ export function loadExampleArenaPreview(): ExampleArenaPreview {
 
   cachedExampleArenaPreview = {
     headers,
-    rows: dataRows,
+    rows: dataRows.slice(0, EXAMPLE_ARENA_PREVIEW_ROWS),
     rowCount: dataRows.length,
     colCount: headers.length,
     tasks: [...taskSet],

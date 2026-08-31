@@ -7,7 +7,7 @@ For LM Arena data in the sibling Ranking repo, use `arena_lm_battle_count_heatma
 Each row must represent one pairwise comparison: exactly two model columns are non-null
 (0/1 win indicators). The Task column (if present) is ignored for pairing.
 
-Default uses data/examples/example_data_pairwise.csv (demo only).
+Default uses data/examples/example_data_arena_pairwise.csv.
 """
 
 from __future__ import annotations
@@ -111,7 +111,7 @@ def main() -> None:
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path(__file__).resolve().parents[1] / "data" / "examples" / "example_data_pairwise.csv",
+        default=Path(__file__).resolve().parents[1] / "data" / "examples" / "example_data_arena_pairwise.csv",
         help="Wide pairwise CSV path",
     )
     parser.add_argument(

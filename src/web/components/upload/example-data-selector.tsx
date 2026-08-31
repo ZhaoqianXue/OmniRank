@@ -42,7 +42,7 @@ type ExampleCardDetails = {
 const cardDetailsByExampleId: Record<string, ExampleCardDetails> = {
   pairwise: {
     question: "Which AI assistant wins more often in head-to-head comparisons?",
-    data: "Chatbot battle results",
+    data: "Chatbot Arena battles",
   },
   multiway_scores: {
     question: "Which model performs best across shared benchmark samples?",

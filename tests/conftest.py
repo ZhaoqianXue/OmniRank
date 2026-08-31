@@ -52,7 +52,7 @@ def example_multiway_scores_data():
 @pytest.fixture
 def example_pairwise_data():
     """Load example pairwise data."""
-    data_path = Path(__file__).parent.parent / "data" / "examples" / "example_data_pairwise.csv"
+    data_path = Path(__file__).parent.parent / "data" / "examples" / "example_data_arena_pairwise.csv"
     return data_path.read_bytes()
 
 

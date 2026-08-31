@@ -164,13 +164,13 @@ export interface ExampleDataInfo {
 export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   {
     id: "pairwise",
-    filename: "example_data_pairwise.csv",
+    filename: "example_data_arena_pairwise.csv",
     title: "LLM Pairwise Comparison",
     description:
-      "Pairwise comparison outcomes for language models evaluation. " +
-      "Each row represents a comparison between two models, with 1 indicating the winner and 0 the loser. " +
-      "• Items to rank: Your Model, ChatGPT, Claude, Gemini, Llama, Qwen " +
-      "• Indicator: Task category (code, math, writing) " +
+      "Real blind pairwise battles from the LMSYS Chatbot Arena human-preference snapshot, restricted to the 15 highest-ranked models. " +
+      "Each row is one battle between two models, with 1 indicating the winner and 0 the loser; ties and both-bad outcomes are excluded. " +
+      "• Items to rank: 15 Chatbot Arena models, led by gemini-2.5-pro-preview-03-25, gemini-2.5-pro, and grok-4-0709 " +
+      "• Indicator: Task category (Coding, Creative Writing, Hard Prompt, Instruction Following, Longer Query, Math, Multi-turn) " +
       "• Suggested Comparisons: Comparing model performance overall or within specific task categories",
     format: "pairwise",
     previewCta: {
@@ -210,14 +210,14 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   },
   {
     id: "pairwise_human_logs",
-    filename: "example_data_pairwise_human_logs.csv",
+    filename: "example_data_arena_battle_logs.csv",
     title: "Human Preference Logs",
     description:
-      "Raw human preference logs in long format before preprocessing. " +
-      "Each comparison is represented by two rows (one per assistant), with value=1 indicating the winner and value=0 the loser. " +
-      "• Items to rank: Orion, Astra, Nova, Pulse, Zenith, Nimbus " +
-      "• Indicator: Task category (coding, math, reasoning, safety) " +
-      "• Suggested Comparisons: Comparing assistant performance overall or within specific task categories",
+      "The same Chatbot Arena battles in long format, before preprocessing into a comparison matrix. " +
+      "Each battle is represented by two rows (one per model), with value=1 indicating the winner and value=0 the loser. " +
+      "• Items to rank: the same 15 Chatbot Arena models as the pairwise example " +
+      "• Indicator: Task category (Coding, Creative Writing, Hard Prompt, Instruction Following, Longer Query, Math, Multi-turn) " +
+      "• Suggested Comparisons: Comparing model performance overall or within specific task categories",
     format: "pairwise",
   },
   {

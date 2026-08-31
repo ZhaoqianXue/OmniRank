@@ -53,8 +53,8 @@ def test_infer_semantic_schema_multiway_scores(tmp_path: Path):
 @pytest.mark.parametrize(
     ("filename", "expected_format", "expected_bigbetter"),
     [
-        ("example_data_pairwise.csv", "pairwise", 1),
-        ("example_data_pairwise_human_logs.csv", "pairwise", 1),
+        ("example_data_arena_pairwise.csv", "pairwise", 1),
+        ("example_data_arena_battle_logs.csv", "pairwise", 1),
         ("example_data_multiway_phenotype.csv", "multiway", 1),
         ("example_data_multiway_scores.csv", "multiway", 1),
         ("example_data_multiway_latency.csv", "multiway", 0),
