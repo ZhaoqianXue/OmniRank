@@ -47,7 +47,7 @@ router = APIRouter(tags=["omnirank"])
 EXAMPLE_DATASETS: dict[str, str] = {
     "pairwise": "example_data_arena_pairwise.csv",
     "pairwise_human_logs": "example_data_arena_battle_logs.csv",
-    "multiway_phenotype": "supplementary_tables_filtered.csv",
+    "multiway_phenotype": "prs_benchmarking_applied.csv",
     "multiway_f1": "example_data_f1_2025.csv",
     "multiway_scores": "example_data_multiway_scores.csv",
     "multiway_latency": "example_data_multiway_latency.csv",
@@ -57,8 +57,8 @@ EXAMPLE_DATASETS: dict[str, str] = {
 
 EXAMPLE_RANKING_MODE_DATASETS: dict[str, dict[str, str]] = {
     "multiway_phenotype": {
-        "flash": "supplementary_tables_filtered.csv",
-        "deep": "example_data_multiway_phenotype.csv",
+        "flash": "prs_benchmarking_applied.csv",
+        "deep": "prs_benchmarking_applied.csv",
     },
 }
 

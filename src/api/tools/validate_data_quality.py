@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import networkx as nx
 
-from .common import build_comparison_graph, read_table, sparsity_warning
+from .common import build_comparison_graph, normalize_column_name, read_table, sparsity_warning
 from core.schemas import QualityValidationResult, SemanticSchema
 
 
@@ -18,7 +18,19 @@ def validate_data_quality(file_path: str, schema: SemanticSchema) -> QualityVali
     except Exception as exc:  # noqa: BLE001
         return QualityValidationResult(is_valid=False, warnings=[], errors=[str(exc)])
 
-    ranking_items = [item for item in schema.ranking_items if item in df.columns]
+    # Preprocessing may normalize column names for R compatibility, so an item can
+    # appear under its normalized name (e.g. 'gemini-2.5-pro' -> 'gemini_25_pro').
+    columns = set(df.columns)
+    normalized_lookup = {normalize_column_name(col): col for col in df.columns}
+    ranking_items = []
+    for item in schema.ranking_items:
+        if item in columns:
+            ranking_items.append(item)
+            continue
+        resolved = normalized_lookup.get(normalize_column_name(item))
+        if resolved is not None:
+            ranking_items.append(resolved)
+    ranking_items = list(dict.fromkeys(ranking_items))
 
     if len(ranking_items) < 2:
         errors.append("Fewer than two ranking items are available after preprocessing.")

@@ -55,7 +55,7 @@ def test_infer_semantic_schema_multiway_scores(tmp_path: Path):
     [
         ("example_data_arena_pairwise.csv", "pairwise", 1),
         ("example_data_arena_battle_logs.csv", "pairwise", 1),
-        ("example_data_multiway_phenotype.csv", "multiway", 1),
+        ("prs_benchmarking_applied.csv", "multiway", 1),
         ("example_data_multiway_scores.csv", "multiway", 1),
         ("example_data_multiway_latency.csv", "multiway", 0),
         ("example_data_multiway_rank_columns.csv", "multiway", 0),
@@ -73,7 +73,7 @@ def test_infer_semantic_schema_project_examples(filename: str, expected_format: 
     assert result.format.value == expected_format
     assert result.schema is not None
     assert result.schema.bigbetter == expected_bigbetter
-    if filename == "example_data_multiway_phenotype.csv":
+    if filename == "prs_benchmarking_applied.csv":
         assert result.schema.indicator_col == "Phenotype"
         assert len(result.schema.indicator_values) >= 2
 

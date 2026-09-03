@@ -69,7 +69,7 @@ def _mm_to_pt(mm: float) -> float:
 
 
 def _parse_args(argv: list[str]) -> dict[str, str | None]:
-    data_path = str(Path("data") / "examples" / "example_data_multiway_phenotype.csv")
+    data_path = str(Path("data") / "examples" / "prs_benchmarking_applied.csv")
     out_dir = None
     out_path = None
     heatmap_out_path = None
@@ -417,8 +417,7 @@ def _draw_half_violin(
         widths=0.70,
         vert=not horizontal,
         points=256,
-        bw_method=lambda kde: float(kde.scotts_factor()) * 2.0,
-        showmeans=False,
+                showmeans=False,
         showmedians=False,
         showextrema=False,
     )
@@ -574,7 +573,7 @@ def _plot_violin(
         fig_h = max(6.5, 2.5 + 0.42 * float(n_methods))
         fig_w = max(14.0, 7.0 + 0.38 * float(x_axis_hi))
     else:
-        fig_h = max(7.0, 4.5 + 0.32 * float(n_rank_levels))
+        fig_h = max(6.0, 3.4 + 0.26 * float(n_rank_levels))
         fig_w = max(22.0, 10.0 + 0.48 * float(n_methods))
     fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=150)
     fig.patch.set_facecolor("white")
@@ -592,8 +591,11 @@ def _plot_violin(
         label_fs = _mm_to_pt(6.4) if n_methods > 16 else _mm_to_pt(7.0)
     horizontal_mean_rows: list[tuple[int, float]] = []
 
-    # R: sample.size.label = "K = " -> each method shows (n = K)
+    # R: sample.size.label = "K = " -> each method shows (K = number of strata)
     n_per_method = table.groupby("Method").size()
+    method_cols = [m for m in method_cols if int(n_per_method.get(m, 0)) > 0] or method_cols
+    n_methods = len(method_cols)
+    n_rank_levels = max(n_methods, 2)
     for idx, method in enumerate(method_cols, start=1):
         vals = table.loc[table["Method"] == method, "Ranking"].dropna().to_numpy(dtype=float)
         color = colors[idx - 1]
@@ -684,7 +686,7 @@ def _plot_violin(
         ax.set_xticks(x_rank_breaks)
         ax.set_xticklabels(x_rank_breaks, fontsize=17, color="black")
         ax.set_yticks(np.arange(1, n_methods + 1))
-        y_labels = [f"{m}  (n = {int(n_per_method.get(m, 0))})" for m in method_cols]
+        y_labels = [f"{m}  (K = {int(n_per_method.get(m, 0))})" for m in method_cols]
         ax.set_yticklabels(y_labels, fontsize=15, color="black")
         if stratified_combined_panel:
             ax.set_xlabel("Rank", fontsize=23, color="black")
@@ -700,8 +702,8 @@ def _plot_violin(
         # Match ggplot2 scale_y_reverse default expansion (~5% of range).
         ax.set_ylim(n_rank_levels + 0.65, 0.35)
         ax.set_xticks(np.arange(1, n_methods + 1))
-        # R: sample.size.label = "K = " -> "Item (n = K)" on x-axis
-        x_labels = [f"{m}\n(n = {int(n_per_method.get(m, 0))})" for m in method_cols]
+        # R: sample.size.label = "K = " -> "Item (K = number of strata)" on x-axis
+        x_labels = [f"{m}\n(K = {int(n_per_method.get(m, 0))})" for m in method_cols]
         if stratified_combined_panel:
             ax.set_xticklabels(
                 x_labels,

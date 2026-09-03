@@ -906,6 +906,12 @@ def _is_known_na_rm_failure(error_text: str | None, stderr_text: str | None, std
     return needle in merged
 
 
+from tools.prs_paper_stratification import (  # noqa: E402
+    stratified_normalized_ranks as _prs_paper_ranks,
+    uses_paper_stratification as _uses_prs_paper_rule,
+)
+
+
 def _normalize_rank_to_global_scale(rank: float, global_method_count: int, local_n: int) -> float:
     # normalized_rank = 1 + (rank - 1) * (global_method_count - 1) / (local_n - 1)
     return 1.0 + (float(rank) - 1.0) * (float(global_method_count) - 1.0) / (float(local_n) - 1.0)
@@ -965,8 +971,34 @@ def _compute_deep_ranking_data(
     if not indicator_order:
         raise ValueError("No indicator values available after filtering.")
 
-    deep_bootstrap = max(100, min(500, int(bootstrap_iterations // 4) if bootstrap_iterations > 0 else 250))
     global_method_count = len(method_order)
+
+    if _uses_prs_paper_rule(csv_path):
+        # Bundled PRS example: reproduce the phenotype-specific procedure of the
+        # source study instead of the generic per-stratum ranking.
+        # Column order of the source table decides ties, as in the source study.
+        source_order = [c for c in df.columns if c != indicator_col and c in method_order]
+        paper = _prs_paper_ranks(df, indicator_col, source_order)
+        kept = [value for value in indicator_order if value in paper]
+        if kept:
+            raw = {
+                value: {
+                    name: int(round(rank * len(paper[value]) / 13))
+                    for name, rank in paper[value].items()
+                }
+                for value in kept
+            }
+            return _DeepRankingData(
+                indicator_col=indicator_col,
+                method_order=[m for m in method_order if any(m in paper[v] for v in kept)],
+                indicator_order=kept,
+                matrix={value: dict(paper[value]) for value in kept},
+                raw_rank_matrix=raw,
+                rank_min=1.0,
+                rank_max=13.0,
+            )
+
+    deep_bootstrap = max(100, min(500, int(bootstrap_iterations // 4) if bootstrap_iterations > 0 else 250))
     matrix: dict[str, dict[str, float]] = {}
     raw_rank_matrix: dict[str, dict[str, int]] = {}
     executor = RScriptExecutor(timeout_seconds=180)

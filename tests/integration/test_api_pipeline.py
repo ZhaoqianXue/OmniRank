@@ -158,16 +158,16 @@ def test_full_pipeline_deep_ranking_adds_indicator_plots(monkeypatch):
 
     upload = client.post("/api/upload/example/multiway_phenotype")
     assert upload.status_code == 200
-    assert upload.json()["filename"] == "supplementary_tables_filtered.csv"
+    assert upload.json()["filename"] == "prs_benchmarking_applied.csv"
     session_id = upload.json()["session_id"]
 
     preview = client.get(f"/api/preview/{session_id}")
     assert preview.status_code == 200
-    assert preview.json()["totalRows"] == 536
+    assert preview.json()["totalRows"] == 408
 
     infer = client.post(f"/api/sessions/{session_id}/infer", json={"user_hints": None})
     assert infer.status_code == 200
-    assert infer.json()["data_summary"]["row_count"] == 536
+    assert infer.json()["data_summary"]["row_count"] == 408
     schema = infer.json()["schema_result"]["schema"]
     assert str(schema["indicator_col"]).lower() == "phenotype"
 
@@ -189,15 +189,15 @@ def test_full_pipeline_deep_ranking_adds_indicator_plots(monkeypatch):
     )
     assert run.status_code == 200
     run_body = run.json()
-    assert Path(run_body["config"]["csv_path"]).name == "example_data_multiway_phenotype.csv"
+    assert Path(run_body["config"]["csv_path"]).name == "prs_benchmarking_applied.csv"
     plot_types = [plot["type"] for plot in run_body["visualizations"]["plots"]]
     assert "ci_forest" in plot_types
     assert "indicator_rankings_combined" in plot_types
 
     deep_snapshot = client.get(f"/api/sessions/{session_id}").json()["session"]
-    assert deep_snapshot["filename"] == "example_data_multiway_phenotype.csv"
-    assert Path(deep_snapshot["current_file_path"]).name == "example_data_multiway_phenotype.csv"
-    assert deep_snapshot["data_summary"]["row_count"] == 147
+    assert deep_snapshot["filename"] == "prs_benchmarking_applied.csv"
+    assert Path(deep_snapshot["current_file_path"]).name == "prs_benchmarking_applied.csv"
+    assert deep_snapshot["data_summary"]["row_count"] == 408
     assert sum(call["tool_name"] == "read_data_file" for call in deep_snapshot["tool_call_history"]) == 2
 
     rerun = client.post(
@@ -205,12 +205,12 @@ def test_full_pipeline_deep_ranking_adds_indicator_plots(monkeypatch):
         json={"selected_items": None, "selected_indicator_values": None, "ranking_mode": "flash"},
     )
     assert rerun.status_code == 200
-    assert Path(rerun.json()["config"]["csv_path"]).name == "supplementary_tables_filtered.csv"
+    assert Path(rerun.json()["config"]["csv_path"]).name == "prs_benchmarking_applied.csv"
 
     flash_snapshot = client.get(f"/api/sessions/{session_id}").json()["session"]
-    assert flash_snapshot["filename"] == "supplementary_tables_filtered.csv"
-    assert Path(flash_snapshot["current_file_path"]).name == "supplementary_tables_filtered.csv"
-    assert flash_snapshot["data_summary"]["row_count"] == 536
+    assert flash_snapshot["filename"] == "prs_benchmarking_applied.csv"
+    assert Path(flash_snapshot["current_file_path"]).name == "prs_benchmarking_applied.csv"
+    assert flash_snapshot["data_summary"]["row_count"] == 408
     assert sum(call["tool_name"] == "read_data_file" for call in flash_snapshot["tool_call_history"]) == 3
 
 
@@ -242,9 +242,18 @@ def test_example_upload_infer_format_is_stable(example_id: str, expected_format:
     assert body["schema_result"]["schema"]["bigbetter"] == expected_bigbetter
     if example_id == "pairwise_human_logs":
         schema = body["schema_result"]["schema"]
-        assert sorted(schema["ranking_items"]) == ["Astra", "Nimbus", "Nova", "Orion", "Pulse", "Zenith"]
-        assert schema["indicator_col"] == "task"
-        assert sorted(schema["indicator_values"]) == ["coding", "math", "reasoning", "safety"]
+        assert len(schema["ranking_items"]) == 15
+        assert "gemini-2.5-pro" in schema["ranking_items"]
+        assert schema["indicator_col"] == "category"
+        assert sorted(schema["indicator_values"]) == [
+            "Coding",
+            "Creative Writing",
+            "Hard Prompt",
+            "Instruction Following",
+            "Longer Query",
+            "Math",
+            "Multi-turn",
+        ]
 
 
 @pytest.mark.parametrize(

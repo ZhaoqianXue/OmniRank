@@ -15,7 +15,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--input",
-        default="data/examples/supplementary_tables_filtered.csv",
+        default="data/examples/prs_benchmarking_applied.csv",
         help="Input CSV path.",
     )
     parser.add_argument(

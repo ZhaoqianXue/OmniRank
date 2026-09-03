@@ -183,7 +183,7 @@ export const EXAMPLE_DATASETS: ExampleDataInfo[] = [
   },
   {
     id: "multiway_phenotype",
-    filename: "supplementary_tables_filtered.csv",
+    filename: "prs_benchmarking_applied.csv",
     title: "PRS Phenotype Matrix",
     description:
       "AUC measurements for Polygenic Risk Score (PRS) methods across phenotype-level evaluations. " +
